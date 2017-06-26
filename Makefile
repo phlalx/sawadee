@@ -1,8 +1,8 @@
 all:
-	corebuild main.native
+	ocamlbuild -use-ocamlfind main.native
 
 clean:
-	corebuild -clean
+	ocamlbuild -clean
 	rm -f README.html
 
 README.html: README.md
