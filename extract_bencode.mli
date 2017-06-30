@@ -1,12 +1,22 @@
 open Core
 
-type t = {
+type torrent_info = {
   name : string;
   info_sha1 : string;
   announce : string;
-  pieces : string
+  pieces : string;
+  length : int;
+}
+
+type tracker_reply = {
+  complete : int;
+  incomplete : int;
+  interval : int;
+  peers : string
 }
 
 exception Wrong_Format
 
-val extract_from_bencode : In_channel.t -> t
+val from_torrent : In_channel.t -> torrent_info
+
+val from_tracker_reply : string -> tracker_reply

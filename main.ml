@@ -2,12 +2,12 @@ open Core
 open Async
 open Log.Global
 
-
 let process f = 
   let c = In_channel.create f in 
   let open Extract_bencode in 
-  let { name; info_sha1; announce; pieces } = extract_from_bencode c in
-  Tracker_client.query announce info_sha1  
+  let { info_sha1; announce; length } = Extract_bencode.from_torrent c in
+  Tracker_client.init announce info_sha1 length; 
+  Tracker_client.query ()
 
 let spec =
   let open Command.Spec in
