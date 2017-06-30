@@ -1,2 +1,2 @@
-true: package(core,ppx_jane,uri,cohttp,async,cohttp.async,bencode)
+true: package(core,ppx_jane,uri,cohttp,async,cohttp.async,bencode,sha)
 true: thread,debug

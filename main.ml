@@ -2,29 +2,26 @@ open Core
 open Async
 open Log.Global
 
-let some_or_fail x =
-  match x with
-  | Some y -> y
-  | None -> failwith "bad torrent structure"
+let query_tracker announce info_sha1 =
+  let uri = Uri.of_string announce in
+  let uri_with_query = Uri.with_query' 
+    uri 
+    [("info_hash", info_sha1); ("peer_id", "123"); ("port", "9345")] 
+  in
+  debug "uri updated = %s" (Uri.to_string uri_with_query); 
+  Cohttp_async.Client.get uri_with_query
+  >>= fun (_, body) -> 
+  Cohttp_async.Body.to_string body 
+  >>= fun s ->
+  return (debug "body = %s" s) 
+  >>= fun () ->
+  exit 0
 
-let bc_get_infos bc = 
-  let announce_bc = some_or_fail (Bencode.dict_get bc "announce") in
-  let announce_str = some_or_fail (Bencode.as_string announce_bc) in
-  let info_bc = some_or_fail (Bencode.dict_get bc "info") in 
-  let pieces_bc = some_or_fail (Bencode.dict_get info_bc "pieces") in
-  let pieces_str = some_or_fail (Bencode.as_string pieces_bc) in
-  let name_bc = some_or_fail (Bencode.dict_get info_bc "name") in
-  let name_str = some_or_fail (Bencode.as_string name_bc) in 
-  announce_str, pieces_str, name_str
-
-let do_download f = 
-  let s = In_channel.read_all f in 
-  let bc = Bencode.decode (`String s) in 
-  let s = Bencode.pretty_print bc in
-  let announce, _, name_str = bc_get_infos bc in 
-  string s;
-  string announce;
-  string name_str
+let process f = 
+  let c = In_channel.create f in 
+  let open Extract_bencode in 
+  let { name; info_sha1; announce; pieces } = extract_from_bencode c in
+  query_tracker announce info_sha1  
 
 let spec =
   let open Command.Spec in
@@ -35,14 +32,10 @@ let command =
   Command.basic
     ~summary:"Download torrent file"
     spec
-    (fun filename -> (fun () -> (do_download filename)))
-
-let main () = 
-  Command.run command;
-  flushed () >>= fun () ->
-  exit 0
+    (fun filename -> (fun () -> ignore(process filename)))
 
 let () = 
-  ignore (main ());
+  set_level `Debug;
+  Command.run command;
   never_returns (Scheduler.go ())
 
