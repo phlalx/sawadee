@@ -32,16 +32,16 @@ type t = {
 }
 
 let st = { 
-           announce = ""; 
-           info_sha1 = ""; 
-           peer_id = "31234";
-           port = "12330";
-           uploaded = "0";
-           downloaded = "0";
-           event = "started";
-           key = "31C3ABE8";
-           left = ""
-        }
+  announce = ""; 
+  info_sha1 = ""; 
+  peer_id = "31234";
+  port = "6969";
+  uploaded = "0";
+  downloaded = "0";
+  event = "started";
+  key = "31C3ABE8";
+  left = ""
+}
 
 let init ~announce ~info_sha1 ~length =
   st.announce <- announce;
@@ -57,16 +57,16 @@ let query () =
   (* TODO check for initialization *)
   let uri = Uri.of_string st.announce in
   let params = 
-   [("info_hash", st.info_sha1); 
-    ("peer_id", st.peer_id); 
-    ("port", st.port);
-    ("uploaded", st.uploaded);
-    ("downloaded", st.downloaded);
-    ("event", st.event);
-    ("key", st.key); 
-    ("left", st.left);
-    ("compact", "1");
-   ] in
+    [("info_hash", st.info_sha1); 
+     ("peer_id", st.peer_id); 
+     ("port", st.port);
+     ("uploaded", st.uploaded);
+     ("downloaded", st.downloaded);
+     ("event", st.event);
+     ("key", st.key); 
+     ("left", st.left);
+     ("compact", "1");
+    ] in
   let uri_with_query = Uri.with_query' uri params in
   debug "uri updated = %s" (Uri.to_string uri_with_query); 
   Cohttp_async.Client.get uri_with_query
@@ -75,8 +75,8 @@ let query () =
   >>= fun s ->
   let x = Extract_bencode.from_tracker_reply s in
   return(x) 
-  >>= fun _ ->
-  exit 0 
+  >>= fun x ->
+  return (x.Extract_bencode.peers)
 
 
 
