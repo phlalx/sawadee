@@ -57,6 +57,13 @@ let init ~announce ~info_sha1 ~length =
   done;
   info "tracker initialized with peer id %s" st.peer_id
 
+let extract_list_of_peers s =
+    try 
+      let tr = Extract_bencode.from_tracker_reply s in
+      Ok tr.Extract_bencode.peers
+    with
+    | ex -> Error ex
+
 let query () =
   let uri = Uri.of_string st.announce in
   let params = 
@@ -71,13 +78,24 @@ let query () =
      ("compact", "1");
     ] in
   let uri_with_query = Uri.with_query' uri params in
-  Cohttp_async.Client.get uri_with_query
-  >>= fun (_, body) -> 
-  Cohttp_async.Body.to_string body 
-  >>= fun s ->
-  return (Extract_bencode.from_tracker_reply s)
-  >>| fun x ->
-  x.Extract_bencode.peers
+  try_with (fun () -> Cohttp_async.Client.get uri_with_query)
+  (* TODO is there a way to make this look cleaner *)
+  >>= function 
+  | Ok (_, body)  -> (
+    Cohttp_async.Body.to_string body 
+    >>= fun s ->
+    return (extract_list_of_peers s)
+    >>= function 
+    | Ok res -> return (Ok res)
+    | Error err -> return (Error err)
+  )
+  | Error err -> return (Error err)
+
+
+
+
+
+
 
 
 

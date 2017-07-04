@@ -3,9 +3,8 @@
     We get bencode from the torrent file passed as arg in the command-line,
     and from the http-server (the {i tracker}).
 
-    @raise Wrong_format if binary doesn't have the expected structure.
+    @raise Wrong_format if binary doesn't have the expected structure. *)
 
-    TODO: improve error management. Maybe use [Result.t]. *)
 
 open Core
 open Async

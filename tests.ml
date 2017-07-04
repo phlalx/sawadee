@@ -27,7 +27,7 @@ let msg_test = [
   Message.Request (234255l, 234511l, 12341023l);
   Message.Piece (234255l, 234511l, "dsfjlasjdflasjdfljalsjdflasdjf");
   Message.Cancel (234255l, 234511l, 12341023l);
-]
+] assert false
 
 (** check we receive the same message sent to the server after 
     serialization/deserialization *)

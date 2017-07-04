@@ -19,11 +19,16 @@ let process (f : string)  =
   let file = File.create ~len:length ~sha:info_sha1 ~pieces in
   Tracker_client.init announce info_sha1 length; 
   Tracker_client.query ()
-  >>= fun peer_addrs ->
-  let peer_addr = List.hd_exn peer_addrs in
-  App_layer.create peer_addr file 
-  >>= fun app ->
-  App_layer.init app
+  >>= function
+  | Ok peer_addrs -> ( 
+    let peer_addr = List.hd_exn peer_addrs in
+    App_layer.create peer_addr file 
+    >>= fun app ->
+    App_layer.init app
+  )
+  | Error exn -> 
+    info "can't connect to tracker";
+    exit 1
 
 let spec =
   let open Command.Spec in
