@@ -20,15 +20,10 @@ let process (f : string)  =
   Tracker_client.init announce info_sha1 length; 
   Tracker_client.query ()
   >>= fun peer_addrs ->
-  (* to make it simpler, we deal with only one peer *)
-  let peer_addr = List.hd_exn peer_addrs in 
-  Peer.create peer_addr file 
-  >>= function 
-  | None -> return(debug "can't connect to host")
-  | Some p -> 
-    Peer.handshake p >>= function
-    | None -> return(debug "handshake failed")
-    | Some p -> exit 0
+  let peer_addr = List.hd_exn peer_addrs in
+  App_layer.create peer_addr file 
+  >>= fun app ->
+  App_layer.init app
 
 let spec =
   let open Command.Spec in

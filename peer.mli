@@ -10,11 +10,9 @@ open Async
 
 type t
 
-(** [create p_addr f] creates TCP connection with peer at [p_addr] in order
-    to download file [f]. *)
-val create: Socket.Address.Inet.t -> File.t -> t Option.t Deferred.t
+val create: Socket.Address.Inet.t -> t Deferred.t 
 
-val handshake: t -> unit Option.t Deferred.t
+val handshake: t -> string -> unit Deferred.t
 
 val send_message : t -> Message.t -> unit Deferred.t
 

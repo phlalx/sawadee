@@ -6,29 +6,29 @@ type t = {
   mutable choked : bool;
   mutable interested : bool;
   peer : Socket.Address.Inet.t;
-  file : File.t;
   reader : Reader.t;
   writer : Writer.t;
-}
+ }
 
-let handshake = "\019BitTorrent protocol"
 
-let create peer file = 
+let create peer = 
   let wtc = Tcp.to_inet_address peer in
   (* TODO proper error management *)
   debug "Trying to connect to peer %s" (Socket.Address.Inet.to_string peer);
   try_with (function () -> Tcp.connect wtc)
   >>| function
   | Ok (_, r, w) -> 
-      Some { peer; interested = false; choked = true; file; reader = r; 
-             writer = w}
-  | Error _ -> None
+      { peer; interested = false; choked = true; reader = r; writer = w}
+  | Error _ -> assert false
+
+
+let handshake = "\019BitTorrent protocol"
 
 let handshake sha = "\019BitTorrent protocol\000\000\000\000\000\000\000\000" 
                     ^ sha
 
-let handshake st =
-  let handshake = handshake st.file.File.sha in 
+let handshake st info_sha =
+  let handshake = handshake info_sha in 
   debug "Sending handshake";
   (* TODO make sure that this always send the whole string (unlike C-write) *)
   Writer.write st.writer handshake; 
@@ -37,12 +37,12 @@ let handshake st =
   >>| function 
   | `Ok -> 
     (* let hs = String.sub buf ~pos:0 ~len:28 in *)
-    let info_sha1 = String.sub buf ~pos:28 ~len:20 in
+    let info_sha_rep = String.sub buf ~pos:28 ~len:20 in
     (* let peer_id = String.sub buf ~pos:48 ~len:20 in *)
-    assert (info_sha1 = st.file.File.sha); 
+    assert (info_sha_rep = info_sha); 
     debug "received correct handshake";
-    Some ()
-  | `Eof _ -> None 
+    ()
+  | `Eof _ -> assert false
 
 (* TODO there must be an API function to do that *)
 let length_from_buf buf =
@@ -84,5 +84,3 @@ let send_message (x:t) (m:Message.t) =
   Bin_prot.Common.blit_buf_string com_buf buf ~len:len;
   Writer.write w buf;
   return ()
-
-
