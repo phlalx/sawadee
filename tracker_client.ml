@@ -3,6 +3,9 @@ open Async
 open Log.Global
 
 (*
+
+This is the request sent by mutorrent for ubuntu-17.04-desktop-amd64.iso.torrent
+
 GET /announce?info_hash=Y%06gi%b9%adB%da.P%86%11%c3%3d%7cD%80%b3%85%7b&peer_id=-UM1870-%b1%a5g%15%ec%08%89%0cg%cb%bf%f6&port=61137&uploaded=0&downloaded=0&left=1609039872&corrupt=0&key=31C3ABE8&event=started&numwant=200&compact=1&no_peer_id=1&ipv6=fe80%3a%3a443%3aef89%3ab70e%3ac7a1 HTTP/1.1
  info_hash=Y%06gi%b9%adB%da.P%86%11%c3%3d%7cD%80%b3%85%7b&
  peer_id=-UM1870-%b1%a5g%15%ec%08%89%0cg%cb%bf%f6&
@@ -31,7 +34,8 @@ type t = {
   mutable left : string;
 }
 
-let st = { 
+let st = {  (* TODO: this is partly based on mu-torrent query. See spec to
+               use proper values *)
   announce = ""; 
   info_sha1 = ""; 
   peer_id = "31234";
@@ -51,10 +55,9 @@ let init ~announce ~info_sha1 ~length =
   for i = 0 to 19 do 
     String.set st.peer_id i (char_of_int (Random.int 255))
   done;
-  ()
+  info "tracker initialized with peer id %s" st.peer_id
 
 let query () =
-  (* TODO check for initialization *)
   let uri = Uri.of_string st.announce in
   let params = 
     [("info_hash", st.info_sha1); 
@@ -68,15 +71,13 @@ let query () =
      ("compact", "1");
     ] in
   let uri_with_query = Uri.with_query' uri params in
-  debug "uri updated = %s" (Uri.to_string uri_with_query); 
   Cohttp_async.Client.get uri_with_query
   >>= fun (_, body) -> 
   Cohttp_async.Body.to_string body 
   >>= fun s ->
-  let x = Extract_bencode.from_tracker_reply s in
-  return(x) 
-  >>= fun x ->
-  return (x.Extract_bencode.peers)
+  return (Extract_bencode.from_tracker_reply s)
+  >>| fun x ->
+  x.Extract_bencode.peers
 
 
 

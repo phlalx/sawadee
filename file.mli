@@ -1,12 +1,13 @@
+(** File to be downloaded by the P2P protocol. *)
 open Core
 
 type t = {
-  file : string;
-  length : int;
-  num_pieces : int;
-  pieces_hash : string Array.t;
-  pieces_download : bool Array.t;
-  sha1 : string;
+  file : string; (** buffer containing the file *)
+  len : int;
+  num_pieces : int; (** number of pieces to be downloaded *)
+  pieces_hash : string Array.t; (** hashes of each pieces **)
+  pieces_downloaded : bool Array.t;
+  sha : string;  (** sha1 of the info section of the bittorrent file *)
 }
 
-val create : int -> string -> string list -> t
+val create : len:int -> sha:string -> pieces:(string list) -> t

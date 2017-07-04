@@ -2,17 +2,16 @@ open Core
 
 type t = {
   file : string;
-  length : int;
+  len : int;
   num_pieces : int;
   pieces_hash : string Array.t;
-  pieces_download : bool Array.t;
-  sha1 : string;
+  pieces_downloaded : bool Array.t;
+  sha : string;
 }
 
-let create length sha1 pieces =  
-  let file = String.create length in
+let create ~len ~sha ~pieces =
+  let file = String.create len in
   let pieces_hash = List.to_array pieces in
   let num_pieces = Array.length pieces_hash in
-  let pieces_download = Array.create num_pieces false in
-  { file; length; num_pieces; pieces_hash; pieces_download; sha1 }
-
+  let pieces_downloaded = Array.create num_pieces false in
+  { file; len; num_pieces; pieces_hash; pieces_downloaded; sha }

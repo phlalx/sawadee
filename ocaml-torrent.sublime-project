@@ -13,6 +13,10 @@
         {
             "name": "My Make",
             "shell_cmd": "make"
+        },
+        {
+            "name": "My Doc",
+            "shell_cmd": "make doc"
         }
     ]
 }

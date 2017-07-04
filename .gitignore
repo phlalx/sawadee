@@ -2,3 +2,5 @@ _build
 main.native
 main.byte
 ocaml-torrent.sublime-workspace
+README.html
+.docdir

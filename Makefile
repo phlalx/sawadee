@@ -17,9 +17,16 @@ test: byte
 debug:
 	$(OCB) -tag debug main.byte
 
+doc:
+	$(OCB) .docdir/index.html
+
 clean:
 	$(OCB) -clean
 	rm -f README.html
+	rm -rf .docdir
 
 README.html: README.md
 	pandoc -c style.css -f markdown_github < README.md > README.html
+
+server:
+	$(OCB) server.byte
