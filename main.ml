@@ -23,8 +23,11 @@ let process (f : string)  =
   | Ok peer_addrs -> ( 
     let peer_addr = List.hd_exn peer_addrs in
     App_layer.create peer_addr file 
-    >>= fun app ->
-    App_layer.init app
+    >>= function 
+    | Ok app -> App_layer.init app
+    | Error exn -> 
+      info "can't init App_layer";
+      exit 1
   )
   | Error exn -> 
     info "can't connect to tracker";

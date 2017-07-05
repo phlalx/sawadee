@@ -1,16 +1,14 @@
 (** P2P layer of the protocol. Provides functions for communicating with 
     peer. 
 
-    TODO: add error-handling. 
-    - [Result.t] instead of [Option.t] for handshake and create. 
-    - use [Result.t] as a return type for [send_message] and [get_message].
+    TODO: add error-handling ([result] as return types)
 *)
 open Core
 open Async
 
 type t
 
-val create: Socket.Address.Inet.t -> t Deferred.t 
+val create: Socket.Address.Inet.t -> (t,exn) result Deferred.t 
 
 val handshake: t -> string -> unit Deferred.t
 

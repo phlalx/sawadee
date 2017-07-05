@@ -7,8 +7,7 @@
     length in bytes of the remaining of the message.     
 
     TODO: 
-    - add proper error-handling.
-    - it should be possible to generate conversion functions automatically. *)
+    - can we generate conversion functions automatically. *)
 open Bin_prot
 
 type t =

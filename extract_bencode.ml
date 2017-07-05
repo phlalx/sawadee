@@ -33,10 +33,9 @@ let rec split (s:string) pos n acc : string list =
   else
     split s (pos + 20) n ((String.sub s pos 20) :: acc) 
 
-
 let from_torrent chan =
   let bc = B.decode (`Channel chan) in 
-  debug "Torrent file bencode decoded = %s" (B.pretty_print bc);
+  (* debug "Torrent file bencode decoded = %s" (B.pretty_print bc); *)
   let announce_bc = get (B.dict_get bc "announce") in
   let announce = get (B.as_string announce_bc) in
   let info_dict_bc = get (B.dict_get bc "info") in 
@@ -83,13 +82,13 @@ let rec decode_peers s pos acc_peers n =
     done;
     let addr = Unix.Inet_addr.inet4_addr_of_int32 !acc in
     let peer = Socket.Address.Inet.create addr !port in
-    debug "peer = %s" (Socket.Address.Inet.to_string peer); 
+    (* debug "peer = %s" (Socket.Address.Inet.to_string peer);  *)
     decode_peers s (pos + 6) (peer :: acc_peers) n
   )
 
 let from_tracker_reply s =
   let bc = B.decode (`String s) in 
-  debug "Tracker reply = %s" (B.pretty_print bc);
+  (* debug "Tracker reply = %s" (B.pretty_print bc); *)
   let complete = get ((B.as_int (get (B.dict_get bc "complete")))) in
   let incomplete = get ((B.as_int (get (B.dict_get bc "incomplete")))) in
   let interval = get ((B.as_int (get (B.dict_get bc "interval")))) in

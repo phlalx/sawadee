@@ -7,7 +7,8 @@ type t = {
                     of a set of peers *)
 }
 
-val create: Socket.Address.Inet.t -> File.t -> t Deferred.t
+val create: Socket.Address.Inet.t -> File.t -> (t, exn) result Deferred.t
 
+(* TODO change (unit,exn) result Deferred.t *)
 val init : t -> unit Deferred.t
 

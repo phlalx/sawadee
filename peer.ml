@@ -18,8 +18,8 @@ let create peer =
   try_with (function () -> Tcp.connect wtc)
   >>| function
   | Ok (_, r, w) -> 
-      { peer; interested = false; choked = true; reader = r; writer = w}
-  | Error _ -> assert false
+      Ok { peer; interested = false; choked = true; reader = r; writer = w}
+  | Error err -> Error err
 
 
 let handshake = "\019BitTorrent protocol"

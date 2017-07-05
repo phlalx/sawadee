@@ -9,8 +9,9 @@ type t = {
 
 let create peer_addr file = 
   Peer.create peer_addr
-  >>| fun peer ->
-  { file; peer }
+  >>| function 
+  | Ok peer -> Ok { file; peer }
+  | Error exn -> Error exn
 
 let init x =
   Peer.handshake x.peer x.file.File.sha 
@@ -23,17 +24,3 @@ let init x =
   >>| fun m ->
   debug "got message";
   sexp (Message.sexp_of_t m)
-  
-
-(*
-  example of error managment with option type
-
-  let peer_addr = List.hd_exn peer_addrs in 
-  Peer.create peer_addr file 
-  >>= function 
-  | None -> return(debug "can't connect to host")
-  | Some p -> 
-    Peer.handshake p >>= function
-    | None -> return(debug "handshake failed")
-    | Some p -> exit 0
-    *)
