@@ -9,6 +9,5 @@ type t = {
 
 val create: Socket.Address.Inet.t -> File.t -> (t, exn) result Deferred.t
 
-(* TODO change (unit,exn) result Deferred.t *)
-val init : t -> unit Deferred.t
+val init : t -> (unit, exn) result Deferred.t
 

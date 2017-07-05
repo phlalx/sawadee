@@ -18,13 +18,19 @@ let process (f : string)  =
   let { info_sha1; announce; length; pieces } = Extract_bencode.from_torrent c in
   let file = File.create ~len:length ~sha:info_sha1 ~pieces in
   Tracker_client.init announce info_sha1 length; 
+  info "trying to connect to tracker";
   Tracker_client.query ()
   >>= function
   | Ok peer_addrs -> ( 
+    info "got list of peers";
     let peer_addr = List.hd_exn peer_addrs in
     App_layer.create peer_addr file 
     >>= function 
-    | Ok app -> App_layer.init app
+    | Ok app -> 
+       App_layer.init app 
+       >>= (function
+       | Ok () -> return ()
+       | Error _ -> exit 1  )
     | Error exn -> 
       info "can't init App_layer";
       exit 1

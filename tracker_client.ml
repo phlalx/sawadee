@@ -54,8 +54,7 @@ let init ~announce ~info_sha1 ~length =
   st.peer_id <- String.create 20;
   for i = 0 to 19 do 
     String.set st.peer_id i (char_of_int (Random.int 255))
-  done;
-  info "tracker initialized with peer id %s" st.peer_id
+  done
 
 let extract_list_of_peers s =
     try 

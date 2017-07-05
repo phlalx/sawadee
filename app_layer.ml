@@ -15,12 +15,16 @@ let create peer_addr file =
 
 let init x =
   Peer.handshake x.peer x.file.File.sha 
-  >>= fun () ->
-  debug "sending keep alive";
-  Peer.send_message x.peer Message.KeepAlive
-  >>= fun () ->
-  debug "waiting for reply";
-  Peer.get_message x.peer 
-  >>| fun m ->
-  debug "got message";
-  sexp (Message.sexp_of_t m)
+  >>= function 
+  | Ok _ ->  
+    info "handshake ok with peer %s" (Peer.to_string x.peer);
+    debug "sending keep alive";
+    Peer.send_message x.peer Message.KeepAlive
+    >>= fun () ->
+    debug "waiting for reply";
+    Peer.get_message x.peer 
+    >>| fun m ->
+    debug "got message";
+    sexp (Message.sexp_of_t m); 
+    Ok () 
+ | Error err -> return (Error err)

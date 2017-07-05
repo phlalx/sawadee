@@ -10,17 +10,16 @@ type t = {
   writer : Writer.t;
  }
 
+exception Handshake_error
 
 let create peer = 
   let wtc = Tcp.to_inet_address peer in
-  (* TODO proper error management *)
-  debug "Trying to connect to peer %s" (Socket.Address.Inet.to_string peer);
+  info "trying to connect to peer %s" (Socket.Address.Inet.to_string peer);
   try_with (function () -> Tcp.connect wtc)
   >>| function
   | Ok (_, r, w) -> 
       Ok { peer; interested = false; choked = true; reader = r; writer = w}
   | Error err -> Error err
-
 
 let handshake = "\019BitTorrent protocol"
 
@@ -29,20 +28,22 @@ let handshake sha = "\019BitTorrent protocol\000\000\000\000\000\000\000\000"
 
 let handshake st info_sha =
   let handshake = handshake info_sha in 
-  debug "Sending handshake";
-  (* TODO make sure that this always send the whole string (unlike C-write) *)
   Writer.write st.writer handshake; 
-  let buf = String.create 68 in
-  Reader.really_read st.reader ~len:68 buf
+  let hs_len = 68 in
+  let sha_len = 20 in
+  let info_pos = 48 in 
+  let peer_pos = 48 in 
+  let buf = String.create hs_len in
+  Reader.really_read st.reader ~len:hs_len buf
   >>| function 
   | `Ok -> 
-    (* let hs = String.sub buf ~pos:0 ~len:28 in *)
-    let info_sha_rep = String.sub buf ~pos:28 ~len:20 in
-    (* let peer_id = String.sub buf ~pos:48 ~len:20 in *)
-    assert (info_sha_rep = info_sha); 
-    debug "received correct handshake";
-    ()
-  | `Eof _ -> assert false
+    let info_sha_rep = String.sub buf ~pos:info_pos ~len:sha_len in
+    let peer_id = String.sub buf ~pos:peer_pos ~len:sha_len in
+    if (info_sha_rep = info_sha) then 
+      Error Handshake_error
+    else 
+      Ok peer_id 
+  | `Eof _ -> Error Handshake_error
 
 (* TODO there must be an API function to do that *)
 let length_from_buf buf =
@@ -84,3 +85,6 @@ let send_message (x:t) (m:Message.t) =
   Bin_prot.Common.blit_buf_string com_buf buf ~len:len;
   Writer.write w buf;
   return ()
+
+let to_string x = Socket.Address.Inet.to_string x.peer
+
