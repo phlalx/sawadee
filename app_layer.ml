@@ -4,21 +4,19 @@ open Log.Global
 
 type t = {
   file : File.t;
-  peer : Peer.t;
+  mutable peer : Peer.t list; (* TODO is this needed? *)
   this_peer_id : string;
   choked : bool; 
   interested : bool; 
 }
 
-let create peer_addr file this_peer_id = 
-  Peer.create peer_addr file.File.num_pieces
-  >>| function 
-  | Ok peer -> Ok { file; peer; this_peer_id; choked = true; interested = true }
-  | Error exn -> Error exn
+let create file this_peer_id = { file; peer = []; this_peer_id; choked = true;
+                                 interested = true }
 
-let loop_forever_every_n f param s =
+
+let loop_forever_every_n f s =
   let rec loop () =
-    f param;
+    f ();
     after s 
     >>= fun () -> 
     loop()
@@ -53,62 +51,81 @@ let first_not_requested (f:File.t) (p:Peer.t) : Piece.t option =
     done;
     !res
 
-let download_pieces x =
-  if not x.peer.Peer.choked then (
-    debug "%s isn't choked, may ask him some pieces" (Peer.to_string x.peer);
-    let piece_opt = first_not_requested x.file x.peer in
+let download_pieces x peer =
+  if not peer.Peer.choked then (
+    debug "%s isn't choked, may ask him some pieces" (Peer.to_string peer);
+    let piece_opt = first_not_requested x.file peer in
     match piece_opt with 
-    | Some piece -> request_piece x.peer piece 
+    | Some piece -> request_piece peer piece 
     | None -> debug "nothing to download"
   ) else (
-    debug "%s is choked, don't send request" (Peer.to_string x.peer) 
+    debug "%s is choked, don't send request" (Peer.to_string peer) 
   )
 
-let keep_alive x =
+let keep_alive x peer =
   let m  = Message.Interested in
-  debug "sending interested message to %s" (Peer.to_string x.peer);
+  debug "sending interested message to %s" (Peer.to_string peer);
   sexp (Message.sexp_of_t m);
-  Peer.send_message x.peer m
+  Peer.send_message peer m
 
 (** process all incoming messages *)
-let loop_wait_message x = 
+let loop_wait_message x peer : unit = 
   let rec wait_message x =
-    let process_message p m =
+    let process_message m =
       let open Message in
       let open Peer in
       match m with
       | KeepAlive -> ()
-      | Choke -> p.choked <- true
-      | Unchoke -> p.choked <- false
-      | Interested -> p.interested <- true
-      | Not_interested -> p.interested <- false
-      | Have index -> Bitset.set p.have (Int32.to_int_exn index) true 
-      | Bitfield bits  -> Bitset.fill_from_string bits p.have
+      | Choke -> peer.choked <- true
+      | Unchoke -> peer.choked <- false
+      | Interested -> peer.interested <- true
+      | Not_interested -> peer.interested <- false
+      | Have index -> Bitset.set peer.have (Int32.to_int_exn index) true 
+      | Bitfield bits  -> Bitset.fill_from_string bits peer.have
       | Request (index, bgn, length) -> debug "ignore request - not yet implemented"
       | Piece (index, bgn, block) ->  
         let piece = x.file.File.pieces.(Int32.to_int_exn(index)) in
         Piece.update piece bgn block 
       | Cancel (index, bgn, length) -> debug "ignore cancel msg - Not yet implemented"
     in
-    Peer.get_message x.peer 
+    Peer.get_message peer 
     >>= fun m ->
-    debug "got message from %s %s" (Peer.to_string x.peer) (Message.to_string m);
-    process_message x.peer m;
+    debug "got message from %s %s" (Peer.to_string peer) (Message.to_string m);
+    process_message m;
     wait_message x
   in
   info "Start message handler loop";
   Deferred.don't_wait_for (Deferred.ignore (wait_message x))
 
-let init x =
-  Peer.handshake x.peer x.file.File.sha x.this_peer_id
-  >>| function 
-  | Ok () ->  
-    info "handshake ok with peer %s" (Peer.to_string x.peer);
-    loop_wait_message x;
-    loop_forever_every_n keep_alive x (sec 120.0);
-    loop_forever_every_n download_pieces x (sec 5.0);
-    Ok ()
-  | Error err -> Error err
+let add_peer al peer_addr = 
+  Peer.create peer_addr al.file.File.num_pieces
+  >>= function 
+  | Ok peer -> 
+       al.peer <- peer :: al.peer;
+       Peer.handshake peer al.file.File.sha al.this_peer_id
+        >>| ( function 
+        | Ok () ->  
+          info "handshake ok with peer %s" (Peer.to_string peer);
+          loop_wait_message al peer;
+          loop_forever_every_n (fun () -> keep_alive al peer)  (sec 120.0);
+          loop_forever_every_n (fun () -> download_pieces al peer) (sec 5.0);
+          Ok ()
+        | Error err -> debug "ignore err in add_peer"; Error err)
+  | Error err -> debug "ignore err in add_peer"; return (Error err)
+
+let start al peer_addrs = 
+    let silent_add_peer peer_addr : unit =
+      Deferred.don't_wait_for (Deferred.ignore (add_peer al peer_addr))
+      (* TODO better to return unit or unit Deferred.t? *)
+    in return (List.iter ~f:silent_add_peer peer_addrs)
+
+
+
+
+
+
+
+
 
 
 

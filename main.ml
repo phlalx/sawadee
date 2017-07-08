@@ -10,6 +10,7 @@ open Core
 open Async
 open Log.Global
 
+
 (** [process f] initiates downloading of file described by
     torrent file named [f]. *)
 let process (f : string)  = 
@@ -24,20 +25,11 @@ let process (f : string)  =
   info "trying to connect to tracker";
   Tracker_client.query ()
   >>= function
-  | Ok peer_addrs -> ( 
+  | Ok peer_addrs ->
       info "got list of peers";
-      let peer_addr = List.hd_exn peer_addrs in
-      App_layer.create peer_addr file this_peer_id 
-      >>= function 
-      | Ok app -> 
-        App_layer.init app 
-        >>= (function
-            | Ok () -> return ()
-            | Error _ -> exit 1  )
-      | Error exn -> 
-        info "can't init App_layer";
-        exit 1
-    )
+      let al = App_layer.create file this_peer_id in
+      let peer_addrs = [List.hd_exn peer_addrs] in (* DEBUG ONLY, keep one peer *)
+      App_layer.start al peer_addrs
   | Error exn -> 
     info "can't connect to tracker";
     exit 1

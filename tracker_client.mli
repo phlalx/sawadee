@@ -10,4 +10,4 @@ open Async
 val init : announce:string -> info_sha1:string -> length:int -> peer_id:string -> unit           
 
 (* Initial query, retrieve list of peers. *)
-val query: unit -> (Async.Socket.Address.Inet.t list, exn) result Deferred.t
+val query: unit -> (Socket.Address.Inet.t list, exn) result Deferred.t

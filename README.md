@@ -19,7 +19,7 @@ Once we know the list of peers, we'll talk with each of them using a binary prot
  * then (binary asynchronous) messages to get parts of the file.
 
 Current stage of the project: 
- * we query only one peer
+ * several peers can be queried concurrently
  * The handshake is functional (in `App_layer`).
  * Binary messages are implemented (via serialization of `Message.t`). 
  * Per-peer state (including socket read/write, choked, interested status...) is maintained in `Peer`.
@@ -28,10 +28,9 @@ Current stage of the project:
  * At regular interval, we look for the first not yet requested piece that is owned by the peer and request all the blocks.
 
 This is still very basic, a lot remains to be done. Immediate next steps:
-* Manage multiple peers  
 * see which block to request based on rarity first  
 * re-request block if needed 
-* don't request blocks at regular interval but as soon as possible
+* don't request blocks at regular interval (polling) but as soon as possible
 * Dealing with failure. Catch exception in async jobs and pack them in return values. 
 
 ### Resources and libs

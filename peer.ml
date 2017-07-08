@@ -65,7 +65,7 @@ let get_message st =
   | `Eof _ -> assert false
   | `Ok ->
     let len = length_from_buf buf in
-    debug "decoding message of (payload) length %d" len;
+    (* debug "decoding message of (payload) length %d" len; *)
     Reader.really_read st.reader ~pos:4 ~len buf 
     >>| function
     | `Eof _ -> assert false 
@@ -80,7 +80,7 @@ let get_message st =
 let send_message (x:t) (m:Message.t) =
   let w = x.writer in
   let len = Message.size m in 
-  debug "sending message of len = %d" len;
+  (* debug "sending message of len = %d" len; *)
   let com_buf = Bin_prot.Common.create_buf len in
   let pos = Message.bin_write_t com_buf 0 m in
   assert(pos = len); 
