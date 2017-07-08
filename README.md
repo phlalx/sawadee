@@ -10,15 +10,29 @@ Compile with `make` then run `./main.byte FILE` to start the program. `FILE` is 
 
 ### How does it work?
 
-This describes the current stage of the project.
+This my current understanding of the protocol and is subject to change!
 
 A bittorrent file is encoded as [bencode](https://en.wikipedia.org/wiki/Bencode). First step is to decode the torrent file (we use the `bencode` library) and extract the relevant information (including the server `tracker` URL). Next step is to http-query the tracker to retrieve the list of peers sharing (parts of) the file. One important parameter of the query is the 20-bytes string `sha1` value of the info section of the torrent file. This will identify the file in subsequent queries.
 
-Once we know the list of peers, we'll contact each of them using a binary protocol. This is done in two steps.
+Once we know the list of peers, we'll talk with each of them using a binary protocol. This is done in two steps.
  * an initial handshake (one round-trip message exchange)
- * then queries to get parts of the file. 
+ * then (binary asynchronous) messages to get parts of the file.
 
-At that stage, only the handshake is functional (with exactly one peer). The binary messages are implemented (via serialization of `Message.t`) but the protocol remains to be done. 
+Current stage of the project: 
+ * we query only one peer
+ * The handshake is functional (in `App_layer`).
+ * Binary messages are implemented (via serialization of `Message.t`). 
+ * Per-peer state (including socket read/write, choked, interested status...) is maintained in `Peer`.
+ * A `File.t` is divided in `Piece.t`. Each `Piece.t` is furthermore divided in blocks (Bitset.t describes the blocks of a piece already downloaded). 
+ * In the application layer `App_layer`, after the handshake, three services are launched. One wait for peer messages (block of files, information on pieces ownership...). The other one pings the peer at regular interval. The last one requests for pieces.
+ * At regular interval, we look for the first not yet requested piece that is owned by the peer and request all the blocks.
+
+This is still very basic, a lot remains to be done. Immediate next steps:
+* Manage multiple peers  
+* see which block to request based on rarity first  
+* re-request block if needed 
+* don't request blocks at regular interval but as soon as possible
+* Dealing with failure. Catch exception in async jobs and pack them in return values. 
 
 ### Resources and libs
 

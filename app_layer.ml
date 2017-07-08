@@ -25,32 +25,41 @@ let loop_forever_every_n f param s =
   in
   Deferred.don't_wait_for (Deferred.ignore (loop())) 
 
-let download_pieces x =
-  let download_pieces_from_peer (p:Peer.t) (f:File.t) =
-    let n = Array.length x.file.File.pieces_downloaded in  
+let request_piece (p:Peer.t) (piece:Piece.t) : unit =
+  info "Requesting piece %d from peer %s" piece.Piece.index (Peer.to_string p);
+  assert (piece.Piece.status = `Not_requested);
+  piece.Piece.status <- `Requested; 
+  let blocks = Piece.blocks piece in
+  let f (offset, len) =
+  let m = Message.Request(Int32.of_int_exn piece.Piece.index, offset, len) in
+  (* sexp (Message.sexp_of_t m); *)
+  Deferred.don't_wait_for(Peer.send_message p m)
+in
+  List.iter blocks ~f
+
+(** find first piece not yet requested owned by peer p.
+    TODO make this more ocaml-idiomatic! *)
+let first_not_requested (f:File.t) (p:Peer.t) : Piece.t option =
+    let n = f.File.num_pieces in
     let i = ref 0 in
-    let request_sent = ref 0 in
-    let max_request = 5 in (* max num of request to a given peer *)
-    while !i < n && !request_sent < max_request do
-      if Bitset.get p.Peer.have !i && not f.File.pieces_downloaded.(!i)
+    let res = ref None in
+    while !i < n do
+      let piece = f.File.pieces.(!i) in
+      if Bitset.get p.Peer.have !i && (piece.Piece.status = `Not_requested)
       then (
-        let piece_length = 1024l in
-        let piece_offset = 0l in
-        let piece_index = Int32.of_int_exn(!i) in 
-        let m  = Message.Request(piece_index,piece_offset,piece_length) in
-        debug "Requesting piece %d from peer %s" !i (Peer.to_string p);
-        sexp (Message.sexp_of_t m);
-        Deferred.don't_wait_for(Peer.send_message p m);
-        incr request_sent
+        res := Some piece
       );
       incr i
-    done
-  in
-  let p = x.peer in 
-  let f = x.file in
-  if not p.Peer.choked then (
+    done;
+    !res
+
+let download_pieces x =
+  if not x.peer.Peer.choked then (
     debug "%s isn't choked, may ask him some pieces" (Peer.to_string x.peer);
-    download_pieces_from_peer p f
+    let piece_opt = first_not_requested x.file x.peer in
+    match piece_opt with 
+    | Some piece -> request_piece x.peer piece 
+    | None -> debug "nothing to download"
   ) else (
     debug "%s is choked, don't send request" (Peer.to_string x.peer) 
   )
@@ -75,16 +84,16 @@ let loop_wait_message x =
       | Not_interested -> p.interested <- false
       | Have index -> Bitset.set p.have (Int32.to_int_exn index) true 
       | Bitfield bits  -> Bitset.fill_from_string bits p.have
-      | Request (index, bgn, length) -> ()
-      | Piece (index, bgn, block) -> 
-        x.file.File.pieces_downloaded.(Int32.to_int_exn(index)) <- true;
-      | Cancel (index, bgn, length) -> ()
+      | Request (index, bgn, length) -> debug "ignore request - not yet implemented"
+      | Piece (index, bgn, block) ->  
+        let piece = x.file.File.pieces.(Int32.to_int_exn(index)) in
+        Piece.update piece bgn block 
+      | Cancel (index, bgn, length) -> debug "ignore cancel msg - Not yet implemented"
     in
     Peer.get_message x.peer 
     >>= fun m ->
-    debug "got message from %s" (Peer.to_string x.peer);
+    debug "got message from %s %s" (Peer.to_string x.peer) (Message.to_string m);
     process_message x.peer m;
-    sexp (Message.sexp_of_t m); (* TODO use debug mode here and everywhere else *)
     wait_message x
   in
   info "Start message handler loop";
@@ -100,12 +109,6 @@ let init x =
     loop_forever_every_n download_pieces x (sec 5.0);
     Ok ()
   | Error err -> Error err
-
-
-
-
-
-
 
 
 

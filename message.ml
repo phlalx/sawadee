@@ -115,3 +115,16 @@ let bin_write_t (buf:Common.buf) ~(pos:Common.pos) (x:t) =
     let pos = Write.bin_write_network32_int32 buf pos index in
     let pos = Write.bin_write_network32_int32 buf pos begn in
     Write.bin_write_network32_int32 buf pos len
+
+let to_string m =
+  match m with 
+  | KeepAlive -> "KeepAlive"
+  | Choke -> "Choke"
+  | Unchoke -> "Unchoke"
+  | Interested -> "Interested"
+  | Not_interested -> "Not_interested"
+  | Have i -> "Have i = " ^ Int32.to_string i
+  | Bitfield s -> "Bitfield"
+  | Request (i,b,l) -> "Request i = " ^ Int32.to_string i
+  | Piece (i,_,_) -> "Piece i = " ^ Int32.to_string i
+  | Cancel _ -> "Cancel"

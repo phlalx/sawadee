@@ -15,8 +15,10 @@ open Log.Global
 let process (f : string)  = 
   let c = In_channel.create f in 
   let open Extract_bencode in 
-  let { info_sha1; announce; length; pieces; name } = Extract_bencode.from_torrent c in
-  let file = File.create ~len:length ~sha:info_sha1 ~pieces ~name in
+  let { info_sha1; announce; length; pieces; name; piece_length }
+    = Extract_bencode.from_torrent c in
+  let file = File.create ~len:length ~sha:info_sha1 ~pieces ~piece_length ~name 
+  in
   let this_peer_id = "abcdefghijklmnopqrst" in (* TODO *)
   Tracker_client.init announce info_sha1 length this_peer_id; 
   info "trying to connect to tracker";

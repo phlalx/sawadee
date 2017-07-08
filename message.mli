@@ -29,3 +29,5 @@ val size : t -> int
 val bin_read_t : t Read.reader
 
 val bin_write_t : t Write.writer
+
+val to_string : t -> string

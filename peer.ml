@@ -58,8 +58,7 @@ let length_from_buf buf =
   b0 * 256 * 256 * 256 + b1 * 256 * 256  + b2 * 256 + b3
 
 let get_message st =
-  let buf = String.create 4096  in  (* TODO see what buffer size is enough, see
-                                       if we can use a global buffer *)
+  let buf = String.create 8192  in  (* TODO see what buffer size is enough, see if we can use a global buffer *)
   (* first 4 bytes contain size of message *) 
   Reader.really_read st.reader ~pos:0 ~len:4 buf  
   >>= function
