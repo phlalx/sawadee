@@ -15,26 +15,27 @@ open Log.Global
 let process (f : string)  = 
   let c = In_channel.create f in 
   let open Extract_bencode in 
-  let { info_sha1; announce; length; pieces } = Extract_bencode.from_torrent c in
-  let file = File.create ~len:length ~sha:info_sha1 ~pieces in
-  Tracker_client.init announce info_sha1 length; 
+  let { info_sha1; announce; length; pieces; name } = Extract_bencode.from_torrent c in
+  let file = File.create ~len:length ~sha:info_sha1 ~pieces ~name in
+  let this_peer_id = "abcdefghijklmnopqrst" in (* TODO *)
+  Tracker_client.init announce info_sha1 length this_peer_id; 
   info "trying to connect to tracker";
   Tracker_client.query ()
   >>= function
   | Ok peer_addrs -> ( 
-    info "got list of peers";
-    let peer_addr = List.hd_exn peer_addrs in
-    App_layer.create peer_addr file 
-    >>= function 
-    | Ok app -> 
-       App_layer.init app 
-       >>= (function
-       | Ok () -> return ()
-       | Error _ -> exit 1  )
-    | Error exn -> 
-      info "can't init App_layer";
-      exit 1
-  )
+      info "got list of peers";
+      let peer_addr = List.hd_exn peer_addrs in
+      App_layer.create peer_addr file this_peer_id 
+      >>= function 
+      | Ok app -> 
+        App_layer.init app 
+        >>= (function
+            | Ok () -> return ()
+            | Error _ -> exit 1  )
+      | Error exn -> 
+        info "can't init App_layer";
+        exit 1
+    )
   | Error exn -> 
     info "can't connect to tracker";
     exit 1
@@ -55,15 +56,5 @@ let () =
   Command.run command;
   (* Deferred.don't_wait_for (Tests.test ()); *)
   never_returns (Scheduler.go ())
-
-
-
-
-
-
-
-
-
-
 
 

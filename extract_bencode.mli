@@ -13,7 +13,7 @@ type torrent_info = {
   name : string; (** name of file to be downloaded *)
   info_sha1 : string; (** 20-bytes sha of info section *)
   announce : string; (** address of tracker *)
-  piece_length : int; (** number of pieces to download *)
+  piece_length : int; (** size of each piece *)
   pieces : string list; (* sha1 of each pieces *)
   length : int; (* length of file *)
 }

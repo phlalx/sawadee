@@ -3,31 +3,33 @@ open Async
 open Log.Global
 
 type t = {
-  mutable choked : bool;
+  mutable choked : bool; 
   mutable interested : bool;
   peer : Socket.Address.Inet.t;
+  mutable id : string;
   reader : Reader.t;
   writer : Writer.t;
+  have : Bitset.t
  }
 
 exception Handshake_error
 
-let create peer = 
+let create peer ~piece_num = 
   let wtc = Tcp.to_inet_address peer in
   info "trying to connect to peer %s" (Socket.Address.Inet.to_string peer);
   try_with (function () -> Tcp.connect wtc)
   >>| function
   | Ok (_, r, w) -> 
-      Ok { peer; interested = false; choked = true; reader = r; writer = w}
+      Ok { peer; have = Bitset.create piece_num; id = ""; interested = false; choked = true; reader = r; writer = w}
   | Error err -> Error err
 
 let handshake = "\019BitTorrent protocol"
 
-let handshake sha = "\019BitTorrent protocol\000\000\000\000\000\000\000\000" 
-                    ^ sha
+let handshake sha this_peer_id = "\019BitTorrent protocol\000\000\000\000\000\000\000\000" 
+                    ^ sha ^ this_peer_id
 
-let handshake st info_sha =
-  let handshake = handshake info_sha in 
+let handshake st info_sha this_peer_id =
+  let handshake = handshake info_sha this_peer_id in 
   Writer.write st.writer handshake; 
   let hs_len = 68 in
   let sha_len = 20 in
@@ -41,8 +43,10 @@ let handshake st info_sha =
     let peer_id = String.sub buf ~pos:peer_pos ~len:sha_len in
     if (info_sha_rep = info_sha) then 
       Error Handshake_error
-    else 
-      Ok peer_id 
+    else ( 
+      st.id <- peer_id;
+      Ok ()
+    ) 
   | `Eof _ -> Error Handshake_error
 
 (* TODO there must be an API function to do that *)

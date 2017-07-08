@@ -10,7 +10,7 @@ type torrent_info = {
   announce : string;
   piece_length : int;
   pieces : string list;
-  length : int
+  length : int;
 }
 
 let sha1_length = 20

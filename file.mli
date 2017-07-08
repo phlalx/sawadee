@@ -8,6 +8,7 @@ type t = {
   pieces_hash : string Array.t; (** hashes of each pieces **)
   pieces_downloaded : bool Array.t;
   sha : string;  (** sha1 of the info section of the bittorrent file *)
+  name : string;
 }
 
-val create : len:int -> sha:string -> pieces:(string list) -> t
+val create : len:int -> sha:string -> pieces:(string list) -> name:string -> t
