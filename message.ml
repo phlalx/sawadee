@@ -41,7 +41,7 @@ let bin_read_payload buf ~pos_ref length =
   | 4 -> let index = Read.bin_read_network32_int32 buf pos_ref in Have index
   | 5 -> 
     let bitfield_len = length - 1 in
-    let bitfield = Bytes.create bitfield_len in
+    let bitfield = String.create bitfield_len in
     Common.blit_buf_string ~src_pos:!pos_ref buf bitfield ~len:bitfield_len;
     Bitfield bitfield 
   | 6 -> 
@@ -53,7 +53,7 @@ let bin_read_payload buf ~pos_ref length =
     let block_len = length - 9 in
     let index = Read.bin_read_network32_int32 buf pos_ref in
     let begn = Read.bin_read_network32_int32 buf pos_ref in
-    let block = Bytes.create block_len in
+    let block = String.create block_len in
     Common.blit_buf_string ~src_pos:!pos_ref buf block ~len:block_len; 
     Piece (index, begn, block)
   | 8 -> 

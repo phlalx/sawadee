@@ -1,3 +1,3 @@
 S .
 B _build 
-PKG core uri cohttp async bencode sha
+PKG core uri cohttp async bencode sha ounit

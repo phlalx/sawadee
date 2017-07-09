@@ -67,18 +67,14 @@ let rec decode_peers s pos acc_peers n =
     let (acc : Int32.t ref) = ref 0l in
     let (port : int ref) = ref 0 in
     for i = pos to pos + 3 do
-      let byte = ( 
-        match Int32.of_int (int_of_char (String.get s i)) with
-        | None -> assert false
-        | Some(x) -> x
-      ) in
+      let byte = Int32.of_int_exn (int_of_char s.[i]) in
       let open Int32 in
       acc := !acc * 256l;
       acc := !acc + byte
     done;
     for i = pos + 4 to pos + 5 do
       port := !port * 256;
-      port := !port + int_of_char (String.get s i)
+      port := !port + int_of_char s.[i]
     done;
     let addr = Unix.Inet_addr.inet4_addr_of_int32 !acc in
     let peer = Socket.Address.Inet.create addr !port in

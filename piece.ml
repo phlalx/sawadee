@@ -24,16 +24,17 @@ let set_requested p =
 
 let create index hash length = 
   let num_blocks = (length + block_size_int - 1) / block_size_int in
-  { index; status = `Not_requested; length; hash; content = Bytes.create length; 
+  { index; status = `Not_requested; length; hash; content = String.create length; 
     blocks = Bitset.create num_blocks }
 
 let update p o b = 
   let block_index = 
     let open Int32 in Int32.to_int_exn (o / block_size) in
-  Bitset.set p.blocks block_index true; 
+  Bitset.set p.blocks block_index true;
+  let o_int = Int32.to_int_exn o in
   (* TODO must be a function somewhere to do that *)
   for i = 0 to (String.length b) - 1 do 
-    String.set p.content (i + (Int32.to_int_exn o)) (String.get b i)
+    p.content.[i + o_int] <- b.[i]
   done;
   if Bitset.is_one p.blocks then ( 
     let sha_piece = Sha1.to_bin (Sha1.string p.content) in 
@@ -41,8 +42,8 @@ let update p o b =
       p.status <- `Downloaded;
       `Downloaded )
     else  (
+       Bitset.clear p.blocks;
        p.status <- `Not_requested;
-       (* TODO reset bitset *)
       `Downloaded (* TODO should be `Sha_error, but for some reason, the
       hash never match *)
     )  

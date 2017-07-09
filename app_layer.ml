@@ -80,13 +80,12 @@ let loop_wait_message x peer : unit =
       | Interested -> peer.interested <- true
       | Not_interested -> peer.interested <- false
       | Have index -> Bitset.set peer.have (Int32.to_int_exn index) true 
-      | Bitfield bits  -> Bitset.fill_from_string bits peer.have
+      | Bitfield bits  -> Bitset.fill_from_string peer.have bits
       | Request (index, bgn, length) -> debug "ignore request - not yet implemented"
       | Piece (index, bgn, block) -> (
           let piece = x.file.File.pieces.(Int32.to_int_exn(index)) in
-          let bgn_int = Int32.to_int_exn bgn in
           let len = String.length block in
-          debug "got piece begin = %d len = %d" bgn_int len;
+          debug "got piece %ld begin = %ld len = %d" index bgn len;
           match Piece.update piece bgn block with 
           | `Ok -> 
             debug "got some block!"

@@ -47,16 +47,13 @@ let st = {  (* TODO: this is partly based on mu-torrent query. See spec to
   left = ""
 }
 
+
 let init ~announce ~info_sha1 ~length ~peer_id =
   st.announce <- announce;
   st.info_sha1 <- info_sha1;
   st.left <- string_of_int length;
   st.peer_id <- peer_id
-(*   String.create 20;
-  for i = 0 to 19 do 
-    String.set st.peer_id i (char_of_int (Random.int 255))
-  done
- *)
+
 let extract_list_of_peers s =
     try 
       let tr = Extract_bencode.from_tracker_reply s in

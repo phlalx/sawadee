@@ -2,7 +2,6 @@ open Core
 open Async
 open Log.Global
 
-
 (** TODO see how to make a better use of buffers:
   - now we allocate a buffer for each send/get. Can we have one per-peer buffer?
   - we use two buffers a string, and a Bin_prot.Common buffer... can we use
@@ -55,14 +54,6 @@ let handshake st info_sha this_peer_id =
     ) 
   | `Eof _ -> Error Handshake_error
 
-(* TODO there must be an API function to do that *)
-let length_from_buf buf =
-  let b0 = int_of_char (String.get buf 0) in
-  let b1 = int_of_char (String.get buf 1) in
-  let b2 = int_of_char (String.get buf 2) in
-  let b3 = int_of_char (String.get buf 3) in
-  b0 * 256 * 256 * 256 + b1 * 256 * 256  + b2 * 256 + b3
-
 let get_message st =
   let buf = String.create 40000 in  (* TODO see what buffer size is enough, see if we can use a global buffer *)
   (* first 4 bytes contain size of message *) 
@@ -70,7 +61,7 @@ let get_message st =
   >>= function
   | `Eof _ -> assert false
   | `Ok ->
-    let len = length_from_buf buf in
+    let len = Binary_packing.unpack_unsigned_32_int_big_endian ~buf ~pos:0 in
     debug "decoding message of (payload) length %d" len;
     Reader.really_read st.reader ~pos:4 ~len buf 
     >>| function
@@ -90,7 +81,7 @@ let send_message (x:t) (m:Message.t) =
   let com_buf = Bin_prot.Common.create_buf len in
   let pos = Message.bin_write_t com_buf 0 m in
   assert(pos = len); 
-  let buf = Bytes.create len in 
+  let buf = String.create len in 
   Bin_prot.Common.blit_buf_string com_buf buf ~len:len;
   Writer.write w buf;
   return ()
