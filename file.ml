@@ -8,6 +8,7 @@ type t = {
   num_pieces : int; (** number of pieces to be downloaded - TODO edundant *)
   pieces : Piece.t Array.t;
   sha : string;  (** sha1 of the info section of the bittorrent file *)
+  mutable pieces_downloaded : int;
 }
 
 let create ~len ~sha ~pieces ~name ~piece_length =
@@ -30,8 +31,7 @@ let create ~len ~sha ~pieces ~name ~piece_length =
         piece_length 
     in
     Piece.create i pieces_hash.(i) adjusted_piece_length in  
-
   let pieces = Array.init num_pieces ~f:piece_init  in
   info "create file (num piece = %d, name = %s)" num_pieces name;
-  { len; name; num_pieces; pieces; sha}
+  { len; name; num_pieces; pieces; sha; pieces_downloaded = 0 }
 

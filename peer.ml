@@ -2,6 +2,12 @@ open Core
 open Async
 open Log.Global
 
+
+(** TODO see how to make a better use of buffers:
+  - now we allocate a buffer for each send/get. Can we have one per-peer buffer?
+  - we use two buffers a string, and a Bin_prot.Common buffer... can we use
+    only one *)
+
 type t = {
   mutable choked : bool; 
   mutable interested : bool;
@@ -58,14 +64,14 @@ let length_from_buf buf =
   b0 * 256 * 256 * 256 + b1 * 256 * 256  + b2 * 256 + b3
 
 let get_message st =
-  let buf = String.create 8192  in  (* TODO see what buffer size is enough, see if we can use a global buffer *)
+  let buf = String.create 40000 in  (* TODO see what buffer size is enough, see if we can use a global buffer *)
   (* first 4 bytes contain size of message *) 
   Reader.really_read st.reader ~pos:0 ~len:4 buf  
   >>= function
   | `Eof _ -> assert false
   | `Ok ->
     let len = length_from_buf buf in
-    (* debug "decoding message of (payload) length %d" len; *)
+    debug "decoding message of (payload) length %d" len;
     Reader.really_read st.reader ~pos:4 ~len buf 
     >>| function
     | `Eof _ -> assert false 
@@ -80,7 +86,7 @@ let get_message st =
 let send_message (x:t) (m:Message.t) =
   let w = x.writer in
   let len = Message.size m in 
-  (* debug "sending message of len = %d" len; *)
+  debug "sending message of len = %d" len;
   let com_buf = Bin_prot.Common.create_buf len in
   let pos = Message.bin_write_t com_buf 0 m in
   assert(pos = len); 
