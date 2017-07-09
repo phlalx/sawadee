@@ -30,23 +30,23 @@ let create peer ~piece_num =
 
 let handshake = "\019BitTorrent protocol"
 
-let handshake sha this_peer_id = "\019BitTorrent protocol\000\000\000\000\000\000\000\000" 
-                    ^ sha ^ this_peer_id
+let handshake hash this_peer_id = "\019BitTorrent protocol\000\000\000\000\000\000\000\000" 
+                    ^ hash ^ this_peer_id
 
-let handshake st info_sha this_peer_id =
-  let handshake = handshake info_sha this_peer_id in 
+let handshake st info_hash this_peer_id =
+  let handshake = handshake info_hash this_peer_id in 
   Writer.write st.writer handshake; 
   let hs_len = 68 in
-  let sha_len = 20 in
+  let hash_len = 20 in
   let info_pos = 48 in 
   let peer_pos = 48 in 
   let buf = String.create hs_len in
   Reader.really_read st.reader ~len:hs_len buf
   >>| function 
   | `Ok -> 
-    let info_sha_rep = String.sub buf ~pos:info_pos ~len:sha_len in
-    let peer_id = String.sub buf ~pos:peer_pos ~len:sha_len in
-    if (info_sha_rep = info_sha) then 
+    let info_hash_rep = String.sub buf ~pos:info_pos ~len:hash_len in
+    let peer_id = String.sub buf ~pos:peer_pos ~len:hash_len in
+    if (info_hash_rep = info_hash) then 
       Error Handshake_error
     else ( 
       st.id <- peer_id;
@@ -55,7 +55,7 @@ let handshake st info_sha this_peer_id =
   | `Eof _ -> Error Handshake_error
 
 let get_message st =
-  let buf = String.create 40000 in  (* TODO see what buffer size is enough, see if we can use a global buffer *)
+  let buf = String.create 40000 in   (* TODO *)
   (* first 4 bytes contain size of message *) 
   Reader.really_read st.reader ~pos:0 ~len:4 buf  
   >>= function
@@ -69,7 +69,7 @@ let get_message st =
     | `Ok -> 
       let com_buf = Bin_prot.Common.create_buf (len + 4) in
       (* copy buf content to a com_buf in order to use Bin_prot functions *)
-      (* TODO seems inefficient... *)
+      (* TODO see if there's an alternative... *)
       Bin_prot.Common.blit_string_buf buf com_buf ~len:(len+4);
       let pos_ref = ref 0 in
       Message.bin_read_t com_buf ~pos_ref

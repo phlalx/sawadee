@@ -6,19 +6,19 @@ module B = Bencode
 
 type torrent_info = {
   name : string;
-  info_sha1 : string;
+  info_hash : string;
   announce : string;
   piece_length : int;
   pieces : string list;
   length : int;
 }
 
-let sha1_length = 20
+let hash_length = 20
 
-let num_piece pieces = (String.length pieces) / sha1_length
+let num_piece pieces = (String.length pieces) / hash_length
 
 let get_piece pieces i =
-  String.sub pieces ~pos:(i * sha1_length) ~len:sha1_length 
+  String.sub pieces ~pos:(i * hash_length) ~len:hash_length 
 
 exception Wrong_Format
 
@@ -48,9 +48,9 @@ let from_torrent chan =
   let piece_length = get (B.as_int piece_length_bc) in
   let name_bc = get (B.dict_get info_dict_bc "name") in
   let name = get (B.as_string name_bc) in 
-  let info_sha1 = Sha1.to_bin (Sha1.string info_str) in
+  let info_hash = Sha1.to_bin (Sha1.string info_str) in
   let pieces = split pieces 0 (String.length pieces) [] in 
-  { name; announce; info_sha1; piece_length; pieces; length; }
+  { name; announce; info_hash; piece_length; pieces; length; }
 
 type tracker_reply = {
   complete : int;

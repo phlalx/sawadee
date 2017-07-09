@@ -11,10 +11,10 @@ open Async
 
 type torrent_info = {
   name : string; (** name of file to be downloaded *)
-  info_sha1 : string; (** 20-bytes sha of info section *)
+  info_hash : string; (** 20-bytes hash of info section *)
   announce : string; (** address of tracker *)
   piece_length : int; (** size of each piece *)
-  pieces : string list; (* sha1 of each pieces *)
+  pieces : string list; (* hash of each pieces *)
   length : int; (* length of file *)
 }
 

@@ -1,6 +1,6 @@
 _build
-main.native
-main.byte
+*.native
+*.byte
 ocaml-torrent.sublime-workspace
 README.html
 .docdir

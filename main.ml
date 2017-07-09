@@ -22,13 +22,13 @@ let random_id () =
 let process (f : string)  = 
   let c = In_channel.create f in 
   let open Extract_bencode in 
-  let { info_sha1; announce; length; pieces; name; piece_length }
+  let { info_hash; announce; length; pieces; name; piece_length }
     = Extract_bencode.from_torrent c in
-  let file = File.create ~len:length ~sha:info_sha1 ~pieces ~piece_length ~name 
+  let file = File.create ~len:length ~hash:info_hash ~pieces ~piece_length ~name 
   in
 
   let this_peer_id = random_id () in
-  Tracker_client.init announce info_sha1 length this_peer_id; 
+  Tracker_client.init announce info_hash length this_peer_id; 
   info "trying to connect to tracker";
   Tracker_client.query ()
   >>= function
