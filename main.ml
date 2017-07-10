@@ -11,20 +11,16 @@ open Async
 open Log.Global
 
 let random_id () = 
-  let res = String.create 20 in
-  for i = 0 to 19 do
-      res.[i] <- char_of_int (Random.int 255)
-  done;
-  res
+  String.init 20 ~f:(fun _ -> char_of_int (Random.int 255))
 
 (** [process f] initiates downloading of file described by
     torrent file named [f]. *)
 let process (f : string)  = 
   let c = In_channel.create f in 
   let open Extract_bencode in 
-  let { info_hash; announce; length; pieces; name; piece_length }
+  let { info_hash; announce; length; pieces_hash; name; piece_length }
     = Extract_bencode.from_torrent c in
-  let file = File.create ~len:length ~hash:info_hash ~pieces ~piece_length ~name 
+  let file = File.create ~len:length ~hash:info_hash ~pieces_hash ~piece_length ~name 
   in
 
   let this_peer_id = random_id () in

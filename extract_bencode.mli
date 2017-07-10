@@ -14,7 +14,7 @@ type torrent_info = {
   info_hash : string; (** 20-bytes hash of info section *)
   announce : string; (** address of tracker *)
   piece_length : int; (** size of each piece *)
-  pieces : string list; (* hash of each pieces *)
+  pieces_hash : string Array.t; (* hash of each pieces *)
   length : int; (* length of file *)
 }
 

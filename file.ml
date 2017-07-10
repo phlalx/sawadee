@@ -11,8 +11,7 @@ type t = {
   mutable pieces_downloaded : int;
 }
 
-let create ~len ~hash ~pieces ~name ~piece_length =
-  let pieces_hash = List.to_array pieces in
+let create ~len ~hash ~pieces_hash ~name ~piece_length =
   let num_pieces = Array.length pieces_hash in
   assert (num_pieces = (len + piece_length - 1) / piece_length);
   let piece_init i = 

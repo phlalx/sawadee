@@ -24,3 +24,5 @@ val offset_length : t -> int -> Int32.t * Int32.t
 val update : t -> int -> string -> [ `Downloaded | `Ok | `Hash_error ]
 
 val offset_to_index : Int32.t -> int
+
+val content : t -> string

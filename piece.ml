@@ -14,6 +14,8 @@ type t = {
   blocks : Bitset.t
 }
 
+let content p = p.content
+
 let length p = p.length
 
 let get_index p = p.index
@@ -59,8 +61,7 @@ let update (p:t) (index:int) (block:string) =
       debug "Hash not equals %S %S" hash_piece p.hash;
        Bitset.clear p.blocks;
        p.status <- `Not_requested;
-       (* `Hash_error *)
-       `Downloaded
+       `Hash_error
     )  
   ) else ( 
     `Ok
