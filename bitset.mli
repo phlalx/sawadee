@@ -1,5 +1,6 @@
 type t 
 
+(** create an array of bit, initially zeroed  *)
 val create : int -> t
 
 val length : t -> int
@@ -8,7 +9,10 @@ val get : t -> int -> bool
 
 val set : t -> int -> bool -> unit
 
+(** returns true if all bits are set to one *)
 val is_one : t -> bool
+
+val num_bit_set : t -> int
 
 val clear : t -> unit
 

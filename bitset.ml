@@ -7,28 +7,30 @@ type t =
   mutable num_set : int ;
 }
 
-let length x = Array.length x.bits
+let length t = Array.length t.bits
 
-let clear x = 
-  x.num_set <- 0;
-  Array.fill x.bits 0 (length x) false
+let clear t = 
+  t.num_set <- 0;
+  Array.fill t.bits 0 (length t) false
 
 let create n = {
   bits = Array.create n false;
   num_set = 0;
 }
 
-let get x i = x.bits.(i)
+let get t i = t.bits.(i)
 
-let set x i b = 
-  if not x.bits.(i) && b then ( 
-    x.num_set <- x.num_set + 1
-  ) else if x.bits.(i) && not b then ( 
-    x.num_set <- x.num_set - 1
+let set t i b = 
+  if not t.bits.(i) && b then ( 
+    t.num_set <- t.num_set + 1
+  ) else if t.bits.(i) && not b then ( 
+    t.num_set <- t.num_set - 1
   );
-  x.bits.(i) <- b
+  t.bits.(i) <- b
 
-let is_one x = x.num_set = length x
+let is_one t = t.num_set = length t
+
+let num_bit_set t = t.num_set
 
 (** get i-th bit from a string. Bit 0 is left-most *)
 let get_bit (bits:string) i =
@@ -46,17 +48,17 @@ let set_bit (bits:string) i =
   let new_by = by lxor (1 lsl bit) in 
   bits.[byte_index] <- char_of_int new_by
 
-let fill_from_string (x:t) (bits:string) =
-  for i = 0 to (length x) - 1 do
-    x.bits.(i) <- get_bit bits i
+let fill_from_string t (bits:string) =
+  for i = 0 to (length t) - 1 do
+    t.bits.(i) <- get_bit bits i
   done
 
-let to_string x : string =
-  let n = length x in
+let to_string t =
+  let n = length t in
   let s_len = (n + 7) / 8 in
   let res = String.make s_len '\000' in
   for i = 0 to n - 1 do
-    if get x i then set_bit res i
+    if get t i then set_bit res i
   done;
   res
 

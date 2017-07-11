@@ -7,7 +7,7 @@ type t = {
   num_pieces : int; (** number of pieces to be downloaded *)
   pieces : Piece.t Array.t;
   hash : string;  (** hash of the info section of the bittorrent file *)
-  mutable pieces_downloaded : int;
+  bitset : Bitset.t
 }
 
 val create : len:int -> hash:string -> pieces_hash:(string Array.t) -> name:string 

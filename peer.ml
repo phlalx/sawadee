@@ -6,9 +6,8 @@ open Log.Global
     buffer for each send/get. Can we have one per-peer buffer? 
 
     A better solution for send_message/get_message would be to use
-    the bin_prot_read and bin_prot_write but in the current version
-    of the library, it uses a fixed 8-bytes length, but it is 
-    4 bytes in bittorrent  *) 
+    the bin_prot_read and bin_prot_write but the current version
+    of the library uses a fixed 8-bytes length (4 bytes in bittorrent) *) 
 
 type t = {
   mutable choked : bool; 

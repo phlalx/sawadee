@@ -5,10 +5,10 @@ open Log.Global
 type t = {
   len : int;
   name : string;
-  num_pieces : int; (** number of pieces to be downloaded - TODO edundant *)
+  num_pieces : int; (** number of pieces to be downloaded *)
   pieces : Piece.t Array.t;
   hash : string;  (** hash of the info section of the bittorrent file *)
-  mutable pieces_downloaded : int;
+  bitset : Bitset.t;
 }
 
 let create ~len ~hash ~pieces_hash ~name ~piece_length =
@@ -19,5 +19,4 @@ let create ~len ~hash ~pieces_hash ~name ~piece_length =
     Piece.create i pieces_hash.(i) adjusted_piece_length in  
   let pieces = Array.init num_pieces ~f:piece_init  in
   info "create file (num piece = %d, name = %s)" num_pieces name;
-  { len; name; num_pieces; pieces; hash; pieces_downloaded = 0 }
-
+  { len; name; num_pieces; pieces; hash; bitset = Bitset.create num_pieces } 

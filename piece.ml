@@ -14,72 +14,72 @@ type t = {
   blocks : Bitset.t
 }
 
-let content p = p.content
+let content t = t.content
 
-let length p = p.length
+let length t = t.length
 
-let get_index p = p.index
+let get_index t = t.index
 
-let to_be_downloaded p = p.status = `Not_requested
+let to_be_downloaded t = t.status = `Not_requested
 
-let set_requested p = 
-  assert (p.status = `Not_requested);
-  p.status <- `Requested
+let set_requested t = 
+  assert (t.status = `Not_requested);
+  t.status <- `Requested
 
 let create ~index ~hash ~len = 
   let num_blocks = (len + block_size_int - 1) / block_size_int in
   { index; status = `Not_requested; length = len; hash; content = String.create len; 
     blocks = Bitset.create num_blocks }
 
-let num_blocks piece = (piece.length + block_size_int - 1) / block_size_int
+let num_blocks t = (t.length + block_size_int - 1) / block_size_int
 
 let offset_to_index off =
   let off_int = Int32.to_int_exn off in 
   assert (off_int % block_size_int = 0);
   off_int / block_size_int
 
-let offset_length piece index =
-  let len = piece.length in
+let offset_length t index =
+  let len = t.length in
   let offset = index * block_size_int in
   let block_len = min (len - offset) block_size_int in
   Int32.of_int_exn offset, Int32.of_int_exn block_len
 
-let update (p:t) (index:int) (block:string) = 
-  let (offset, block_length) = offset_length p index in
+let update t (index:int) (block:string) = 
+  let (offset, block_length) = offset_length t index in
   let offset_int = Int32.to_int_exn offset in 
   let block_length_int = Int32.to_int_exn block_length in 
   let len = String.length block in
   assert (len = block_length_int);
-  Bitset.set p.blocks index true;
-  String.blit ~src:block ~src_pos:0 ~dst:p.content ~dst_pos:offset_int ~len;
-  if Bitset.is_one p.blocks then ( 
-    let hash_piece = Sha1.to_bin (Sha1.string p.content) in 
-    if (hash_piece = p.hash) then (
-      p.status <- `Downloaded;
+  Bitset.set t.blocks index true;
+  String.blit ~src:block ~src_pos:0 ~dst:t.content ~dst_pos:offset_int ~len;
+  if Bitset.is_one t.blocks then ( 
+    let hash_piece = Sha1.to_bin (Sha1.string t.content) in 
+    if (hash_piece = t.hash) then (
+      t.status <- `Downloaded;
       `Downloaded )
     else  (
-      debug "Hash not equals %S %S" hash_piece p.hash;
-       Bitset.clear p.blocks;
-       p.status <- `Not_requested;
-       `Hash_error
+      debug "Hash not equals %S %S" hash_piece t.hash;
+      Bitset.clear t.blocks;
+      t.status <- `Not_requested;
+      `Hash_error
     )  
   ) else ( 
     `Ok
   )
 
-let blocks p = 
-  let (num_blocks:int) = (p.length + block_size_int - 1) / block_size_int  in
-  let len = Int32.of_int_exn p.length in
-  let rec block_aux p offset =
+let blocks t = 
+  let (num_blocks:int) = (t.length + block_size_int - 1) / block_size_int  in
+  let len = Int32.of_int_exn t.length in
+  let rec block_aux t offset =
     let open Int32 in
     if offset + block_size <= len then
-      (offset, block_size) :: block_aux p (offset + block_size)
+      (offset, block_size) :: block_aux t (offset + block_size)
     else if offset = len then
       []
     else 
       [(offset, len - offset)]
   in 
-  let res = block_aux p 0l in
+  let res = block_aux t 0l in
   let (l:int) = List.length res in
   assert (l = num_blocks); 
   res

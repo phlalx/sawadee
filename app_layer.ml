@@ -13,7 +13,6 @@ type t = {
 let create file ~peer_id = { file; peers = []; peer_id; choked = true;
                              interested = true }
 
-
 let loop_forever_every_n f s =
   let rec loop () =
     f ();
@@ -43,10 +42,10 @@ let first_not_requested (file:File.t) (p:Peer.t) : Piece.t option =
     (Piece.to_be_downloaded piece) in
   Array.find file.File.pieces ~f
 
-let download_pieces x peer =
+let download_pieces t peer =
   if not peer.Peer.choked then (
     debug "%s isn't choked, may ask him some pieces" (Peer.to_string peer);
-    let piece_opt = first_not_requested x.file peer in
+    let piece_opt = first_not_requested t.file peer in
     match piece_opt with 
     | Some piece -> request_piece peer piece 
     | None -> debug "nothing to download"
@@ -54,15 +53,15 @@ let download_pieces x peer =
     debug "%s is choked, don't send request" (Peer.to_string peer) 
   )
 
-let keep_alive x peer =
+let keep_alive peer =
   let m  = Message.Interested in
   debug "sending interested message to %s" (Peer.to_string peer);
   sexp ~level:`Debug (Message.sexp_of_t m);
   Peer.send_message peer m
 
 (** process all incoming messages *)
-let loop_wait_message x peer : unit = 
-  let rec wait_message x =
+let loop_wait_message t peer : unit = 
+  let rec wait_message t =
     let process_message m =
       let open Peer in
       let open Message in
@@ -76,18 +75,17 @@ let loop_wait_message x peer : unit =
       | Bitfield bits  -> Bitset.fill_from_string peer.have bits
       | Request (index, bgn, length) -> debug "ignore request - not yet implemented"
       | Piece (index, bgn, block) -> (
-          let piece = x.file.File.pieces.(Int32.to_int_exn(index)) in
+          let index_int = Int32.to_int_exn index in
+          let piece = t.file.File.pieces.(index_int) in
           let len = String.length block in
           debug "got piece %ld begin = %ld len = %d" index bgn len;
           match Piece.update piece (Piece.offset_to_index bgn) block with 
-          | `Ok -> 
-            debug "got some block!"
+          | `Ok -> () 
           | `Hash_error -> 
             debug "hash error"
           | `Downloaded ->
-            x.file.File.pieces_downloaded <- x.file.File.pieces_downloaded + 1;
-            info "downloaded %d/%d pieces" x.file.File.pieces_downloaded 
-              x.file.File.num_pieces) 
+            Bitset.set t.file.File.bitset index_int true; 
+            debug "downloaded piece %d" index_int)
       | Cancel (index, bgn, length) -> debug "ignore cancel msg - Not yet implemented"
     in
     Peer.get_message peer 
@@ -95,45 +93,33 @@ let loop_wait_message x peer : unit =
     | `Ok m -> 
       debug "got message from %s %s" (Peer.to_string peer) (Message.to_string m);
       process_message m;
-      wait_message x
+      wait_message t
     | `Eof -> 
       info "Didn't get message - peer %s closed connection" (Peer.to_string peer);
       return ()
   in
   info "Start message handler loop";
-  Deferred.don't_wait_for (Deferred.ignore (wait_message x))
+  Deferred.don't_wait_for (Deferred.ignore (wait_message t))
 
-let add_peer al peer_addr = 
-  Peer.create peer_addr al.file.File.num_pieces
+let add_peer t peer_addr = 
+  Peer.create peer_addr t.file.File.num_pieces
   >>= function 
   | Ok peer -> 
-    al.peers <- peer :: al.peers;
-    Peer.handshake peer al.file.File.hash al.peer_id
+    t.peers <- peer :: t.peers;
+    Peer.handshake peer t.file.File.hash t.peer_id
     >>| ( function 
         | Ok () ->  
           info "handshake ok with peer %s" (Peer.to_string peer);
-          loop_wait_message al peer;
-          loop_forever_every_n (fun () -> keep_alive al peer)  (sec 120.0);
-          loop_forever_every_n (fun () -> download_pieces al peer) (sec 10.0);
+          loop_wait_message t peer;
+          loop_forever_every_n (fun () -> keep_alive peer)  (sec 120.0);
+          loop_forever_every_n (fun () -> download_pieces t peer) (sec 10.0);
           Ok ()
         | Error err -> debug "ignore err in add_peer"; Error err)
   | Error err -> debug "ignore err in add_peer"; return (Error err)
 
-let start al peer_addrs = 
+let start t peer_addrs = 
   (* TODO what is better to return here? unit or unit Deferred.t,
      something like type never_return? *)
   let silent_add_peer peer_addr : unit =
-    Deferred.don't_wait_for (Deferred.ignore (add_peer al peer_addr))
+    Deferred.don't_wait_for (Deferred.ignore (add_peer t peer_addr))
   in return (List.iter ~f:silent_add_peer peer_addrs)
-
-
-
-
-
-
-
-
-
-
-
-

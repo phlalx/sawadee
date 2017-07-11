@@ -33,7 +33,7 @@ type t = {
   compact : string;
 }
 
-let st = ref None
+let t = ref None
 
 let init ~announce ~info_hash ~len ~peer_id =
   let left = string_of_int len in
@@ -42,7 +42,7 @@ let init ~announce ~info_hash ~len ~peer_id =
   let downloaded = "0" in
   let event = "started" in 
   let compact = "1" in
-  st := Some { announce; info_hash; left; peer_id; port; uploaded; downloaded;
+  t := Some { announce; info_hash; left; peer_id; port; uploaded; downloaded;
               event; compact }
 
 let extract_list_of_peers s =
@@ -53,17 +53,17 @@ let extract_list_of_peers s =
   | ex -> Error ex
 
 let query () =
-  let st = Option.value_exn !st in
-  let uri = Uri.of_string st.announce in
+  let t = Option.value_exn !t in
+  let uri = Uri.of_string t.announce in
   let params = 
-    [("info_hash", st.info_hash); 
-     ("peer_id", st.peer_id); 
-     ("port", st.port);
-     ("uploaded", st.uploaded);
-     ("downloaded", st.downloaded);
-     ("event", st.event);
-     ("left", st.left);
-     ("compact", st.compact );
+    [("info_hash", t.info_hash); 
+     ("peer_id", t.peer_id); 
+     ("port", t.port);
+     ("uploaded", t.uploaded);
+     ("downloaded", t.downloaded);
+     ("event", t.event);
+     ("left", t.left);
+     ("compact", t.compact );
     ] in
   let uri_with_query = Uri.with_query' uri params in
   try_with (fun () -> Cohttp_async.Client.get uri_with_query)
