@@ -31,7 +31,7 @@ let process (f : string)  =
   | Ok peer_addrs ->
       info "got list of peers";
       let al = App_layer.create file this_peer_id in
-      let peer_addrs = [List.hd_exn peer_addrs] in (* DEBUG ONLY, keep one peer *)
+      (* let peer_addrs = [List.hd_exn peer_addrs] in (* DEBUG ONLY, keep one peer *) *)
       App_layer.start al peer_addrs
   | Error exn -> 
     info "can't connect to tracker";
@@ -49,7 +49,7 @@ let command =
     (fun filename -> (fun () -> Deferred.don't_wait_for (process filename)))
 
 let () = 
-  set_level `Debug;
+  set_level `Info;
   Command.run command;
   (* Deferred.don't_wait_for (Tests.test ()); *)
   never_returns (Scheduler.go ())

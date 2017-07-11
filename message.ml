@@ -16,19 +16,19 @@ type t =
   | Cancel of int32 * int32 * int32
 [@@deriving sexp]
 
-(* Always 4 bytes for length prefix, 1 byte for type, and rest for payload *)
+(* 1 byte for type, and rest for payload *)
 let size m = 
   match m with
-  | KeepAlive -> 4
-  | Choke -> 5
-  | Unchoke -> 5
-  | Interested -> 5
-  | Not_interested -> 5
-  | Have _ -> 9
-  | Bitfield s -> 5 + (String.length s) 
-  | Request _ -> 17
-  | Piece (_,_,s) -> 13 + (String.length s)
-  | Cancel _ -> 17
+  | KeepAlive -> 0
+  | Choke -> 1
+  | Unchoke -> 1
+  | Interested -> 1
+  | Not_interested -> 1
+  | Have _ -> 5
+  | Bitfield s -> 1 + (String.length s) 
+  | Request _ -> 13
+  | Piece (_,_,s) -> 9 + (String.length s)
+  | Cancel _ -> 13 
 
 (* length is prefix-length, the number of bytes left to read, *)
 let bin_read_payload buf ~pos_ref length =

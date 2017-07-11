@@ -23,11 +23,13 @@ type t =
   | Cancel of int32 * int32 * int32 (** index, begin, length *)
 [@@deriving sexp]
 
-(** size of message including 4-byte {i prefix length}. *)
+(** size of message *not* including 4-byte {i prefix length}. *)
 val size : t -> int
 
+(** read a message, including 4-byte prefix *)
 val bin_read_t : t Read.reader
 
+(** write a message, including 4-byte prefix *)
 val bin_write_t : t Write.writer
 
 val to_string : t -> string

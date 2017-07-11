@@ -20,12 +20,11 @@ val create: Socket.Address.Inet.t -> piece_num:int -> (t,exn) result Deferred.t
 
 (** [handshake x info_hash peer_id] tries to handshake with peer x with
     info_hash. Set peer id as a side effect. Return error or nil. *) 
-val handshake: t -> string -> string ->(unit, exn) result Deferred.t
+val handshake: t -> string -> string -> (unit, exn) result Deferred.t
 
-(* TODO use result type for error handling *)
-val send_message : t -> Message.t -> unit Deferred.t
+val send_message : t -> Message.t -> unit
 
-val get_message : t -> Message.t Deferred.t 
+val get_message : t -> Message.t Reader.Read_result.t Deferred.t
 
 (* IP address/port *)
 val to_string : t -> string

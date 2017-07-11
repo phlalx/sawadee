@@ -11,7 +11,7 @@ type t = {
 }
 
 let create file ~peer_id = { file; peers = []; peer_id; choked = true;
-                                 interested = true }
+                             interested = true }
 
 
 let loop_forever_every_n f s =
@@ -33,7 +33,7 @@ let request_piece (p:Peer.t) (piece:Piece.t) : unit =
     let (offset, len) = Piece.offset_length piece i in 
     let m = Message.Request(Int32.of_int_exn (Piece.get_index piece), offset, len) in
     sexp ~level:`Debug (Message.sexp_of_t m); 
-    Deferred.don't_wait_for(Peer.send_message p m)
+    Peer.send_message p m
   done
 
 (** find first piece not yet requested owned by peer p. *)
@@ -43,7 +43,7 @@ let first_not_requested (file:File.t) (p:Peer.t) : Piece.t option =
     (Piece.to_be_downloaded piece) in
   Array.find file.File.pieces ~f
 
- let download_pieces x peer =
+let download_pieces x peer =
   if not peer.Peer.choked then (
     debug "%s isn't choked, may ask him some pieces" (Peer.to_string peer);
     let piece_opt = first_not_requested x.file peer in
@@ -91,10 +91,14 @@ let loop_wait_message x peer : unit =
       | Cancel (index, bgn, length) -> debug "ignore cancel msg - Not yet implemented"
     in
     Peer.get_message peer 
-    >>= fun m ->
-    debug "got message from %s %s" (Peer.to_string peer) (Message.to_string m);
-    process_message m;
-    wait_message x
+    >>= function
+    | `Ok m -> 
+      debug "got message from %s %s" (Peer.to_string peer) (Message.to_string m);
+      process_message m;
+      wait_message x
+    | `Eof -> 
+      info "Didn't get message - peer %s closed connection" (Peer.to_string peer);
+      return ()
   in
   info "Start message handler loop";
   Deferred.don't_wait_for (Deferred.ignore (wait_message x))
