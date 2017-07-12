@@ -74,6 +74,7 @@ let get_message t =
       >>| function
       | `Eof _ -> `Eof 
       | `Ok -> 
+        pos_ref := 0;
         let msg = Message.bin_read_t buf ~pos_ref in
         `Ok msg)
 

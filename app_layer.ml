@@ -82,10 +82,10 @@ let loop_wait_message t peer : unit =
           match Piece.update piece (Piece.offset_to_index bgn) block with 
           | `Ok -> () 
           | `Hash_error -> 
-            debug "hash error"
+            info "hash error"
           | `Downloaded ->
             Bitset.set t.file.File.bitset index_int true; 
-            debug "downloaded piece %d" index_int)
+            info "downloaded piece %d" index_int)
       | Cancel (index, bgn, length) -> debug "ignore cancel msg - Not yet implemented"
     in
     Peer.get_message peer 
@@ -111,8 +111,9 @@ let add_peer t peer_addr =
         | Ok () ->  
           info "handshake ok with peer %s" (Peer.to_string peer);
           loop_wait_message t peer;
-          loop_forever_every_n (fun () -> keep_alive peer)  (sec 120.0);
-          loop_forever_every_n (fun () -> download_pieces t peer) (sec 10.0);
+          info "sending Interested message to peer %s" (Peer.to_string peer);
+          Peer.send_message peer Message.Interested;
+          loop_forever_every_n (fun () -> download_pieces t peer) (sec 1.0);
           Ok ()
         | Error err -> debug "ignore err in add_peer"; Error err)
   | Error err -> debug "ignore err in add_peer"; return (Error err)

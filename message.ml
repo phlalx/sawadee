@@ -17,8 +17,7 @@ type t =
 [@@deriving sexp]
 
 (* 1 byte for type, and rest for payload *)
-let size m = 
-  match m with
+let size = function 
   | KeepAlive -> 0
   | Choke -> 1
   | Unchoke -> 1
