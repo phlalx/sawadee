@@ -89,7 +89,7 @@ let send_message t (m:Message.t) =
 
 let to_string t = Socket.Address.Inet.to_string t.peer
 
-let has_piece p i = Bitset.get p.have (Int32.to_int_exn i)
+let has_piece p i = Bitset.get p.have i
 
 
 

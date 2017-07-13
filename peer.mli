@@ -30,4 +30,4 @@ val get_message : t -> Message.t Reader.Read_result.t Deferred.t
 (* IP address/port *)
 val to_string : t -> string
 
-val has_piece : t -> int32 -> bool
+val has_piece : t -> int -> bool

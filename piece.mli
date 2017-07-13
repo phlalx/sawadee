@@ -1,6 +1,6 @@
 open Core
 
-val block_size : Int32.t
+val block_size : int
 
 type t
 
@@ -20,11 +20,11 @@ val create : index:int -> hash:string -> len:int -> t
 val num_blocks : t -> int
 
 (** offset and length of a block *)
-val offset_length : t -> int -> Int32.t * Int32.t
+val offset_length : t -> int -> int * int
 
 (** updates piece with downloaded block *)
 val update : t -> int -> string -> [ `Downloaded | `Ok | `Hash_error ]
 
-val offset_to_index : Int32.t -> int
+val offset_to_index : int -> int
 
 val content : t -> string

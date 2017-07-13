@@ -38,7 +38,7 @@ let request_all_blocks_from_piece (p:Peer.t) (piece:Piece.t) : unit =
   p.Peer.pending <- Int.Set.add p.Peer.pending (Piece.get_index piece);
   for i = 0 to (Piece.num_blocks piece) - 1 do 
     let (offset, len) = Piece.offset_length piece i in 
-    let m = Message.Request(Int32.of_int_exn (Piece.get_index piece), offset, len) in
+    let m = Message.Request(Piece.get_index piece, offset, len) in
     sexp ~level:`Debug (Message.sexp_of_t m); 
     Peer.send_message p m
   done
@@ -78,24 +78,23 @@ let loop_wait_message t peer : unit =
       | Unchoke -> peer.choked <- false
       | Interested -> peer.interested <- true; info "ignore request - not yet implemented"
       | Not_interested -> peer.interested <- false
-      | Have index -> Bitset.set peer.have (Int32.to_int_exn index) true 
+      | Have index -> Bitset.set peer.have index true 
       | Bitfield bits  -> 
           Bitset.fill_from_string peer.have bits;
           info "Peer %s has %d/%d pieces" (Peer.to_string peer) (Bitset.num_bit_set peer.have) (t.file.File.num_pieces)
       | Request (index, bgn, length) -> info "ignore request - not yet implemented"
       | Piece (index, bgn, block) -> (
-          let index_int = Int32.to_int_exn index in
-          let piece = t.file.File.pieces.(index_int) in
+          let piece = t.file.File.pieces.(index) in
           let len = String.length block in
-          debug "got piece %ld begin = %ld len = %d" index bgn len;
+          debug "got piece %d begin = %d len = %d" index bgn len;
           match Piece.update piece (Piece.offset_to_index bgn) block with 
           | `Ok -> () 
           | `Hash_error -> 
             info "hash error"
           | `Downloaded ->
-            peer.Peer.pending <- Int.Set.remove peer.Peer.pending index_int;
-            Bitset.set t.file.File.bitset index_int true; 
-            info "downloaded piece %d" index_int)
+            peer.Peer.pending <- Int.Set.remove peer.Peer.pending index;
+            Bitset.set t.file.File.bitset index true; 
+            info "downloaded piece %d" index)
       | Cancel (index, bgn, length) -> debug "ignore cancel msg - Not yet implemented"
     in
     Peer.get_message peer 

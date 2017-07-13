@@ -2,8 +2,7 @@ open Core
 open Async
 open Log.Global
 
-let block_size = 32768l
-let block_size_int = Int32.to_int_exn block_size
+let block_size = 32768
 
 type t = {
   index : int;
@@ -31,31 +30,28 @@ let set_not_requested t =
   t.status <- `Not_requested
 
 let create ~index ~hash ~len = 
-  let num_blocks = (len + block_size_int - 1) / block_size_int in
+  let num_blocks = (len + block_size - 1) / block_size in
   { index; status = `Not_requested; length = len; hash; content = String.create len; 
     blocks = Bitset.create num_blocks }
 
-let num_blocks t = (t.length + block_size_int - 1) / block_size_int
+let num_blocks t = (t.length + block_size - 1) / block_size
 
 let offset_to_index off =
-  let off_int = Int32.to_int_exn off in 
-  assert (off_int % block_size_int = 0);
-  off_int / block_size_int
+  assert (off % block_size = 0);
+  off / block_size
 
 let offset_length t index =
   let len = t.length in
-  let offset = index * block_size_int in
-  let block_len = min (len - offset) block_size_int in
-  Int32.of_int_exn offset, Int32.of_int_exn block_len
+  let offset = index * block_size in
+  let block_len = min (len - offset) block_size in
+  offset, block_len
 
 let update t (index:int) (block:string) = 
   let (offset, block_length) = offset_length t index in
-  let offset_int = Int32.to_int_exn offset in 
-  let block_length_int = Int32.to_int_exn block_length in 
   let len = String.length block in
-  assert (len = block_length_int);
+  assert (len = block_length);
   Bitset.set t.blocks index true;
-  String.blit ~src:block ~src_pos:0 ~dst:t.content ~dst_pos:offset_int ~len;
+  String.blit ~src:block ~src_pos:0 ~dst:t.content ~dst_pos:offset ~len;
   if Bitset.is_one t.blocks then ( 
     let hash_piece = Sha1.to_bin (Sha1.string t.content) in 
     if (hash_piece = t.hash) then (
@@ -72,10 +68,9 @@ let update t (index:int) (block:string) =
   )
 
 let blocks t = 
-  let (num_blocks:int) = (t.length + block_size_int - 1) / block_size_int  in
-  let len = Int32.of_int_exn t.length in
+  let (num_blocks:int) = (t.length + block_size - 1) / block_size  in
+  let len = t.length in
   let rec block_aux t offset =
-    let open Int32 in
     if offset + block_size <= len then
       (offset, block_size) :: block_aux t (offset + block_size)
     else if offset = len then
@@ -83,7 +78,7 @@ let blocks t =
     else 
       [(offset, len - offset)]
   in 
-  let res = block_aux t 0l in
+  let res = block_aux t 0 in
   let (l:int) = List.length res in
   assert (l = num_blocks); 
   res
