@@ -17,6 +17,7 @@ type file_info = {
 type torrent_info = {
   info_hash : string;
   announce : string;
+  announce_list : string list list;
   piece_length : int;
   pieces_hash : string Array.t;
   mode : [`Single_file | `Multiple_file];

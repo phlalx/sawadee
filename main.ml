@@ -18,7 +18,7 @@ let random_id () =
 let process (f : string)  = 
   let c = In_channel.create f in 
   let open Extract_bencode in 
-  let { info_hash; announce; mode; pieces_hash; piece_length; files_info }
+  let { info_hash; announce; announce_list; mode; pieces_hash; piece_length; files_info }
     = Extract_bencode.from_torrent c in
   let { name; _ } = List.hd_exn files_info in (* TODO deal with this when we'll actually write file to disk *)
   let length = List.fold files_info ~init:0 ~f:(fun acc x -> acc + x.length) in

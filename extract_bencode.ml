@@ -12,6 +12,7 @@ type file_info = {
 type torrent_info = {
   info_hash : string;
   announce : string;
+  announce_list : string list list;
   piece_length : int;
   pieces_hash : string Array.t;
   mode : [`Single_file | `Multiple_file];
@@ -34,8 +35,21 @@ let split (s:string) split_size =
 
 let from_torrent chan =
   let bc = B.decode (`Channel chan) in 
+  info "torrent file = %s" (B.pretty_print bc);
   let announce_bc = get (B.dict_get bc "announce") in
   let announce = get (B.as_string announce_bc) in
+  let announce_list : string list list =
+    match B.dict_get bc "announce-list" with  
+    | None -> []
+    | Some al -> 
+      let al : Bencode.t list = get (B.as_list al) in
+      let f (x:Bencode.t) : string list = 
+        let x = get (B.as_list x) in
+        List.map x ~f:(fun x -> get (B.as_string x))
+      in
+      List.map al ~f
+  in
+
   let info_dict_bc = get (B.dict_get bc "info") in 
   let info_str = B.encode_to_string info_dict_bc in 
   let pieces_bc = get (B.dict_get info_dict_bc "pieces") in
@@ -51,7 +65,7 @@ let from_torrent chan =
     let name_bc = get (B.dict_get info_dict_bc "name") in
     let name = get (B.as_string name_bc) in 
     let files_info = [{name; length}] in
-    { mode; announce; info_hash; piece_length; pieces_hash; files_info }
+    { mode; announce; info_hash; piece_length; pieces_hash; announce_list; files_info }
   | None -> 
     let mode = `Multiple_file in
     let files_bc = get (B.dict_get info_dict_bc "files") in
@@ -65,7 +79,7 @@ let from_torrent chan =
       { name = Filename.of_parts names; length }
     in
     let files_info = List.map files f in
-    { mode; announce; info_hash; piece_length; pieces_hash; files_info }
+    { mode; announce; info_hash; piece_length; pieces_hash; announce_list; files_info }
 
 type tracker_reply = {
   complete : int;
