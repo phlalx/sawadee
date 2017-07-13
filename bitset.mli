@@ -14,6 +14,8 @@ val set : t -> int -> bool -> unit
 (** returns true if all bits are set to one *)
 val is_one : t -> bool
 
+val is_zero : t -> bool
+
 val num_bit_set : t -> int
 
 val clear : t -> unit

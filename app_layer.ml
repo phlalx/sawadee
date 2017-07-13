@@ -13,6 +13,13 @@ type t = {
 let create file ~peer_id = { file; peers = []; peer_id; choked = true;
                              interested = true }
 
+
+let cancel_requested_pieces t peer =
+  let f i = Piece.set_not_requested t.file.File.pieces.(i) in
+  Int.Set.iter peer.Peer.pending ~f
+
+
+(* TODO see Async.Time for an existing function *)
 let loop_forever_every_n f s =
   let rec loop () =
     f ();
@@ -72,7 +79,9 @@ let loop_wait_message t peer : unit =
       | Interested -> peer.interested <- true; info "ignore request - not yet implemented"
       | Not_interested -> peer.interested <- false
       | Have index -> Bitset.set peer.have (Int32.to_int_exn index) true 
-      | Bitfield bits  -> Bitset.fill_from_string peer.have bits
+      | Bitfield bits  -> 
+          Bitset.fill_from_string peer.have bits;
+          info "Peer %s has %d/%d pieces" (Peer.to_string peer) (Bitset.num_bit_set peer.have) (t.file.File.num_pieces)
       | Request (index, bgn, length) -> info "ignore request - not yet implemented"
       | Piece (index, bgn, block) -> (
           let index_int = Int32.to_int_exn index in
@@ -99,8 +108,12 @@ let loop_wait_message t peer : unit =
       info "Didn't get message - peer %s closed connection" (Peer.to_string peer);
       return ()
   in
-  info "Start message handler loop";
+  debug "Start message handler loop";
   Deferred.don't_wait_for (Deferred.ignore (wait_message t))
+
+let display_downloaded t =
+  let bs = t.file.File.bitset in
+  info "**** downloaded %d/%d ****" (Bitset.num_bit_set bs) (t.file.File.num_pieces)
 
 let add_peer t peer_addr = 
   Peer.create peer_addr t.file.File.num_pieces
@@ -108,20 +121,31 @@ let add_peer t peer_addr =
   | Ok peer -> 
     t.peers <- peer :: t.peers;
     Peer.handshake peer t.file.File.hash t.peer_id
-    >>| ( function 
+    >>= ( function 
         | Ok () ->  
-          info "handshake ok with peer %s" (Peer.to_string peer);
+          debug "handshake ok with peer %s" (Peer.to_string peer);
           loop_wait_message t peer;
-          info "sending Interested message to peer %s" (Peer.to_string peer);
+          let bs = t.file.File.bitset in 
+          if not (Bitset.is_zero bs) then (
+            info "sending bitfield message to peer %s" (Peer.to_string peer); 
+            Peer.send_message peer (Message.Bitfield (Bitset.to_string bs))
+          );
+          debug "sending Interested message to peer %s" (Peer.to_string peer); 
           Peer.send_message peer Message.Interested;
-          loop_forever_every_n (fun () -> request_piece t) (sec 1.0);
-          Ok ()
-        | Error err -> info "ignore err in add_peer"; Error err)
+          loop_forever_every_n (fun () -> request_piece t) (sec 1.0); (* TODO should not be here! *)
+          return (Ok ())
+        | Error err -> info "ignore err in add_peer"; return (Error err))
   | Error err -> info "ignore err in add_peer"; return (Error err)
 
 (* TODO: better to return type never_return? *)
 let start t peer_addrs = 
   let silent_add_peer peer_addr : unit =
-    Deferred.don't_wait_for (Deferred.ignore (add_peer t peer_addr))
-  in List.iter ~f:silent_add_peer peer_addrs
+    Deferred.don't_wait_for (Deferred.ignore (add_peer t peer_addr)) in
+
+  loop_forever_every_n (fun () -> display_downloaded t) (sec 10.0); 
+  List.iter ~f:silent_add_peer peer_addrs
+
+
+
+
 

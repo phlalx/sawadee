@@ -25,16 +25,15 @@ let process (f : string)  =
   let file = File.create ~len:length ~hash:info_hash ~pieces_hash ~piece_length ~name 
   in
 
-
   let this_peer_id = random_id () in
   Tracker_client.init announce announce_list info_hash length this_peer_id; 
-  info "trying to connect to tracker";
+  debug "trying to connect to tracker";
   Tracker_client.query ()
   >>= function
   | Some peer_addrs ->
-      info "got list of peers";
+      info "tracker replies with list of %d peers" (List.length peer_addrs);
       let al = App_layer.create file this_peer_id in
-      (* let peer_addrs = [List.hd_exn peer_addrs] in (* DEBUG ONLY, keep one peer *) *)
+      let peer_addrs = List.sub peer_addrs ~pos:0 ~len:5 in (* DEBUG ONLY, keep one peer *) 
       return (App_layer.start al peer_addrs)
   | None -> 
     info "can't connect to tracker";

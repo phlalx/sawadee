@@ -30,6 +30,8 @@ let set t i b =
 
 let is_one t = t.num_set = length t
 
+let is_zero t = t.num_set = 0
+
 let num_bit_set t = t.num_set
 
 (** get i-th bit from a string. Bit 0 is left-most *)
@@ -50,7 +52,8 @@ let set_bit (bits:string) i =
 
 let fill_from_string t (bits:string) =
   for i = 0 to (length t) - 1 do
-    t.bits.(i) <- get_bit bits i
+    t.bits.(i) <- get_bit bits i;
+    if t.bits.(i) then t.num_set <- t.num_set + 1
   done
 
 let to_string t =

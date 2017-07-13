@@ -12,6 +12,8 @@ val to_be_downloaded : t -> bool
 
 val set_requested : t -> unit
 
+val set_not_requested : t -> unit
+
 val create : index:int -> hash:string -> len:int -> t
 
 (** total number of block in a piece *)

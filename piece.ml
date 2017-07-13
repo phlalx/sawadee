@@ -26,6 +26,10 @@ let set_requested t =
   assert (t.status = `Not_requested);
   t.status <- `Requested
 
+let set_not_requested t = 
+  assert (t.status = `Requested);
+  t.status <- `Not_requested
+
 let create ~index ~hash ~len = 
   let num_blocks = (len + block_size_int - 1) / block_size_int in
   { index; status = `Not_requested; length = len; hash; content = String.create len; 

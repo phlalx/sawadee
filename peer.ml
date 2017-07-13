@@ -24,7 +24,7 @@ exception Handshake_error
 
 let create peer ~piece_num = 
   let wtc = Tcp.to_inet_address peer in
-  info "trying to connect to peer %s" (Socket.Address.Inet.to_string peer);
+  debug "trying to connect to peer %s" (Socket.Address.Inet.to_string peer);
   try_with (function () -> Tcp.connect wtc)
   >>| function
   | Ok (_, r, w) -> 
@@ -88,4 +88,9 @@ let send_message t (m:Message.t) =
   Writer.write_bigstring t.writer buf
 
 let to_string t = Socket.Address.Inet.to_string t.peer
+
+let has_piece p i = Bitset.get p.have (Int32.to_int_exn i)
+
+
+
 
