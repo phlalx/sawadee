@@ -23,6 +23,7 @@ GET /announce?info_hash=Y%06gi%b9%adB%da.P%86%11%c3%3d%7cD%80%b3%85%7b&peer_id=-
 
 type t = {
   announce : string;
+  announce_list : string list list;
   info_hash : string;
   peer_id : string;
   port : string;
@@ -35,7 +36,7 @@ type t = {
 
 let t = ref None
 
-let init ~announce ~info_hash ~len ~peer_id =
+let init ~announce ~announce_list ~info_hash ~len ~peer_id =
   let left = string_of_int len in
   let port = "6969" in
   let uploaded = "0" in
@@ -43,7 +44,7 @@ let init ~announce ~info_hash ~len ~peer_id =
   let event = "started" in 
   let compact = "1" in
   t := Some { announce; info_hash; left; peer_id; port; uploaded; downloaded;
-              event; compact }
+              event; compact; announce_list }
 
 let extract_list_of_peers s =
   try 
@@ -52,9 +53,39 @@ let extract_list_of_peers s =
   with
   | ex -> Error ex
 
+
+let query_tracker uri =
+  try_with (fun () -> Cohttp_async.Client.get uri)
+  >>= function 
+  | Ok (_, body)  -> (
+      Cohttp_async.Body.to_string body 
+      >>= fun s ->
+      return (extract_list_of_peers s)
+      >>| function 
+      | Ok res -> Some res
+      | Error err -> None
+    )
+  | Error err -> return None
+
+(* TODO we query the trackers in sequence, would by better in parallel *)
+let rec query_all_trackers uris =
+  match uris with
+  | uri :: t -> (
+    debug "trying %s" (Uri.to_string uri);
+    query_tracker uri 
+    >>= function 
+    | Some res -> return (Some res)
+    | None -> query_all_trackers t)
+  | [] -> return None 
+
 let query () =
+  (* We follow roughly http://bittorrent.org/beps/bep_0012.html
+     to deal with announce-list, but not quite exactly TODO *)
   let t = Option.value_exn !t in
-  let uri = Uri.of_string t.announce in
+  let announces =  
+    match t.announce_list with 
+    | [] -> [t.announce]
+    | x -> List.fold x ~init:[] ~f:(@) (* quick and dirty flattening *) in 
   let params = 
     [("info_hash", t.info_hash); 
      ("peer_id", t.peer_id); 
@@ -65,16 +96,10 @@ let query () =
      ("left", t.left);
      ("compact", t.compact );
     ] in
-  let uri_with_query = Uri.with_query' uri params in
-  try_with (fun () -> Cohttp_async.Client.get uri_with_query)
-  >>= function 
-  | Ok (_, body)  -> (
-      Cohttp_async.Body.to_string body 
-      >>= fun s ->
-      return (extract_list_of_peers s)
-      >>= function 
-      | Ok res -> return (Ok res)
-      | Error err -> return (Error err)
-    )
-  | Error err -> return (Error err)
 
+  let create_uri_with_query (x:string) = 
+    let uri = Uri.of_string x in Uri.with_query' uri params in
+
+  let uris_with_parameters = List.map announces ~f:create_uri_with_query in
+
+  query_all_trackers (List.permute uris_with_parameters)

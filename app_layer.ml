@@ -69,11 +69,11 @@ let loop_wait_message t peer : unit =
       | KeepAlive -> ()
       | Choke -> peer.choked <- true
       | Unchoke -> peer.choked <- false
-      | Interested -> peer.interested <- true
+      | Interested -> peer.interested <- true; info "ignore request - not yet implemented"
       | Not_interested -> peer.interested <- false
       | Have index -> Bitset.set peer.have (Int32.to_int_exn index) true 
       | Bitfield bits  -> Bitset.fill_from_string peer.have bits
-      | Request (index, bgn, length) -> debug "ignore request - not yet implemented"
+      | Request (index, bgn, length) -> info "ignore request - not yet implemented"
       | Piece (index, bgn, block) -> (
           let index_int = Int32.to_int_exn index in
           let piece = t.file.File.pieces.(index_int) in
