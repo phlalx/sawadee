@@ -19,6 +19,8 @@ Once we know the list of peers, we'll talk with each of them using a binary prot
  * then (binary asynchronous) messages to get parts of the file.
 
 Current stage of the project: 
+ * both single-file format and multiple-file format are supported
+ * annouce-list is supported
  * several peers can be queried concurrently
  * The handshake is functional (in `App_layer`).
  * Binary messages are implemented (via serialization of `Message.t`). 
@@ -34,6 +36,7 @@ This is still very basic and not functional, although almost there :). A lot rem
 * test with various torrent files
 * answer requests from peers (pieces, bitfield) 
 * Improve requesting strategy (e.g. rare pieces first, peer responsivness)
+* re-query trackers if needed
 
 Morever, the code can be much improved.
 * don't request blocks at regular interval (polling) but based on event occurences (e.g. new pieces availables)

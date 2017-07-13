@@ -29,6 +29,8 @@ let size = function
   | Piece (_,_,s) -> 9 + (String.length s)
   | Cancel _ -> 13 
 
+exception Unkown_message of int 
+
 (* length is prefix-length, the number of bytes left to read, *)
 let bin_read_payload buf ~pos_ref length =
   let x = Read.bin_read_char buf pos_ref in 
@@ -60,14 +62,13 @@ let bin_read_payload buf ~pos_ref length =
     let begn = Read.bin_read_network32_int32 buf pos_ref in
     let len = Read.bin_read_network32_int32 buf pos_ref in
     Cancel (index, begn, len)
-  | _ -> assert false
+  | i -> raise (Unkown_message i)
 
 let bin_read_t buf ~pos_ref = 
-  let length = Int32.to_int (Read.bin_read_network32_int32 buf pos_ref) in 
+  let length = Int32.to_int_exn (Read.bin_read_network32_int32 buf pos_ref) in 
   match length with
-  | Some(0) -> KeepAlive
-  | Some(length) -> bin_read_payload buf ~pos_ref length
-  | None -> assert(false)
+  | 0 -> KeepAlive
+  | length -> bin_read_payload buf ~pos_ref length
 
 let bin_write_t (buf:Common.buf) ~(pos:Common.pos) (x:t) =
   match x with
