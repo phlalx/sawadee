@@ -22,12 +22,13 @@ let loop_forever_every_n f s =
   in
   Deferred.don't_wait_for (Deferred.ignore (loop())) 
 
-let request_piece (p:Peer.t) (piece:Piece.t) : unit =
+let request_all_blocks_from_piece (p:Peer.t) (piece:Piece.t) : unit =
   info "Requesting piece %d (len = %d) from peer %s" 
     (Piece.get_index piece)
     (Piece.length piece)
     (Peer.to_string p);
   Piece.set_requested piece;
+  p.Peer.pending <- Int.Set.add p.Peer.pending (Piece.get_index piece);
   for i = 0 to (Piece.num_blocks piece) - 1 do 
     let (offset, len) = Piece.offset_length piece i in 
     let m = Message.Request(Int32.of_int_exn (Piece.get_index piece), offset, len) in
@@ -35,29 +36,28 @@ let request_piece (p:Peer.t) (piece:Piece.t) : unit =
     Peer.send_message p m
   done
 
-(** find first piece not yet requested owned by peer p. *)
-let first_not_requested (file:File.t) (p:Peer.t) : Piece.t option =
-  let f piece = 
-    Bitset.get p.Peer.have (Piece.get_index piece) && 
-    (Piece.to_be_downloaded piece) in
-  Array.find file.File.pieces ~f
+let compute_next_request t : (Piece.t * Peer.t) Option.t =
+  let f peer = 
+    if peer.Peer.choked || Int.Set.length peer.Peer.pending >= 3 then
+      None
+    else 
+      let open Bitset in
+      let f i = Piece.to_be_downloaded (t.file.File.pieces.(i)) in
+      let pieces_to_be_downloaded = Bitset.init t.file.File.num_pieces ~f in
+      match choose (peer.Peer.have & pieces_to_be_downloaded) with
+      | None -> None 
+      | Some (i) -> Some (t.file.File.pieces.(i), peer)
+  in
+  let l = List.map t.peers ~f in
+  match List.find l ~f:is_some with
+  | None -> None
+  | Some x -> x
 
-let download_pieces t peer =
-  if not peer.Peer.choked then (
-    debug "%s isn't choked, may ask him some pieces" (Peer.to_string peer);
-    let piece_opt = first_not_requested t.file peer in
-    match piece_opt with 
-    | Some piece -> request_piece peer piece 
-    | None -> debug "nothing to download"
-  ) else (
-    debug "%s is choked, don't send request" (Peer.to_string peer) 
-  )
-
-let keep_alive peer =
-  let m  = Message.Interested in
-  debug "sending interested message to %s" (Peer.to_string peer);
-  sexp ~level:`Debug (Message.sexp_of_t m);
-  Peer.send_message peer m
+let request_piece t =
+  debug "request piece";
+  match compute_next_request t with
+  | None -> ()
+  | Some (piece, peer) -> request_all_blocks_from_piece peer piece  
 
 (** process all incoming messages *)
 let loop_wait_message t peer : unit = 
@@ -84,6 +84,7 @@ let loop_wait_message t peer : unit =
           | `Hash_error -> 
             info "hash error"
           | `Downloaded ->
+            peer.Peer.pending <- Int.Set.remove peer.Peer.pending index_int;
             Bitset.set t.file.File.bitset index_int true; 
             info "downloaded piece %d" index_int)
       | Cancel (index, bgn, length) -> debug "ignore cancel msg - Not yet implemented"
@@ -113,14 +114,14 @@ let add_peer t peer_addr =
           loop_wait_message t peer;
           info "sending Interested message to peer %s" (Peer.to_string peer);
           Peer.send_message peer Message.Interested;
-          loop_forever_every_n (fun () -> download_pieces t peer) (sec 1.0);
+          loop_forever_every_n (fun () -> request_piece t) (sec 1.0);
           Ok ()
-        | Error err -> debug "ignore err in add_peer"; Error err)
-  | Error err -> debug "ignore err in add_peer"; return (Error err)
+        | Error err -> info "ignore err in add_peer"; Error err)
+  | Error err -> info "ignore err in add_peer"; return (Error err)
 
+(* TODO: better to return type never_return? *)
 let start t peer_addrs = 
-  (* TODO what is better to return here? unit or unit Deferred.t,
-     something like type never_return? *)
   let silent_add_peer peer_addr : unit =
     Deferred.don't_wait_for (Deferred.ignore (add_peer t peer_addr))
-  in return (List.iter ~f:silent_add_peer peer_addrs)
+  in List.iter ~f:silent_add_peer peer_addrs
+

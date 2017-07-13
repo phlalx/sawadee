@@ -62,11 +62,31 @@ let to_string t =
   done;
   res
 
+let not t = 
+  let bits = Array.map t.bits ~f:not in 
+  let num_set = (Array.length t.bits) - t.num_set in
+  { bits; num_set }
 
+let count_bits bits : int = 
+    let f x b = if b then x + 1 else x in
+    Array.fold bits ~init:0 ~f
 
+let (&) t1 t2 = 
+    let bits : bool Array.t = Array.map2_exn t1.bits t2.bits ~f:(&&) in
+    let num_set = count_bits bits in
+    { bits; num_set } 
 
+let choose t : int option =
+   match Array.findi t.bits ~f:(fun _ b -> b) with
+   | None -> None
+   | Some (i, _) -> Some i
 
+let from_bool_array a =
+  { bits = Array.copy a;
+    num_set = count_bits a;
+  }
 
-
-
-
+let init n ~f = 
+  let bits = Array.init n f in
+  let num_set = count_bits bits in
+  { bits; num_set }

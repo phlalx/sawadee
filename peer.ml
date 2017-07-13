@@ -16,7 +16,8 @@ type t = {
   mutable id : string;
   reader : Reader.t;
   writer : Writer.t;
-  have : Bitset.t
+  have : Bitset.t;
+  mutable pending : Int.Set.t;
 }
 
 exception Handshake_error
@@ -27,7 +28,7 @@ let create peer ~piece_num =
   try_with (function () -> Tcp.connect wtc)
   >>| function
   | Ok (_, r, w) -> 
-    Ok { peer; have = Bitset.create piece_num; id = ""; interested = false; choked = true; reader = r; writer = w}
+    Ok { peer; have = Bitset.create piece_num; id = ""; interested = false; choked = true; reader = r; writer = w; pending = Int.Set.empty }
   | Error err -> Error err
 
 let handshake = "\019BitTorrent protocol"

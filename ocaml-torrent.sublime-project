@@ -12,8 +12,10 @@
     [
         {
             "name": "My Make",
-            "shell_cmd": "make"
-        },
+            "shell_cmd": "make",
+            "file_regex": "^[ ]*File \"(...*?)\", line ([0-9]*)",
+            "selector": "source.ocaml",
+          },
         {
             "name": "My Doc",
             "shell_cmd": "make doc"

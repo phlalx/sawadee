@@ -11,7 +11,8 @@ type t = {
   mutable id : string;
   reader : Reader.t;
   writer : Writer.t;
-  have : Bitset.t
+  have : Bitset.t;
+  mutable pending : Int.Set.t;
  }
 
 exception Handshake_error

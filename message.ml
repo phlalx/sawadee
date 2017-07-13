@@ -125,5 +125,5 @@ let to_string m =
   | Have i -> "Have i = " ^ Int32.to_string i
   | Bitfield s -> "Bitfield"
   | Request (i,b,l) -> "Request i = " ^ Int32.to_string i
-  | Piece (i,_,_) -> "Piece i = " ^ Int32.to_string i
+  | Piece (i,off,_) -> "Piece i = " ^ Int32.to_string i ^ " off = " ^ Int32.to_string off  
   | Cancel _ -> "Cancel"
