@@ -18,8 +18,10 @@ let random_id () =
 let process (f : string)  = 
   let c = In_channel.create f in 
   let open Extract_bencode in 
-  let { info_hash; announce; length; pieces_hash; name; piece_length }
+  let { info_hash; announce; mode; pieces_hash; piece_length; files_info }
     = Extract_bencode.from_torrent c in
+  let { name; _ } = List.hd_exn files_info in (* TODO deal with this when we'll actually write file to disk *)
+  let length = List.fold files_info ~init:0 ~f:(fun acc x -> acc + x.length) in
   let file = File.create ~len:length ~hash:info_hash ~pieces_hash ~piece_length ~name 
   in
 
@@ -35,6 +37,8 @@ let process (f : string)  =
       return (App_layer.start al peer_addrs)
   | Error exn -> 
     info "can't connect to tracker";
+    flushed ()
+    >>= fun () ->
     exit 1
 
 let spec =
@@ -49,7 +53,7 @@ let command =
     (fun filename -> (fun () -> Deferred.don't_wait_for (process filename)))
 
 let () = 
-  set_level `Info;
+  set_level `Debug;
   Command.run command;
   (* Deferred.don't_wait_for (Tests.test ()); *)
   never_returns (Scheduler.go ())

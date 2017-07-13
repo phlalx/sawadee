@@ -4,13 +4,18 @@ open Log.Global
 
 module B = Bencode
 
-type torrent_info = {
+type file_info = {
   name : string;
+  length : int;
+}
+
+type torrent_info = {
   info_hash : string;
   announce : string;
   piece_length : int;
   pieces_hash : string Array.t;
-  length : int;
+  mode : [`Single_file | `Multiple_file];
+  files_info : file_info list
 }
 
 let hash_length = 20
@@ -29,22 +34,38 @@ let split (s:string) split_size =
 
 let from_torrent chan =
   let bc = B.decode (`Channel chan) in 
-  (* debug "Torrent file bencode decoded = %s" (B.pretty_print bc); *)
   let announce_bc = get (B.dict_get bc "announce") in
   let announce = get (B.as_string announce_bc) in
   let info_dict_bc = get (B.dict_get bc "info") in 
   let info_str = B.encode_to_string info_dict_bc in 
   let pieces_bc = get (B.dict_get info_dict_bc "pieces") in
   let pieces = get (B.as_string pieces_bc) in
-  let length_bc = get (B.dict_get info_dict_bc "length") in
-  let length = get (B.as_int length_bc) in
   let piece_length_bc = get (B.dict_get info_dict_bc "piece length") in
   let piece_length = get (B.as_int piece_length_bc) in
-  let name_bc = get (B.dict_get info_dict_bc "name") in
-  let name = get (B.as_string name_bc) in 
   let info_hash = Sha1.to_bin (Sha1.string info_str) in
   let pieces_hash = split pieces hash_length in 
-  { name; announce; info_hash; piece_length; pieces_hash; length; }
+  match B.dict_get info_dict_bc "length" with
+  | Some length_bc ->
+    let mode = `Single_file in
+    let length = get (B.as_int length_bc) in
+    let name_bc = get (B.dict_get info_dict_bc "name") in
+    let name = get (B.as_string name_bc) in 
+    let files_info = [{name; length}] in
+    { mode; announce; info_hash; piece_length; pieces_hash; files_info }
+  | None -> 
+    let mode = `Multiple_file in
+    let files_bc = get (B.dict_get info_dict_bc "files") in
+    let files = get (B.as_list files_bc) in 
+    let f (file_info_bc:Bencode.t) : file_info  =
+      let name_bc = get (B.dict_get file_info_bc "path") in
+      let name_list = get (B.as_list name_bc)  in 
+      let names = List.map name_list ~f:(fun n -> get (B.as_string n)) in
+      let length_bc = get (B.dict_get file_info_bc "length") in
+      let length = get (B.as_int length_bc) in
+      { name = Filename.of_parts names; length }
+    in
+    let files_info = List.map files f in
+    { mode; announce; info_hash; piece_length; pieces_hash; files_info }
 
 type tracker_reply = {
   complete : int;
@@ -52,24 +73,6 @@ type tracker_reply = {
   interval : int;
   peers : Socket.Address.Inet.t list
 }
-
-(* let f s =
-    let pos = 0 in
-    let (acc : Int32.t ref) = ref 0l in
-    let (port : int ref) = ref 0 in
-    for i = pos to pos + 3 do
-      let byte = Int32.of_int_exn (int_of_char s.[i]) in
-      let open Int32 in
-      acc := !acc * 256l;
-      acc := !acc + byte
-    done;
-    for i = pos + 4 to pos + 5 do
-      port := !port * 256;
-      port := !port + int_of_char s.[i]
-    done;
-    let addr = Unix.Inet_addr.inet4_addr_of_int32 !acc in
-    Socket.Address.Inet.create addr !port
-*)
 
 let rec decode_peers s =
   let ar = split s 6 in
@@ -80,7 +83,6 @@ let rec decode_peers s =
     Socket.Address.Inet.create addr port
   in 
   Array.to_list (Array.map ar ~f:compact_repr)
-
 
 let from_tracker_reply s =
   let bc = B.decode (`String s) in 

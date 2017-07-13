@@ -9,13 +9,18 @@
 open Core
 open Async
 
+type file_info = {
+  name : string;
+  length : int;
+}
+
 type torrent_info = {
-  name : string; (** name of file to be downloaded *)
-  info_hash : string; (** 20-bytes hash of info section *)
-  announce : string; (** address of tracker *)
-  piece_length : int; (** size of each piece *)
-  pieces_hash : string Array.t; (* hash of each pieces *)
-  length : int; (* length of file *)
+  info_hash : string;
+  announce : string;
+  piece_length : int;
+  pieces_hash : string Array.t;
+  mode : [`Single_file | `Multiple_file];
+  files_info : file_info list
 }
 
 type tracker_reply = {
