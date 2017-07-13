@@ -18,6 +18,14 @@ let cancel_requested_pieces t peer =
   let f i = Piece.set_not_requested t.file.File.pieces.(i) in
   Int.Set.iter peer.Peer.pending ~f
 
+(* notify peers that we have a pieces they don't have *)
+let send_have_messages t i =
+  let notify_if_doesn't_have i p =
+    if not (Peer.has_piece p i) then (
+      info "notify peer %s about piece %d" (Peer.to_string p) i;
+      Peer.send_message p (Message.Have i)
+    ) in
+  List.iter t.peers ~f:(notify_if_doesn't_have i)
 
 (* TODO see Async.Time for an existing function *)
 let loop_forever_every_n f s =
@@ -94,6 +102,7 @@ let loop_wait_message t peer : unit =
           | `Downloaded ->
             peer.Peer.pending <- Int.Set.remove peer.Peer.pending index;
             Bitset.set t.file.File.bitset index true; 
+            send_have_messages t index; 
             info "downloaded piece %d" index)
       | Cancel (index, bgn, length) -> debug "ignore cancel msg - Not yet implemented"
     in
