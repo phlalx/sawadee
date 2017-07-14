@@ -41,9 +41,9 @@ let create peer ~piece_num =
 
 let handshake = "\019BitTorrent protocol"
 
-let handshake hash this_peer_id = 
-  "\019BitTorrent protocol\000\000\000\000\000\000\000\000" ^ hash 
-  ^ this_peer_id
+let handshake hash this_peer_id = sprintf 
+    "\019BitTorrent protocol\000\000\000\000\000\000\000\000%s%s" hash 
+    this_peer_id
 
 let handshake t info_hash this_peer_id =
   let handshake = handshake info_hash this_peer_id in 
