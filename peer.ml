@@ -18,7 +18,12 @@ type t = {
   writer : Writer.t;
   have : Bitset.t;
   mutable pending : Int.Set.t;
+  mutable time_since_last_reception : int;
+  mutable time_since_last_send : int;
+  mutable idle : bool;
 }
+
+let to_string t = Socket.Address.Inet.to_string t.peer
 
 exception Handshake_error
 
@@ -28,13 +33,17 @@ let create peer ~piece_num =
   try_with (function () -> Tcp.connect wtc)
   >>| function
   | Ok (_, r, w) -> 
-    Ok { peer; have = Bitset.create piece_num; id = ""; interested = false; choked = true; reader = r; writer = w; pending = Int.Set.empty }
+    Ok { peer; have = Bitset.create piece_num; id = ""; interested = false; 
+         choked = true; reader = r; writer = w; pending = Int.Set.empty;
+         time_since_last_reception = 0; time_since_last_send = 0;
+         idle = false; }
   | Error err -> Error err
 
 let handshake = "\019BitTorrent protocol"
 
-let handshake hash this_peer_id = "\019BitTorrent protocol\000\000\000\000\000\000\000\000" 
-                                  ^ hash ^ this_peer_id
+let handshake hash this_peer_id = 
+  "\019BitTorrent protocol\000\000\000\000\000\000\000\000" ^ hash 
+  ^ this_peer_id
 
 let handshake t info_hash this_peer_id =
   let handshake = handshake info_hash this_peer_id in 
@@ -73,23 +82,40 @@ let get_message t =
       let msg_substr = Bigsubstring.create buf ~pos:4 ~len in 
       Reader.really_read_bigsubstring t.reader msg_substr
       >>| function
-      | `Eof _ -> `Eof 
+      | `Eof _ -> 
+        info "Didn't get message - peer %s closed connection" (to_string t);
+        `Eof 
       | `Ok -> 
+        t.time_since_last_reception <- 0;
         pos_ref := 0;
         let msg = Message.bin_read_t buf ~pos_ref in
+        debug "got message %s from %s" (Message.to_string msg) (to_string t);
         `Ok msg)
 
 let send_message t (m:Message.t) =
   let len = 4 + Message.size m in (* prefix length + message *)
-  debug "sending message of len = %d" len;
+  debug "sending message %s %s" (Message.to_string m) (to_string t);
   let buf = Bin_prot.Common.create_buf len in
   let pos = Message.bin_write_t buf 0 m in
   assert(pos = len); 
+  t.time_since_last_send <- 0;
   Writer.write_bigstring t.writer buf
 
-let to_string t = Socket.Address.Inet.to_string t.peer
+let has_piece t i = Bitset.get t.have i
 
-let has_piece p i = Bitset.get p.have i
+let is_interested t = t.interested 
+
+let incr_time t =
+  t.time_since_last_send <- t.time_since_last_send + 1;
+  t.time_since_last_reception <- t.time_since_last_reception + 1
+
+let is_idle t = t.idle
+
+let pending_to_string t = 
+  let l = Int.Set.to_list t.pending in 
+  Sexp.to_string (List.sexp_of_t sexp_of_int l)
+
+
 
 
 

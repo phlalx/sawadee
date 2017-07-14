@@ -13,7 +13,11 @@ type t = {
   writer : Writer.t;
   have : Bitset.t;
   mutable pending : Int.Set.t;
- }
+  mutable time_since_last_reception : int;
+  mutable time_since_last_send : int;
+  mutable idle : bool;
+}
+
 
 exception Handshake_error
 
@@ -31,3 +35,11 @@ val get_message : t -> Message.t Reader.Read_result.t Deferred.t
 val to_string : t -> string
 
 val has_piece : t -> int -> bool
+
+val is_interested : t -> bool
+
+val incr_time : t -> unit 
+
+val is_idle : t -> bool
+
+val pending_to_string : t -> string

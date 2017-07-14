@@ -26,8 +26,9 @@ let set_requested t =
   t.status <- `Requested
 
 let set_not_requested t = 
-  assert (t.status = `Requested);
-  t.status <- `Not_requested
+  (* assert (t.status = `Requested); *)
+  if not (t.status = `Downloaded) then
+    t.status <- `Not_requested
 
 let create ~index ~hash ~len = 
   let num_blocks = (len + block_size - 1) / block_size in

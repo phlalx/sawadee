@@ -10,5 +10,5 @@ type t = {
   bitset : Bitset.t
 }
 
-val create : len:int -> hash:string -> pieces_hash:(string Array.t) -> name:string 
- ->  piece_length:int -> t
+val create : len:int -> hash:string -> pieces_hash:(string Array.t) 
+  -> name:string ->  piece_length:int -> t

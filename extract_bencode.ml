@@ -31,11 +31,12 @@ let get x =
 let split (s:string) split_size =
   let n = String.length s in
   assert (n % split_size = 0);
-  Array.init (n / split_size) ~f:(fun i -> String.sub s (i * split_size) split_size)
+  let f i = String.sub s (i * split_size) split_size in
+  Array.init (n / split_size) ~f
 
 let from_torrent chan =
   let bc = B.decode (`Channel chan) in 
-  info "torrent file = %s" (B.pretty_print bc);
+  debug "torrent file = %s" (B.pretty_print bc);
   let announce_bc = get (B.dict_get bc "announce") in
   let announce = get (B.as_string announce_bc) in
   let announce_list : string list list =
@@ -65,7 +66,8 @@ let from_torrent chan =
     let name_bc = get (B.dict_get info_dict_bc "name") in
     let name = get (B.as_string name_bc) in 
     let files_info = [{name; length}] in
-    { mode; announce; info_hash; piece_length; pieces_hash; announce_list; files_info }
+    { mode; announce; info_hash; piece_length; pieces_hash; announce_list; 
+      files_info }
   | None -> 
     let mode = `Multiple_file in
     let files_bc = get (B.dict_get info_dict_bc "files") in
@@ -79,7 +81,8 @@ let from_torrent chan =
       { name = Filename.of_parts names; length }
     in
     let files_info = List.map files f in
-    { mode; announce; info_hash; piece_length; pieces_hash; announce_list; files_info }
+    { mode; announce; info_hash; piece_length; pieces_hash; announce_list; 
+      files_info }
 
 type tracker_reply = {
   complete : int;
@@ -91,7 +94,8 @@ type tracker_reply = {
 let rec decode_peers s =
   let ar = split s 6 in
   let compact_repr (s:string) : Socket.Address.Inet.t =
-    let addr_int32 = Binary_packing.unpack_signed_32 ~byte_order:`Big_endian ~buf:s ~pos:0 in
+    let addr_int32 = Binary_packing.unpack_signed_32 ~byte_order:`Big_endian 
+        ~buf:s ~pos:0 in
     let port = Binary_packing.unpack_unsigned_16_big_endian ~pos:4 ~buf:s in
     let addr = Unix.Inet_addr.inet4_addr_of_int32 addr_int32 in
     Socket.Address.Inet.create addr port
@@ -100,7 +104,7 @@ let rec decode_peers s =
 
 let from_tracker_reply s =
   let bc = B.decode (`String s) in 
-  (* debug "Tracker reply = %s" (B.pretty_print bc); *)
+  debug "Tracker reply = %s" (B.pretty_print bc);
   let complete = get ((B.as_int (get (B.dict_get bc "complete")))) in
   let incomplete = get ((B.as_int (get (B.dict_get bc "incomplete")))) in
   let interval = get ((B.as_int (get (B.dict_get bc "interval")))) in

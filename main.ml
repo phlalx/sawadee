@@ -10,31 +10,36 @@ open Core
 open Async
 open Log.Global
 
-let random_id () = 
-  String.init 20 ~f:(fun _ -> char_of_int (Random.int 255))
+let random_id () = String.init 20 ~f:(fun _ -> char_of_int (Random.int 255))
+
+let start_app_layer peer_addrs file peer_id =
+  let al = App_layer.create file peer_id in
+  (* DEBUG ONLY, keep only a subset of peers *) 
+  (* let peer_addrs = List.sub peer_addrs ~pos:0 ~len:5 in  *)
+  App_layer.start al;
+  List.iter ~f:(App_layer.add_peer al) peer_addrs
 
 (** [process f] initiates downloading of file described by
     torrent file named [f]. *)
 let process (f : string)  = 
   let c = In_channel.create f in 
   let open Extract_bencode in 
-  let { info_hash; announce; announce_list; mode; pieces_hash; piece_length; files_info }
+  let { info_hash; announce; announce_list; mode; pieces_hash; piece_length; 
+        files_info }
     = Extract_bencode.from_torrent c in
-  let { name; _ } = List.hd_exn files_info in (* TODO deal with this when we'll actually write file to disk *)
+  (* TODO ignore file names until we actually write file to disk *)
+  let { name; _ } = List.hd_exn files_info in 
   let length = List.fold files_info ~init:0 ~f:(fun acc x -> acc + x.length) in
-  let file = File.create ~len:length ~hash:info_hash ~pieces_hash ~piece_length ~name 
-  in
-
-  let this_peer_id = random_id () in
-  Tracker_client.init announce announce_list info_hash length this_peer_id; 
+  let file = File.create ~len:length ~hash:info_hash ~pieces_hash ~piece_length
+      ~name in
+  let peer_id = random_id () in
+  Tracker_client.init announce announce_list info_hash length peer_id; 
   debug "trying to connect to tracker";
   Tracker_client.query ()
   >>= function
-  | Some peer_addrs ->
-      info "tracker replies with list of %d peers" (List.length peer_addrs);
-      let al = App_layer.create file this_peer_id in
-      let peer_addrs = List.sub peer_addrs ~pos:0 ~len:5 in (* DEBUG ONLY, keep one peer *) 
-      return (App_layer.start al peer_addrs)
+  | Some peer_addrs -> 
+    info "tracker replies with list of %d peers" (List.length peer_addrs);
+    return (start_app_layer peer_addrs file peer_id)
   | None -> 
     info "can't connect to tracker";
     flushed ()

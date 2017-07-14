@@ -126,7 +126,8 @@ let to_string m = (* TODO use printf *)
   | Have i -> "Have i = " ^ string_of_int i
   | Bitfield s -> "Bitfield"
   | Request (i,b,l) -> "Request i = " ^ string_of_int i
-  | Piece (i,off,_) -> "Piece i = " ^ string_of_int i ^ " off = " ^ string_of_int off  
+  | Piece (i,off,_) -> "Piece i = " ^ string_of_int i ^ " off = " ^ 
+                       string_of_int off  
   | Cancel _ -> "Cancel"
 
 
