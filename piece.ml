@@ -14,7 +14,11 @@ type t = {
   blocks : Bitset.t
 }
 
-let content t = t.content
+let file_offset t = Int64.of_int (t.index * t.length) 
+
+let get_status t = t.status
+
+let set_status t st = t.status <- st
 
 let length t = t.length
 
@@ -38,9 +42,7 @@ let create ~index ~hash ~len =
 
 let num_blocks t = (t.length + block_size - 1) / block_size
 
-let offset_to_index off =
-  assert (off % block_size = 0);
-  off / block_size
+let block_length t off = min (t.length - off) block_size 
 
 let offset_length t index =
   let len = t.length in
@@ -48,12 +50,22 @@ let offset_length t index =
   let block_len = min (len - offset) block_size in
   offset, block_len
 
-let update t (index:int) (block:string) = 
-  let (offset, block_length) = offset_length t index in
+let iter t ~f = 
+  for i = 0 to (num_blocks t) - 1 do 
+    let off = i * block_size in
+    let len = block_length t off in
+    f ~index:t.index ~off ~len
+  done
+
+let update t ~off (block:string) = 
+  let index = 
+    assert (off % block_size = 0);  (* TODO other error for that *)
+    off / block_size in
+
   let len = String.length block in
-  assert (len = block_length);
+  assert (len = (block_length t off));
   Bitset.set t.blocks index true;
-  String.blit ~src:block ~src_pos:0 ~dst:t.content ~dst_pos:offset ~len;
+  String.blit ~src:block ~src_pos:0 ~dst:t.content ~dst_pos:off ~len;
   if Bitset.is_one t.blocks then ( 
     let hash_piece = Sha1.to_bin (Sha1.string t.content) in 
     if (hash_piece = t.hash) then (
@@ -66,31 +78,15 @@ let update t (index:int) (block:string) =
       `Hash_error
     )  
   ) else ( 
-    `Ok
+    `Ok 
   )
 
-let blocks t = 
-  let (num_blocks:int) = (t.length + block_size - 1) / block_size  in
-  let len = t.length in
-  let rec block_aux t offset =
-    if offset + block_size <= len then
-      (offset, block_size) :: block_aux t (offset + block_size)
-    else if offset = len then
-      []
-    else 
-      [(offset, len - offset)]
-  in 
-  let res = block_aux t 0 in
-  let (l:int) = List.length res in
-  assert (l = num_blocks); 
-  res
-
 let write t wr =
-  (* assert (Bitset.is_one t.blocks); *)
+  assert (Bitset.is_one t.blocks); 
   assert ((String.length t.content) = t.length);
   Writer.write wr t.content
 
 let is_downloaded t = t.status = `Downloaded
 
-
+let to_string t = sprintf "(i = %d len = %d)" t.index t.length
 

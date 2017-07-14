@@ -18,7 +18,6 @@ type t = {
   mutable idle : bool;
 }
 
-
 exception Handshake_error
 
 val create: Socket.Address.Inet.t -> piece_num:int -> (t,exn) result Deferred.t 

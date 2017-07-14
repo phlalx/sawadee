@@ -14,6 +14,18 @@ type t = {
   piece_length : int;
 }
 
+let bitset t = Bitset.to_string t.bitset 
+
+let hash t = t.hash
+
+let num_piece_have t = Bitset.num_bit_set t.bitset  
+
+let num_pieces t = t.num_pieces 
+
+let get_piece t i = t.pieces.(i)
+
+let set_piece_have t i = Bitset.set t.bitset i true
+
 let bitset_name name = "." ^ name
 
 (* TODO something not right...
@@ -22,20 +34,22 @@ let bitset_name name = "." ^ name
    For some reason, the file becomes way bigger than what it should be. 
    READ THIS async_unix/Async_unix/Fd.mod/index.html *)
 let write_to_disk t =
-  let f acc p = acc + (Piece.length p) in
+(*   let f acc p = acc + (Piece.length p) in
   let sum_piece = Array.fold t.pieces ~init:0 ~f  in
   assert(sum_piece = t.len);
-  Async_unix.Unix_syscalls.lseek t.bitset_fd ~mode:`Set 0L
+ *)  
+ Async_unix.Unix_syscalls.lseek t.bitset_fd ~mode:`Set 0L
   >>| fun _ ->
   let wr_bitset = Writer.create t.bitset_fd in
   let wr_file = Writer.create t.file_fd in
   Writer.write wr_bitset (Bitset.to_string t.bitset);
   let f p = 
-    if Piece.is_downloaded p then (
-      let offset = Int64.of_int ((Piece.get_index p) * t.piece_length) in
+    if (Piece.get_status p = `Downloaded) then (
+      let offset = Piece.file_offset p in
       Async_unix.Unix_syscalls.lseek t.file_fd ~mode:`Set offset
       >>| fun _ ->
-      Piece.write p wr_file )
+      Piece.write p wr_file;
+      Piece.set_status p `On_disk)
     else 
       return ()
   in 
