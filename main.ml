@@ -60,7 +60,23 @@ let command =
 let () = 
   set_level `Info;
   Command.run command;
-  (* Deferred.don't_wait_for (Tests.test ()); *)
   never_returns (Scheduler.go ())
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

@@ -12,7 +12,7 @@ byte:
 	$(OCB) main.byte
 
 test: byte
-	./main.byte ubuntu-17.04-desktop-amd64.iso.torrent
+	./main.byte torrents/ubuntu-17.04-desktop-amd64.iso.torrent
 
 debug:
 	$(OCB) -tag debug main.byte
