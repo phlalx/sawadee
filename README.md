@@ -1,6 +1,6 @@
 # OCaml-torrent (work in progress)
 
-This is a toy bittorrent client for the sake of familializing myself with `Core` and `Async` APIs.
+This is a toy bittorrent client. My goal was to familializing myself with `Core` and `Async` APIs. The aim is to be able to download most type of torrent files from the command line with acceptable performance, and a code clean and documented enough so it can be useful for someone else.
 
 ### Usage
 
@@ -26,24 +26,28 @@ Current stage of the project:
  * Binary messages are implemented (via serialization of `Message.t`). 
  * Per-peer state (including socket read/write, choked, interested status...) is maintained in `Peer`.
  * A `File.t` is divided in `Piece.t`. Each `Piece.t` is furthermore divided in blocks (Bitset.t describes the blocks of a piece already downloaded). 
- * In the application layer `App_layer`, after the handshake, two services are launched. 
+ * In the application layer `App_layer`, after the handshake, several services are launched. 
  * One continuously wait for peer messages (block of files, information on pieces ownership, request to download...). 
- * The other one requests for pieces. At the moment, only peers that are not choking with less than a few pending request are considered. Among them, we ask for pieces that not yet requested or downloaded without any particular strategy.
+ * Another one requests for pieces. At the moment, only peers that are not choking with less than a few pending request are considered. Among them, we ask for pieces that not yet requested or downloaded without any particular strategy.
+* Requests that have been pending for n seconds are canceled. 
+* File/Bitset is saved to disk periodically, as well as the current bitset (still some bug with Async.Unix.Fd.t)
 
-This is still very basic and not functional, although almost there :). A lot remains to be done. Immediate next steps for this to be usable.
-* re-request block if needed  
-* save file to disk 
+This works for in simple cases (single file torrent) but a lot remains to be 
+done. 
+* When application is launched, load persistent state 
 * test with various torrent files
 * answer requests from peers (pieces, bitfield) 
+* re-query trackers if needed (dynamic set of peers)
+* think of corner cases (corrupted persistent states, malicious peers)
 * Improve requesting strategy (e.g. rare pieces first, peer responsivness)
-* re-query trackers if needed
+
 
 Morever, the code can be much improved.
 * don't request blocks at regular interval (polling) but based on event occurences (e.g. new pieces availables)
 * better resource management (close connections...)
 * Use more efficient datastructures
-* Better use of the existing API. 
-* Rework the module separations. There are invariant that span several modules that should be identified and if possible encapsulated. 
+* Better use of the existing API (see Async.Unix.fd). 
+* Rework the module interfaces. There are invariant that span several modules that should be identified and if possible encapsulated. 
 
 ### Resources and libs
 

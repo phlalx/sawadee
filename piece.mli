@@ -1,4 +1,5 @@
 open Core
+open Async
 
 val block_size : int
 
@@ -28,3 +29,7 @@ val update : t -> int -> string -> [ `Downloaded | `Ok | `Hash_error ]
 val offset_to_index : int -> int
 
 val content : t -> string
+
+val write : t -> Writer.t -> unit
+
+val is_downloaded : t -> bool

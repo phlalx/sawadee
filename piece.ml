@@ -4,9 +4,10 @@ open Log.Global
 
 let block_size = 32768
 
+(* TODO deal with `On_disk *)
 type t = {
   index : int;
-  mutable status : [ `Requested | `Downloaded | `Not_requested];
+  mutable status : [ `Requested | `Downloaded | `Not_requested | `On_disk ];
   hash : string;
   length : int;
   content : string;
@@ -83,3 +84,13 @@ let blocks t =
   let (l:int) = List.length res in
   assert (l = num_blocks); 
   res
+
+let write t wr =
+  (* assert (Bitset.is_one t.blocks); *)
+  assert ((String.length t.content) = t.length);
+  Writer.write wr t.content
+
+let is_downloaded t = t.status = `Downloaded
+
+
+

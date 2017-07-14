@@ -30,8 +30,8 @@ let process (f : string)  =
   (* TODO ignore file names until we actually write file to disk *)
   let { name; _ } = List.hd_exn files_info in 
   let length = List.fold files_info ~init:0 ~f:(fun acc x -> acc + x.length) in
-  let file = File.create ~len:length ~hash:info_hash ~pieces_hash ~piece_length
-      ~name in
+  File.create ~len:length ~hash:info_hash ~pieces_hash ~piece_length ~name 
+  >>= fun file ->
   let peer_id = random_id () in
   Tracker_client.init announce announce_list info_hash length peer_id; 
   debug "trying to connect to tracker";

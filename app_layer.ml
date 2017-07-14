@@ -129,6 +129,7 @@ let display_downloaded t =
   let bs = t.file.File.bitset in
   info "**** downloaded %d/%d ****" (Bitset.num_bit_set bs) 
     (t.file.File.num_pieces)
+    (*; File.write_to_disk t.file *) (* TODO: debug this *)
 
 let add_peer t peer_addr = 
   let init_protocol (p:Peer.t) =

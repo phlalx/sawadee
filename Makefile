@@ -12,7 +12,7 @@ byte:
 	$(OCB) main.byte
 
 test: byte
-	./main.byte torrents/ubuntu-17.04-desktop-amd64.iso.torrent
+	./main.byte torrents/NuTyX_x86_64-20170625.torrent 
 
 debug:
 	$(OCB) -tag debug main.byte
@@ -30,6 +30,7 @@ clean:
 	$(OCB) -clean
 	rm -f README.html
 	rm -rf .docdir
+	rm -f NuTyX_x86_64-20170625.torrent .NuTyX_x86_64-20170625.torrent
 
 README.html: README.md
 	pandoc -c style.css -f markdown_github < README.md > README.html
