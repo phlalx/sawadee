@@ -79,8 +79,6 @@ let rec query_all_trackers uris =
   | [] -> return None 
 
 let query () =
-  (* We follow roughly http://bittorrent.org/beps/bep_0012.html
-     to deal with announce-list, but not quite exactly TODO *)
   let t = Option.value_exn !t in
   let announces =  
     match t.announce_list with 

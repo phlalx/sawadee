@@ -32,6 +32,12 @@ val send_message : t -> Message.t -> unit
 
 val has_piece : t -> int -> bool
 
+(** Sets the bitfield describing the list of pieces owned by peer. We use 
+    the format defined in the bittorrent protocol. 
+
+    TODO: 
+     - we could define a special type for these strings 
+     - rename this function *)
 val set_bitfield : t -> string -> unit
 
 val set_has_piece : t -> int -> unit

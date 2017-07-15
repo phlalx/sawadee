@@ -1,10 +1,12 @@
 (** Extract relevant information from bencode binary.
 
-    We get bencode from the torrent file passed as arg in the command-line,
-    and from the http-server (the {i tracker}).
+    This concerns two different things:
+    - The bencode read from the metainfo file (from command-line)
+    - The {i tracker} reply.
+
+    This supports both single and multiple file mode.   
 
     @raise Wrong_format if binary doesn't have the expected structure. *)
-
 
 open Core
 open Async
