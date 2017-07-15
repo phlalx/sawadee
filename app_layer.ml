@@ -73,8 +73,8 @@ let compute_next_request t : (Piece.t * P.t) Option.t =
       match Bitset.choose pieces_to_request with 
       | None -> None 
       | Some i -> Some (File.get_piece t.file i, peer)
-    in
- let l = List.map t.peers ~f in
+  in
+  let l = List.map t.peers ~f in
   match List.find l ~f:is_some with
   | None -> None
   | Some x -> x
@@ -116,9 +116,8 @@ let rec wait_and_process_message t (p:P.t) =
   | `Eof -> `Finished ()
 
 let display_downloaded t =
-  info "**** downloaded %d/%d ****" (File.num_owned_pieces t.file)
+  info "**** downloaded %d/%d ****" (File.num_owned_pieces t.file) 
     (File.num_pieces t.file)
-(*; File.write_to_disk t.file *) (* TODO: debug this *)
 
 let add_peer t peer_addr = 
   let init_protocol (p:P.t) =
@@ -143,8 +142,14 @@ let add_peer t peer_addr =
 
   Deferred.don't_wait_for (add_peer_aux t peer_addr)
 
+let stop t = (* TODO bind this to ctrl-C *)
+  File.close t 
+  >>= fun () -> 
+  exit 0
+
 let start t = 
   Clock.every (sec 10.0) (fun () -> display_downloaded t); 
+  Clock.every' (sec 10.0) (fun () -> File.write t.file);  
   Clock.every (sec 1.0) (fun () -> tick_peers t); 
   Clock.every (sec 0.001) (fun () -> request_piece t)
 

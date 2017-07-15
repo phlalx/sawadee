@@ -30,7 +30,7 @@ clean:
 	$(OCB) -clean
 	rm -f README.html
 	rm -rf .docdir
-	rm -f NuTyX_x86_64-20170625.torrent .NuTyX_x86_64-20170625.torrent
+	rm -f NuTyX_x86_64-20170625.iso .NuTyX_x86_64-20170625.iso
 
 README.html: README.md
 	pandoc -c style.css -f markdown_github < README.md > README.html

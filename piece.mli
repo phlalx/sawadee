@@ -55,11 +55,8 @@ val get_status : t -> [`Requested | `Downloaded | `Not_requested | `On_disk]
 val set_status : t -> [`Requested | `Downloaded | `Not_requested | `On_disk] 
   -> unit
 
-(** offset within the file, call this to position writer correctly *)
-val file_offset : t -> int64
-
-(** write file to disk *)
-val write : t -> Writer.t -> unit
+(** write piece to fd *)
+val write : t -> Unix.Fd.t -> unit Deferred.t
 
 (** for logging purpose *)
 val to_string : t -> string

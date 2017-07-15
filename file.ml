@@ -48,36 +48,27 @@ let pieces_not_requested t =
   let f i = (Piece.get_status t.pieces.(i)) = `Not_requested in
   Bitset.create ~size:t.num_pieces ~f
 
-(* TODO something not right...
-   should we somehow wait for the write to be completed before
-   using seek again?
-   For some reason, the file becomes way bigger than what it should be. 
-   READ THIS async_unix/Async_unix/Fd.mod/index.html *)
-let write_to_disk t =
-(*   let f acc p = acc + (Piece.length p) in
-  let sum_piece = Array.fold t.pieces ~init:0 ~f  in
-  assert(sum_piece = t.len);
- *)  
- Async_unix.Unix_syscalls.lseek t.bitset_fd ~mode:`Set 0L
-  >>| fun _ ->
+let write_bitset t =
+  Async_unix.Unix_syscalls.lseek t.bitset_fd ~mode:`Set 0L 
+  >>| fun _ -> (* TODO check for error *)
   let wr_bitset = Writer.create t.bitset_fd in
-  let wr_file = Writer.create t.file_fd in
-  let bitfield = (* Bitset.to_string t.bitset; *) assert false in
-  Writer.write wr_bitset bitfield;
+  let s = Bitfield.to_string (Bitset.to_bitfield t.owned_pieces) in
+  Writer.write wr_bitset s
+ 
+let write_pieces t =
   let f p = 
-    if (Piece.get_status p = `Downloaded) then (
-      let offset = Piece.file_offset p in
-      Async_unix.Unix_syscalls.lseek t.file_fd ~mode:`Set offset
-      >>| fun _ ->
-      Piece.write p wr_file;
-      Piece.set_status p `On_disk)
-    else 
+    if (Piece.get_status p = `Downloaded) then 
+      Piece.write p t.file_fd
+    else
       return ()
   in 
-  Array.iter t.pieces ~f:(fun p -> don't_wait_for (f p))
+  Deferred.Array.iter t.pieces ~f 
 
-let write_to_disk t = 
-  don't_wait_for (write_to_disk t)
+let write t = 
+    info "write files to disk";
+    write_pieces t
+    >>= fun () ->
+    write_bitset t
 
 let close t = 
   Unix.close t.file_fd

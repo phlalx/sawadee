@@ -18,8 +18,6 @@ let create ~index hash ~len =
   { index; status = `Not_requested; length = len; hash; content = String.create len; 
     blocks = Bitset.empty num_blocks }
 
-let file_offset t = Int64.of_int (t.index * t.length) 
-
 let get_status t = t.status
 
 let set_status t st = t.status <- st
@@ -56,6 +54,8 @@ let iter t ~f =
     f ~index:t.index ~off ~len
   done
 
+
+(* TODO this look a bit ugly *)
 let update t ~off (block:string) = 
   let index = 
     assert (off % block_size = 0);  (* TODO other error for that *)
@@ -79,10 +79,16 @@ let update t ~off (block:string) =
     `Ok 
   )
 
-let write t wr =
+let write t fd =
   assert (Bitset.is_full t.blocks); 
   assert ((String.length t.content) = t.length);
-  Writer.write wr t.content
+  let wr = Writer.create fd in
+  let file_offset = Int64.of_int (t.index * t.length) in
+  Async_unix.Unix_syscalls.lseek fd ~mode:`Set file_offset
+  >>| fun off -> 
+  assert (off = file_offset); (* TODO fail silently *)
+  Writer.write wr t.content;
+  set_status t `On_disk
 
 let is_downloaded t = t.status = `Downloaded
 
