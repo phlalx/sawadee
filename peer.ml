@@ -32,7 +32,7 @@ let create peer_addr ~piece_num =
   >>| function
   | Ok (_, r, w) -> 
     (* TODO use option type or dummy value instead of random peer_id *) 
-    Ok { peer_addr; have = Bitset.create piece_num; id =  Peer_id.random (); interested = false; 
+    Ok { peer_addr; have = Bitset.empty piece_num; id = Peer_id.random (); interested = false; 
          choked = true; reader = r; writer = w; pending = Int.Set.empty;
          time_since_last_reception = 0; time_since_last_send = 0;
          idle = false}
@@ -100,15 +100,14 @@ let send_message t (m:Message.t) =
   t.time_since_last_send <- 0;
   Writer.write_bigstring t.writer buf
 
-let has_piece t i = Bitset.get t.have i
+let has_piece t i = Bitset.belongs t.have i
 
-let owned_pieces t = Bitset.indices_set t.have
+let owned_pieces t = t.have
 
-let set_owned_piece t i = Bitset.set t.have i true 
+let set_owned_piece t i = Bitset.insert t.have i
 
-let set_owned_pieces t s = Bitset.fill_from_string t.have s;
-  info "Peer %s has %d pieces" (to_string t) 
-    (Bitset.num_bit_set t.have) 
+let set_owned_pieces t s = Bitset.insert_from_bitfield t.have s;
+  info "Peer %s has %d pieces" (to_string t) (Bitset.card t.have) 
 
 let time_since_last_received_message t = t.time_since_last_reception
 

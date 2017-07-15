@@ -24,7 +24,7 @@ let size = function
   | Interested -> 1
   | Not_interested -> 1
   | Have _ -> 5
-  | Bitfield s -> 1 + (String.length s) 
+  | Bitfield s -> 1 + (Bitfield.length s) 
   | Request _ -> 13
   | Piece (_,_,s) -> 9 + (String.length s)
   | Cancel _ -> 13 
@@ -44,7 +44,7 @@ let bin_read_payload buf ~pos_ref length =
     let bitfield_len = length - 1 in
     let bitfield = String.create bitfield_len in
     Common.blit_buf_string ~src_pos:!pos_ref buf bitfield ~len:bitfield_len;
-    Bitfield bitfield 
+    Bitfield (Bitfield.of_string bitfield)
   | 6 -> 
     let index = Read.bin_read_network32_int buf pos_ref in
     let begn = Read.bin_read_network32_int buf pos_ref in
@@ -90,10 +90,10 @@ let bin_write_t (buf:Common.buf) ~(pos:Common.pos) (x:t) =
     let pos = Write.bin_write_char buf pos (char_of_int 4) in
     Write.bin_write_network32_int buf pos index
   | Bitfield bitfield -> 
-    let len = String.length bitfield in
+    let len = Bitfield.length bitfield in
     let pos = Write.bin_write_network32_int buf pos (len + 1) in 
     let pos = Write.bin_write_char buf pos (char_of_int 5) in
-    Common.blit_string_buf bitfield ~dst_pos:pos buf ~len;
+    Common.blit_string_buf (Bitfield.to_string bitfield) ~dst_pos:pos buf ~len;
     pos + len
   | Request (index, begn, len) -> 
     let pos = Write.bin_write_network32_int buf pos 13 in

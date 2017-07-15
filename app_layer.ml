@@ -69,8 +69,8 @@ let compute_next_request t : (Piece.t * P.t) Option.t =
       (* TODO this is not efficient *)
       let pieces_not_requested = File.pieces_not_requested t.file in
       let pieces_owned_by_peer = Peer.owned_pieces peer in
-      let pieces_to_request = Int.Set.inter pieces_not_requested pieces_owned_by_peer in
-      match Int.Set.choose pieces_to_request with 
+      let pieces_to_request = Bitset.inter pieces_not_requested pieces_owned_by_peer in
+      match Bitset.choose pieces_to_request with 
       | None -> None 
       | Some i -> Some (File.get_piece t.file i, peer)
     in
@@ -94,7 +94,7 @@ let process_message t (p:P.t) (m:M.t) : unit =
     | `Downloaded ->
       info "downloaded piece %d" index;
       P.remove_pending p index;
-      File.set_piece_have t.file index; 
+      File.set_owned_piece t.file index; 
       send_have_messages t index 
   in
   match m with
@@ -116,8 +116,7 @@ let rec wait_and_process_message t (p:P.t) =
   | `Eof -> `Finished ()
 
 let display_downloaded t =
-  info "**** downloaded %d/%d ****" 
-    (File.num_piece_have t.file)
+  info "**** downloaded %d/%d ****" (File.num_owned_pieces t.file)
     (File.num_pieces t.file)
 (*; File.write_to_disk t.file *) (* TODO: debug this *)
 
@@ -128,7 +127,7 @@ let add_peer t peer_addr =
     >>= function 
     | Ok () ->  
       debug "handshake ok with peer %s" (P.to_string p);
-      if (File.num_piece_have t.file) > 0 then (
+      if (File.num_owned_pieces t.file) > 0 then (
         P.send_message p (M.Bitfield (File.bitfield t.file))
       );
       P.send_message p M.Interested;

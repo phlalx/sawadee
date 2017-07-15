@@ -16,7 +16,7 @@ type t = {
 let create ~index hash ~len = 
   let num_blocks = (len + block_size - 1) / block_size in
   { index; status = `Not_requested; length = len; hash; content = String.create len; 
-    blocks = Bitset.create num_blocks }
+    blocks = Bitset.empty num_blocks }
 
 let file_offset t = Int64.of_int (t.index * t.length) 
 
@@ -62,16 +62,16 @@ let update t ~off (block:string) =
     off / block_size in
   let len = String.length block in
   assert (len = (block_length t off));
-  Bitset.set t.blocks index true;
+  Bitset.insert t.blocks index;
   String.blit ~src:block ~src_pos:0 ~dst:t.content ~dst_pos:off ~len;
-  if Bitset.is_one t.blocks then ( 
+  if Bitset.is_full t.blocks then ( 
     let hash_piece = Sha1.to_bin (Sha1.string t.content) in 
     if (hash_piece = Bt_hash.to_string t.hash) then (
       t.status <- `Downloaded;
       `Downloaded )
     else  (
       debug "Hash not equals";
-      Bitset.clear t.blocks;
+      Bitset.reset t.blocks;
       t.status <- `Not_requested;
       `Hash_error
     )  
@@ -80,7 +80,7 @@ let update t ~off (block:string) =
   )
 
 let write t wr =
-  assert (Bitset.is_one t.blocks); 
+  assert (Bitset.is_full t.blocks); 
   assert ((String.length t.content) = t.length);
   Writer.write wr t.content
 

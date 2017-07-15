@@ -1,43 +1,54 @@
+(** Set of integers represented as array of bits. We use set terminology 
+    instead of array's since this is how we use this module in the program. 
+    Most operations are constant time. *)
 open Core
 
+(** An element of type [t] represents a set of integer that belongs to [0, size)
+    where [size] is given at creation *) 
 type t 
 
-(** create an array of bit, initially zeroed  *)
-val create : int -> t
+(** [empty size] is an empty set *)
+val empty : size:int -> t
 
-val init : int -> f:(int -> bool) -> t
+(** [create size f] is the set of int in [0, size) satisfying predicate [f] *)
+val create : size:int -> f:(int -> bool) -> t
 
-val length : t -> int
+(** maximal number of element, don't confuse with [card] *)
+val size : t -> int
 
-val get : t -> int -> bool
+(** test set membership, raises if outside bounds *)
+val belongs : t -> int -> bool
 
-val set : t -> int -> bool -> unit
+(** insert element, raises if outside bounds *)
+val insert : t -> int -> unit
 
-(** returns true if all bits are set to one *)
-val is_one : t -> bool
+(** test if set equals to [0,size)] *)
+val is_full : t -> bool
 
-val is_zero : t -> bool
+val is_empty : t -> bool
 
-val num_bit_set : t -> int
+(** number of elements in set *)
+val card : t -> int
 
-val clear : t -> unit
+(** empty set *)
+val reset : t -> unit
 
-val (&) : t -> t -> t
+(** intersection of sets. Linear in size of set. Raises if different sizes *)
+val inter : t -> t -> t
 
-val not : t -> t
+(** complement set. Linear in size *)
+val compl : t -> t
 
+(** returns any element if non-empty *)
 val choose : t -> int option
 
-val indices_set : t -> Int.Set.t
+(** [to_bitfield x] returns a bitfield as specified by the peer protocol. If 
+    [size x] isn't a multiple of 8, the last bits of the string are set to 0. *)
+val to_bitfield : t -> Bitfield.t
 
-(** [to_string x] returns a string containing the same sequence of bits
-    than [x]. If [length x] isn't a multiple of 8, the last bits of the string
-    are set to 0. *)
-val to_string : t -> Bitfield.t
+(** [insert_from_bitfield t b] fills t with bitfield [b] as specified by the 
+    peer protocol.
 
-(* copy the bits from the string in the byteset. Ignore bits that don't fit 
-   in t *)
-val fill_from_string : t -> Bitfield.t -> unit
-
-val from_bool_array : bool array -> t
-
+    TODO: check that [size t] and [Bitfield.length b] satisfy the protocol spec
+    and that extra-bits in [b] are indeed set to 0 *)
+val insert_from_bitfield : t -> Bitfield.t -> unit

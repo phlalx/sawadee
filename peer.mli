@@ -32,7 +32,7 @@ val send_message : t -> Message.t -> unit
 
 val has_piece : t -> int -> bool
 
-val owned_pieces : t -> Int.Set.t
+val owned_pieces : t -> Bitset.t
 
 (** Sets the bitfield describing the list of pieces owned by peer. We use 
     the format defined in the bittorrent protocol.  *)

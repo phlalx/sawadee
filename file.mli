@@ -29,11 +29,11 @@ val get_piece : t -> int -> Piece.t
 
 val num_pieces : t -> int
 
-val set_piece_have : t -> int -> unit
+val set_owned_piece : t -> int -> unit
 
-val pieces_not_requested : t -> Int.Set.t 
+val num_owned_pieces : t -> int
 
-val num_piece_have : t -> int
+val pieces_not_requested : t -> Bitset.t
 
 (** [hash t] is the hash of the info section of the metainfo file, used in
     handshaking *)
