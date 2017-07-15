@@ -24,8 +24,8 @@ GET /announce?info_hash=Y%06gi%b9%adB%da.P%86%11%c3%3d%7cD%80%b3%85%7b&peer_id=-
 type t = {
   announce : string;
   announce_list : string list list;
-  info_hash : string;
-  peer_id : string;
+  info_hash : Bt_hash.t;
+  peer_id : Peer_id.t;
   port : string;
   uploaded : string;
   downloaded : string;
@@ -36,7 +36,7 @@ type t = {
 
 let t = ref None
 
-let init ~announce ~announce_list ~info_hash ~len ~peer_id =
+let init ~announce ~announce_list info_hash ~len peer_id =
   let left = string_of_int len in
   let port = "6969" in
   let uploaded = "0" in
@@ -87,8 +87,8 @@ let query () =
     | [] -> [t.announce]
     | x -> List.fold x ~init:[] ~f:(@) (* quick and dirty flattening *) in 
   let params = 
-    [("info_hash", t.info_hash); 
-     ("peer_id", t.peer_id); 
+    [("info_hash", Bt_hash.to_string t.info_hash); 
+     ("peer_id", Peer_id.to_string t.peer_id); 
      ("port", t.port);
      ("uploaded", t.uploaded);
      ("downloaded", t.downloaded);

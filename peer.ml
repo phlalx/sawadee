@@ -31,7 +31,8 @@ let create peer_addr ~piece_num =
   try_with (function () -> Tcp.connect wtc)
   >>| function
   | Ok (_, r, w) -> 
-    Ok { peer_addr; have = Bitset.create piece_num; id = ""; interested = false; 
+    (* TODO use option type or dummy value instead of random peer_id *) 
+    Ok { peer_addr; have = Bitset.create piece_num; id =  Peer_id.random (); interested = false; 
          choked = true; reader = r; writer = w; pending = Int.Set.empty;
          time_since_last_reception = 0; time_since_last_send = 0;
          idle = false}
@@ -42,8 +43,9 @@ let to_string t = Socket.Address.Inet.to_string t.peer_addr
 exception Handshake_error
 
 let handshake t hash pid =
+  let hash = Bt_hash.to_string hash in
   let hs = sprintf "\019BitTorrent protocol\000\000\000\000\000\000\000\000%s%s" 
-      hash pid in
+      hash (Peer_id.to_string pid) in
   Writer.write t.writer hs; 
   let hs_len = 68 in
   let hash_len = 20 in
@@ -58,7 +60,7 @@ let handshake t hash pid =
     if info_hash_rep = hash then 
       Error Handshake_error
     else ( 
-      t.id <- remote_peer_id;
+      t.id <- Peer_id.of_string remote_peer_id;
       Ok ()
     ) 
   | `Eof _ -> Error Handshake_error

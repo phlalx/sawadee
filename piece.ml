@@ -4,16 +4,19 @@ open Log.Global
 
 let block_size = 32768
 
-(* TODO deal with `On_disk *)
 type t = {
   index : int;
   mutable status : [ `Requested | `Downloaded | `Not_requested | `On_disk ];
-  hash : string;
+  hash : Bt_hash.t;
   length : int;
   content : string; (* TODO could be a substring *)
   blocks : Bitset.t;
 } 
 
+let create ~index hash ~len = 
+  let num_blocks = (len + block_size - 1) / block_size in
+  { index; status = `Not_requested; length = len; hash; content = String.create len; 
+    blocks = Bitset.create num_blocks }
 
 let file_offset t = Int64.of_int (t.index * t.length) 
 
@@ -36,11 +39,6 @@ let set_not_requested t =
   if not (t.status = `Downloaded) then
     t.status <- `Not_requested
 
-let create ~index ~hash ~len = 
-  let num_blocks = (len + block_size - 1) / block_size in
-  { index; status = `Not_requested; length = len; hash; content = String.create len; 
-    blocks = Bitset.create num_blocks }
-
 let num_blocks t = (t.length + block_size - 1) / block_size
 
 let block_length t off = min (t.length - off) block_size 
@@ -62,18 +60,17 @@ let update t ~off (block:string) =
   let index = 
     assert (off % block_size = 0);  (* TODO other error for that *)
     off / block_size in
-
   let len = String.length block in
   assert (len = (block_length t off));
   Bitset.set t.blocks index true;
   String.blit ~src:block ~src_pos:0 ~dst:t.content ~dst_pos:off ~len;
   if Bitset.is_one t.blocks then ( 
     let hash_piece = Sha1.to_bin (Sha1.string t.content) in 
-    if (hash_piece = t.hash) then (
+    if (hash_piece = Bt_hash.to_string t.hash) then (
       t.status <- `Downloaded;
       `Downloaded )
     else  (
-      debug "Hash not equals %S %S" hash_piece t.hash;
+      debug "Hash not equals";
       Bitset.clear t.blocks;
       t.status <- `Not_requested;
       `Hash_error

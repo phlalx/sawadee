@@ -8,7 +8,7 @@ module P = Peer
 type t = {
   file : File.t;
   mutable peers : P.t list;
-  peer_id : string;
+  peer_id : Peer_id.t;
   choked : bool; 
   interested : bool; 
 }

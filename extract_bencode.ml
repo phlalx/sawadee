@@ -10,11 +10,11 @@ type file_info = {
 }
 
 type torrent_info = {
-  info_hash : string;
+  info_hash : Bt_hash.t;
   announce : string;
   announce_list : string list list;
   piece_length : int;
-  pieces_hash : string Array.t;
+  pieces_hash : Bt_hash.t Array.t;
   mode : [`Single_file | `Multiple_file];
   files_info : file_info list
 }
@@ -57,8 +57,8 @@ let from_torrent chan =
   let pieces = get (B.as_string pieces_bc) in
   let piece_length_bc = get (B.dict_get info_dict_bc "piece length") in
   let piece_length = get (B.as_int piece_length_bc) in
-  let info_hash = Sha1.to_bin (Sha1.string info_str) in
-  let pieces_hash = split pieces hash_length in 
+  let info_hash = Bt_hash.of_string (Sha1.to_bin (Sha1.string info_str)) in
+  let pieces_hash = Array.map (split pieces hash_length) ~f:Bt_hash.of_string in 
   match B.dict_get info_dict_bc "length" with
   | Some length_bc ->
     let mode = `Single_file in

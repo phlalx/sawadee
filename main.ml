@@ -10,7 +10,6 @@ open Core
 open Async
 open Log.Global
 
-
 let start_app_layer peer_addrs file peer_id =
   let al = App_layer.create file peer_id in
   (* DEBUG ONLY, keep only a subset of peers *) 
@@ -29,7 +28,7 @@ let process (f : string)  =
   (* TODO ignore file names until we actually write file to disk *)
   let { name; _ } = List.hd_exn files_info in 
   let length = List.fold files_info ~init:0 ~f:(fun acc x -> acc + x.length) in
-  File.create ~len:length ~hash:info_hash ~pieces_hash ~piece_length ~name 
+  File.create ~len:length info_hash pieces_hash ~piece_length ~name 
   >>= fun file ->
   let peer_id = Peer_id.random () in
   Tracker_client.init announce announce_list info_hash length peer_id; 

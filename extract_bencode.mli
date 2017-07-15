@@ -15,11 +15,11 @@ type file_info = {
 }
 
 type torrent_info = {
-  info_hash : string;
+  info_hash : Bt_hash.t;
   announce : string;
   announce_list : string list list;
   piece_length : int;
-  pieces_hash : string Array.t;
+  pieces_hash : Bt_hash.t Array.t;
   mode : [`Single_file | `Multiple_file];
   files_info : file_info list
 }
