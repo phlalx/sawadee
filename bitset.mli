@@ -1,3 +1,5 @@
+open Core
+
 type t 
 
 (** create an array of bit, initially zeroed  *)
@@ -26,14 +28,16 @@ val not : t -> t
 
 val choose : t -> int option
 
+val indices_set : t -> Int.Set.t
+
 (** [to_string x] returns a string containing the same sequence of bits
     than [x]. If [length x] isn't a multiple of 8, the last bits of the string
     are set to 0. *)
-val to_string : t -> string 
+val to_string : t -> Bitfield.t
 
 (* copy the bits from the string in the byteset. Ignore bits that don't fit 
    in t *)
-val fill_from_string : t -> string -> unit
+val fill_from_string : t -> Bitfield.t -> unit
 
 val from_bool_array : bool array -> t
 

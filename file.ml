@@ -7,8 +7,8 @@ type t = {
   name : string;
   num_pieces : int; (** number of pieces to be downloaded *)
   pieces : Piece.t Array.t;
-  info_hash : Bt_hash.t;
-  bitset : Bitset.t;
+  info_hash : Bt_hash.t;  (** hash of the info section of the bittorrent file *)
+  bitset : Bitset.t; (** TODO change this to a Int.Set *)
   file_fd : Unix.Fd.t;
   bitset_fd : Unix.Fd.t;
   piece_length : int;
@@ -16,7 +16,7 @@ type t = {
 
 let bitset_name name = "." ^ name
 
-let create ~len info_hash pieces_hash ~name ~piece_length =
+let create ~len hash pieces_hash ~name ~piece_length =
   let num_pieces = Array.length pieces_hash in
   assert (num_pieces = (len + piece_length - 1) / piece_length);
   let piece_init i = 
@@ -29,10 +29,10 @@ let create ~len info_hash pieces_hash ~name ~piece_length =
   Unix.openfile (bitset_name name) ~mode:[`Creat;`Rdwr]
   >>| fun bitset_fd ->
   info "create file (num piece = %d, name = %s)" num_pieces name;
-  { len; name; num_pieces; pieces; info_hash; bitset; file_fd; bitset_fd; 
+  { len; name; num_pieces; pieces; info_hash = hash; bitset; file_fd; bitset_fd; 
     piece_length } 
 
-let bitset t = Bitset.to_string t.bitset 
+let bitfield t = Bitset.to_string t.bitset 
 
 let hash t = t.info_hash
 
@@ -44,6 +44,12 @@ let get_piece t i = t.pieces.(i)
 
 let set_piece_have t i = Bitset.set t.bitset i true
 
+(* TODO not efficient... *)
+let pieces_not_requested t = 
+  let f p = Piece.get_status p = `Not_requested in
+  let a = Array.filter t.pieces ~f in
+  let l = Array.map a ~f:Piece.get_index in
+  Int.Set.of_array l
 
 (* TODO something not right...
    should we somehow wait for the write to be completed before

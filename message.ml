@@ -10,7 +10,7 @@ type t =
   | Interested
   | Not_interested
   | Have of int 
-  | Bitfield of string 
+  | Bitfield of Bitfield.t
   | Request of int * int  * int
   | Piece of int * int * string
   | Cancel of int * int * int

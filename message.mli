@@ -21,7 +21,7 @@ type t =
   | Interested
   | Not_interested
   | Have of int (** index *)
-  | Bitfield of string (** bitfield *) 
+  | Bitfield of Bitfield.t
   | Request of int * int  * int (** index, begin, length *)
   | Piece of int * int * string (** index, begin, block *)
   | Cancel of int * int * int (** index, begin, length *)

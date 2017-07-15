@@ -66,17 +66,15 @@ let compute_next_request t : (Piece.t * P.t) Option.t =
     if (P.is_idle peer) || (P.is_choking peer) || ((P.pending_size peer) >= 3) then
       None
     else 
-      (* TODO: totally inefficient!!! *)
-      let open Bitset in
-      let num_pieces = File.num_pieces t.file in
-      let f i = (Piece.get_status (File.get_piece t.file i) = `Not_requested) in
-      let pieces_to_be_downloaded = Bitset.init num_pieces ~f in
-      let piece_have = Bitset.init num_pieces ~f:(Peer.has_piece peer) in 
-      match choose (piece_have & pieces_to_be_downloaded) with
+      (* TODO this is not efficient *)
+      let pieces_not_requested = File.pieces_not_requested t.file in
+      let pieces_owned_by_peer = Peer.owned_pieces peer in
+      let pieces_to_request = Int.Set.inter pieces_not_requested pieces_owned_by_peer in
+      match Int.Set.choose pieces_to_request with 
       | None -> None 
-      | Some (i) -> Some (File.get_piece t.file i, peer)
-      in
-  let l = List.map t.peers ~f in
+      | Some i -> Some (File.get_piece t.file i, peer)
+    in
+ let l = List.map t.peers ~f in
   match List.find l ~f:is_some with
   | None -> None
   | Some x -> x
@@ -105,8 +103,8 @@ let process_message t (p:P.t) (m:M.t) : unit =
   | M.Unchoke -> P.set_choking p false
   | M.Interested -> P.set_interested p true; info "ignore request - not yet implemented"
   | M.Not_interested -> P.set_interested p false
-  | M.Have index -> P.set_has_piece p index 
-  | M.Bitfield bits  -> P.set_bitfield p bits 
+  | M.Have index -> P.set_owned_piece p index 
+  | M.Bitfield bits  -> P.set_owned_pieces p bits 
   | M.Request (index, bgn, length) -> info "ignore request - not yet implemented"
   | M.Piece (index, bgn, block) -> process_piece_message index bgn block 
   | M.Cancel (index, bgn, length) -> info "ignore cancel msg - Not yet implemented"
@@ -131,7 +129,7 @@ let add_peer t peer_addr =
     | Ok () ->  
       debug "handshake ok with peer %s" (P.to_string p);
       if (File.num_piece_have t.file) > 0 then (
-        P.send_message p (M.Bitfield (File.bitset t.file))
+        P.send_message p (M.Bitfield (File.bitfield t.file))
       );
       P.send_message p M.Interested;
       debug "Start message handler loop";

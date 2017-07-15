@@ -31,12 +31,25 @@ val num_pieces : t -> int
 
 val set_piece_have : t -> int -> unit
 
+val pieces_not_requested : t -> Int.Set.t 
+
 val num_piece_have : t -> int
 
 (** [hash t] is the hash of the info section of the metainfo file, used in
     handshaking *)
 val hash : t -> Bt_hash.t
 
-(** This is the bitset decribing the list of pieces we have, in the format
-    specified by the protocol. Can be sent as is in [Bitfield] messages *)
-val bitset : t -> string
+(** This is the [Bitfield.t] decribing the list of pieces we have *)
+val bitfield : t -> Bitfield.t
+
+
+
+
+
+
+
+
+
+
+
+

@@ -102,9 +102,11 @@ let send_message t (m:Message.t) =
 
 let has_piece t i = Bitset.get t.have i
 
-let set_has_piece t i = Bitset.set t.have i true 
+let owned_pieces t = Bitset.indices_set t.have
 
-let set_bitfield t s = Bitset.fill_from_string t.have s;
+let set_owned_piece t i = Bitset.set t.have i true 
+
+let set_owned_pieces t s = Bitset.fill_from_string t.have s;
   info "Peer %s has %d pieces" (to_string t) 
     (Bitset.num_bit_set t.have) 
 

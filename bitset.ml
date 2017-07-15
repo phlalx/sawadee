@@ -93,3 +93,16 @@ let init n ~f =
   let bits = Array.init n f in
   let num_set = count_bits bits in
   { bits; num_set }
+
+(* TODO do this without a loop *)
+let indices_set t = 
+  let res = ref Int.Set.empty in
+  for i = 0 to (Array.length t.bits) - 1 do
+    if t.bits.(i) then
+      res := Int.Set.add !res i
+  done;
+  !res
+  
+
+
+
