@@ -10,9 +10,10 @@ type t = {
   mutable status : [ `Requested | `Downloaded | `Not_requested | `On_disk ];
   hash : string;
   length : int;
-  content : string;
-  blocks : Bitset.t
-}
+  content : string; (* TODO could be a substring *)
+  blocks : Bitset.t;
+} 
+
 
 let file_offset t = Int64.of_int (t.index * t.length) 
 
@@ -88,5 +89,4 @@ let write t wr =
 
 let is_downloaded t = t.status = `Downloaded
 
-let to_string t = sprintf "(i = %d len = %d)" t.index t.length
-
+let to_string t = sprintf "(i = %d len = %d)" t.index t.length 

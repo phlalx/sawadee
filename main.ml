@@ -10,7 +10,6 @@ open Core
 open Async
 open Log.Global
 
-let random_id () = String.init 20 ~f:(fun _ -> char_of_int (Random.int 255))
 
 let start_app_layer peer_addrs file peer_id =
   let al = App_layer.create file peer_id in
@@ -32,7 +31,7 @@ let process (f : string)  =
   let length = List.fold files_info ~init:0 ~f:(fun acc x -> acc + x.length) in
   File.create ~len:length ~hash:info_hash ~pieces_hash ~piece_length ~name 
   >>= fun file ->
-  let peer_id = random_id () in
+  let peer_id = Peer_id.random () in
   Tracker_client.init announce announce_list info_hash length peer_id; 
   debug "trying to connect to tracker";
   Tracker_client.query ()

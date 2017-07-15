@@ -12,8 +12,8 @@ open Log.Global
 type t = {
   mutable choked : bool; 
   mutable interested : bool;
-  peer : Socket.Address.Inet.t;
-  mutable id : string;
+  peer_addr : Socket.Address.Inet.t;
+  mutable id : Peer_id.t;
   reader : Reader.t;
   writer : Writer.t;
   have : Bitset.t;
@@ -23,31 +23,28 @@ type t = {
   mutable idle : bool;
 }
 
-let to_string t = Socket.Address.Inet.to_string t.peer
+(* TODO simply use option types for errors? *)
 
-exception Handshake_error
-
-let create peer ~piece_num = 
-  let wtc = Tcp.to_inet_address peer in
-  debug "trying to connect to peer %s" (Socket.Address.Inet.to_string peer);
+let create peer_addr ~piece_num = 
+  let wtc = Tcp.to_inet_address peer_addr in
+  debug "trying to connect to peer %s" (Socket.Address.Inet.to_string peer_addr);
   try_with (function () -> Tcp.connect wtc)
   >>| function
   | Ok (_, r, w) -> 
-    Ok { peer; have = Bitset.create piece_num; id = ""; interested = false; 
+    Ok { peer_addr; have = Bitset.create piece_num; id = ""; interested = false; 
          choked = true; reader = r; writer = w; pending = Int.Set.empty;
          time_since_last_reception = 0; time_since_last_send = 0;
-         idle = false; }
+         idle = false}
   | Error err -> Error err
 
-let handshake = "\019BitTorrent protocol"
+let to_string t = Socket.Address.Inet.to_string t.peer_addr
 
-let handshake hash this_peer_id = sprintf 
-    "\019BitTorrent protocol\000\000\000\000\000\000\000\000%s%s" hash 
-    this_peer_id
+exception Handshake_error
 
-let handshake t info_hash this_peer_id =
-  let handshake = handshake info_hash this_peer_id in 
-  Writer.write t.writer handshake; 
+let handshake t hash pid =
+  let hs = sprintf "\019BitTorrent protocol\000\000\000\000\000\000\000\000%s%s" 
+      hash pid in
+  Writer.write t.writer hs; 
   let hs_len = 68 in
   let hash_len = 20 in
   let info_pos = 48 in 
@@ -57,11 +54,11 @@ let handshake t info_hash this_peer_id =
   >>| function 
   | `Ok -> 
     let info_hash_rep = String.sub buf ~pos:info_pos ~len:hash_len in
-    let peer_id = String.sub buf ~pos:peer_pos ~len:hash_len in
-    if info_hash_rep = info_hash then 
+    let remote_peer_id = String.sub buf ~pos:peer_pos ~len:hash_len in
+    if info_hash_rep = hash then 
       Error Handshake_error
     else ( 
-      t.id <- peer_id;
+      t.id <- remote_peer_id;
       Ok ()
     ) 
   | `Eof _ -> Error Handshake_error
@@ -103,7 +100,13 @@ let send_message t (m:Message.t) =
 
 let has_piece t i = Bitset.get t.have i
 
-let is_interested t = t.interested 
+let set_has_piece t i = Bitset.set t.have i true 
+
+let set_bitfield t s = Bitset.fill_from_string t.have s;
+  info "Peer %s has %d pieces" (to_string t) 
+    (Bitset.num_bit_set t.have) 
+
+let time_since_last_received_message t = t.time_since_last_reception
 
 let incr_time t =
   t.time_since_last_send <- t.time_since_last_send + 1;
@@ -111,12 +114,28 @@ let incr_time t =
 
 let is_idle t = t.idle
 
+let is_choking t = t.choked
+
+let set_interested t b = t.interested <- b
+
+let set_choking t b = t.choked <- b
+
 let pending_to_string t = 
   let l = Int.Set.to_list t.pending in 
   Sexp.to_string (List.sexp_of_t sexp_of_int l)
 
+let set_idle t b = t.idle <- b
 
+let pending_size t = Int.Set.length t.pending
 
+let has_pending t = not (Int.Set.is_empty t.pending)
 
+let clear_pending t = t.pending <- Int.Set.empty 
 
+let remove_pending t i = t.pending <- Int.Set.remove t.pending i
 
+let add_pending t i = t.pending <- Int.Set.add t.pending i
+
+let iter_pending t ~f = Int.Set.iter t.pending ~f
+
+let is_interested t = t.interested 

@@ -1,44 +1,76 @@
-(** P2P layer of the protocol. Provides functions for communicating with 
-    peer. *)
+(** P2P layer of the protocol. 
+
+    Type [t] is used to maintain state related to a peer and communication 
+    functions. This is exclusively used by [App_layer] module peer. *)
 
 open Core
 open Async
 
-type t = {
-  mutable choked : bool; (** true if peer doesn't serve requests (initially true) *)
-  mutable interested : bool; (** is peer interested in pieces? (initially false() *)
-  peer : Socket.Address.Inet.t;
-  mutable id : string;
-  reader : Reader.t;
-  writer : Writer.t;
-  have : Bitset.t;
-  mutable pending : Int.Set.t;
-  mutable time_since_last_reception : int;
-  mutable time_since_last_send : int;
-  mutable idle : bool;
-}
+type t 
 
-exception Handshake_error
-
+(** [Create addr ~piece_num] tries to open the connexion with a peer. 
+    [piece_num] is the number of pieces in the file to be downloaded *)
 val create: Socket.Address.Inet.t -> piece_num:int -> (t,exn) result Deferred.t 
 
-(** [handshake x info_hash peer_id] tries to handshake with peer x with
-    info_hash. Set peer id as a side effect. Return error or nil. *) 
-val handshake: t -> string -> string -> (unit, exn) result Deferred.t
+(** Used to identify peers in log "IP/PORT" - but could be peer_id *)
+val to_string : t -> string
 
-val send_message : t -> Message.t -> unit
+(** Networking functions *)
+
+(** [handshake x h pid] tries to handshake with peer [x] using the hash from 
+    the metainfo file [h] and the identifier of the client [pid]. As a side
+    effect, it sets the peer_id of the remote peer. This has to be called
+    before [send_message] or [receive_message]. *) 
+val handshake: t -> Bt_hash.t -> Peer_id.t -> (unit, exn) result Deferred.t
 
 val get_message : t -> Message.t Reader.Read_result.t Deferred.t
 
-(* IP address/port *)
-val to_string : t -> string
+val send_message : t -> Message.t -> unit
+
+(** [t] maintains the set of pieces owned by peer. Pieces are referred to by 
+    their indexes *)
 
 val has_piece : t -> int -> bool
 
-val is_interested : t -> bool
+val set_bitfield : t -> string -> unit
+
+val set_has_piece : t -> int -> unit
+
+(** In order to keep track of unresponsive or slow peers, we maintain the 
+    time since last received message as number of *ticks*. [incr_time] has
+    to be called at regular intervals. *)
+
+val time_since_last_received_message: t -> int
 
 val incr_time : t -> unit 
 
+(** The following functions simply get/set one bit states. *)
+
+val is_interested : t -> bool
+
+val is_choking : t -> bool
+
+val set_interested : t -> bool -> unit
+
+val set_choking : t -> bool -> unit
+
 val is_idle : t -> bool
+
+val set_idle : t -> bool -> unit
+
+(** Maintain a set of pending (index of) piece requests. This has to be
+    done in order to re-request them if a peer becomes unresponsive *)
+
+val clear_pending: t -> unit 
+
+val has_pending: t -> bool
+
+val add_pending: t -> int -> unit
+
+val remove_pending: t -> int -> unit
+
+val iter_pending: t -> f: (int -> unit) -> unit
+
+val pending_size: t -> int
 
 val pending_to_string : t -> string
