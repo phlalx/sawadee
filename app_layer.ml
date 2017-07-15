@@ -24,7 +24,7 @@ let for_all_non_idle_peers t ~f =
   let f p = if not (P.is_idle p) then f p in List.iter t.peers ~f 
 
 let cancel_requested_pieces t peer =
-  if not (P.has_pending peer) then (
+  if P.has_pending peer then (
     let f i = Piece.set_status (File.get_piece t.file i) `Not_requested in
     info "Cancelling queries %s" (P.pending_to_string peer) ;
     P.iter_pending peer ~f;

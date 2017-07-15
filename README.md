@@ -19,8 +19,8 @@ Once we know the list of peers, we'll talk with each of them using a binary prot
  * then (binary asynchronous) messages to get parts of the file.
 
 Current stage of the project: 
- * both single-file format and multiple-file format are supported
- * annouce-list is supported
+ * both single-file format and multiple-file format are correctly read
+ * annouce-list is (partialy) supported
  * several peers can be queried concurrently
  * The handshake is functional (in `App_layer`).
  * Binary messages are implemented (via serialization of `Message.t`). 
@@ -30,23 +30,23 @@ Current stage of the project:
  * One continuously wait for peer messages (block of files, information on pieces ownership, request to download...). 
  * Another one requests for pieces. At the moment, only peers that are not choking with less than a few pending request are considered. Among them, we ask for pieces that not yet requested or downloaded without any particular strategy.
 * Requests that have been pending for n seconds are canceled. 
-* File/Bitset is saved to disk periodically, as well as the current bitset (still some bug with Async.Unix.Fd.t)
+* File/Bitset is saved to disk periodically
 
-This works for in simple cases (single file torrent) but a lot remains to be 
-done. 
+This works for simple cases. It is possible to download a single file torrent but a lot remains to be done. 
 * When application is launched, load persistent state 
-* test with various torrent files
+* multifile torrent
 * answer requests from peers (pieces, bitfield) 
+* server mode when using public IP 
 * re-query trackers if needed (dynamic set of peers)
-* think of corner cases (corrupted persistent states, malicious peers)
-* Improve requesting strategy (e.g. rare pieces first, peer responsivness)
+* close file propery on exit (ctrl-c)
+* more testing + corner cases (corrupted persistent states, malicious peers)
+* Improve requesting strategy (e.g. rare pieces first, peer responsivness, event-based instead of polling)
+* doc
+* automatic testing
 
-
-Morever, the code can be much improved.
-* don't request blocks at regular interval (polling) but based on event occurences (e.g. new pieces availables)
-* better resource management (close connections...)
+Morever, the code can be improved.
+* better resource management (buffers, close connections...)
 * Use more efficient datastructures
-* Better use of the existing API (see Async.Unix.fd). 
 * Rework the module interfaces. There are invariant that span several modules that should be identified and if possible encapsulated. 
 
 ### Resources and libs
