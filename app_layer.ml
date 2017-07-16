@@ -161,7 +161,7 @@ let add_peer t peer_addr =
 let stop t = 
   let stop_aux t =
     info "terminating";
-    File.close t.file
+    File.write_to_file_and_close t.file
     >>= fun () -> 
     exit 0
   in 

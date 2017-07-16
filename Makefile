@@ -11,9 +11,12 @@ native:
 byte:
 	$(OCB) main.byte
 
-test: byte
-	./main.byte torrents/NuTyX_x86_64-20170625.torrent 
+test_multi: byte
+	./main.byte torrents/amigabook-comodore-amiga-basic-1985_archive.torrent
 
+test: byte
+	./main.byte torrents/NuTyX_x86_64-20170625.torrent
+	
 debug:
 	$(OCB) -tag debug main.byte
 
@@ -26,11 +29,16 @@ test_bitset:
 unit: test_bitset
 	./test_bitset.byte
 
-clean:
+clean: clean_torrent
 	$(OCB) -clean
 	rm -f README.html
 	rm -rf .docdir
-	rm -f NuTyX_x86_64-20170625.iso .NuTyX_x86_64-20170625.iso
+
+clean_torrent:
+	rm -f download/*
+
+check_torrent:
+	ls -lh download/*
 
 README.html: README.md
 	pandoc -c style.css -f markdown_github < README.md > README.html

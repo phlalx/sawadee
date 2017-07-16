@@ -1,4 +1,4 @@
-(**  Piece of a file.
+(**  Piece of a (network) file.
 
      They are created upon creation of a [File.t]. A piece is furthermore divided
      into blocks. A piece is the unit of "ownership". That is, peer advertise and
@@ -16,9 +16,10 @@ val block_size : int
 
 type t
 
-(** [create i h ~len] creates a piece at index [i] in the file with hash [h]
-    (given in the metainfo file) and length [len] *)
-val create : index:int -> Bt_hash.t -> len:int -> t
+(** [create i h ~len pfs] creates a piece at index [i] in the file with hash [h]
+    (given in the metainfo file) and length [len]. [pfs] are the pfiles
+    where this piece should be read/written.  *)
+val create : index:int -> Bt_hash.t -> len:int -> Pfile.t list -> t
 
 (** return the index of a piece.
 
@@ -56,11 +57,11 @@ val get_status : t -> [`Requested | `Downloaded | `Not_requested | `On_disk]
 val set_status : t -> [`Requested | `Downloaded | `Not_requested | `On_disk] 
   -> unit
 
-(** write piece to fd if downloaded, set status to `On_disk *)
-val write : t -> Unix.Fd.t -> unit Deferred.t
+(** write piece to disk if downloaded, set status to `On_disk *)
+val write : t -> unit Deferred.t
 
-(** read piece from fd if on disk, set status to `On_disk *)
-val read : t -> Unix.Fd.t -> unit Deferred.t
+(** read piece from disk if on disk, set status to `On_disk *)
+val read : t -> unit Deferred.t
 
 (** for logging purpose *)
 val to_string : t -> string

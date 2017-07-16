@@ -1,4 +1,5 @@
-(** File to be downloaded by the P2P protocol.
+(** File to be downloaded by the P2P protocol (we call it also the network file
+    to distinguish it from the file system files (PFile.t)). 
 
     All the information to create a file come from the metainfo file. A file
     is divided into [Piece.t] that are created upon creation of the file
@@ -9,25 +10,23 @@ open Async
 
 type t
 
-(** [create ~len h ph ~name ~pl] creates a new file. This include creating all 
-    the file pieces [Piece.t] and creating the persistent files.
+(** [create ~len h ph ~name ~pl files] creates a new file. This include creating all 
+    the file pieces [Piece.t] and creating the persistent files [PFile.t].
 
     - [h] is the hash of the info section of the metainfo file.
-    - [ph] is an array of hashed of each of individual pieces.
+    - [ph] is an array of hashed of each of individual pieces. 
+    - [files] are the file names and their length *)
 
-    TODO: 
-    - this works only for an individual file.
-    - do all the pieces have the same length? check that *)
 val create : 
   (Bt_hash.t Array.t) -> 
   torrent_name:string -> 
   piece_length:int -> 
-  ( string * int ) list ->
+  (string * int) list ->
   t Deferred.t
 
 val length : t -> int
 
-val close : t -> unit Deferred.t
+val write_to_file_and_close : t -> unit Deferred.t
 
 val get_piece : t -> int -> Piece.t
 

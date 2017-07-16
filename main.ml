@@ -26,6 +26,10 @@ let process (f : string)  =
   let { info_hash; announce; announce_list; mode; pieces_hash; piece_length; 
         files_info }
     = Extract_bencode.from_torrent c in
+  info "Torrent: %s:" f;
+  info "Torrent: %d files" (List.length files_info);
+  info "Torrent: %d pieces" (Array.length pieces_hash);
+  info "Torrent: piece length = %d" piece_length;
   let files_info = List.map files_info ~f:(fun fi -> fi.name, fi.length) in 
   File.create pieces_hash ~torrent_name:f ~piece_length files_info 
   >>= fun file ->

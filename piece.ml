@@ -11,12 +11,16 @@ type t = {
   length : int;
   content : string; (* TODO could be a substring *)
   blocks : Bitset.t;
+  pfiles : Pfile.t list;
 } 
 
-let create ~index hash ~len = 
+let create ~index hash ~len pfiles = 
   let num_blocks = (len + block_size - 1) / block_size in
+
+  let len_pfiles = List.fold pfiles ~init:0 ~f:(fun acc l -> l.Pfile.len + acc) in 
+  assert (len_pfiles = len);
   { index; status = `Not_requested; length = len; hash; content = String.create len; 
-    blocks = Bitset.empty num_blocks }
+    blocks = Bitset.empty num_blocks; pfiles }
 
 let get_status t = t.status
 
@@ -55,7 +59,6 @@ let iter t ~f =
     f ~index:t.index ~off ~len ~content
   done
 
-
 (* TODO this look a bit ugly *)
 let update t ~off (block:string) = 
   let index = 
@@ -80,31 +83,19 @@ let update t ~off (block:string) =
     `Ok 
   )
 
-let read t fd =
-  set_status t `On_disk;
-  let rd = Reader.create fd in
-  let file_offset = Int64.of_int (t.index * t.length) in
-  Async_unix.Unix_syscalls.lseek fd ~mode:`Set file_offset
-  >>= fun off -> 
-  assert (off = file_offset); (* TODO fail silently *)
-  Reader.read rd t.content 
-  >>| function
-  | `Eof -> assert false
-  | `Ok _ -> ()
+let read t =
+  info "read piece %d from disk" t.index;
+  let f pf = 
+    Pfile.read pf t.content ~ps:t.length in
+  Deferred.List.iter t.pfiles ~f
 
-let write t fd =
-  if get_status t = `Downloaded then (
+let write t =
+  info "write piece %d to disk" t.index;
     assert (Bitset.is_full t.blocks); 
     assert ((String.length t.content) = t.length);
-    let wr = Writer.create fd in
-    let file_offset = Int64.of_int (t.index * t.length) in
-    Async_unix.Unix_syscalls.lseek fd ~mode:`Set file_offset
-    >>| fun off -> 
-    assert (off = file_offset); (* TODO fail silently *)
-    Writer.write wr t.content;
-    set_status t `On_disk )
-  else
-    return ()
+    let f pf =
+      Pfile.write pf t.content ~ps:t.length in
+    Deferred.List.iter t.pfiles ~f
 
 let is_downloaded t = t.status = `Downloaded
 

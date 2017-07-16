@@ -1,63 +1,98 @@
 open Core
 open Async
+open Log.Global
 
 type t = {
   name : string;
   fd : Unix.Fd.t;
-  offset : int64; (* offset in the "big file" *)
-  len : int64;
+  len : int;
+  off : int;
 }
 
-let create = assert false
+let to_string t = sprintf "name = %s off = %d len %d" t.name t.off t.len
 
-let read_to_pieces = assert false
+let rec align_along_piece_size l ps =
+ match l with 
+  | [] -> []
+  | {name; fd; len; off} :: t when (off % ps) + len <= ps -> 
+    {name; fd; len; off} :: (align_along_piece_size t ps) 
+  | {name; fd; len; off} :: t -> 
+    let len' = ps - (off % ps) in
+    assert (len' > 0);
+    assert( ((off + len') % ps) = 0);
+    { name; fd; len = len'; off } :: 
+    (align_along_piece_size 
+       ({ name; fd; off = off + len'; len = len - len'} :: t) 
+       ps)
 
-let write_from_pieces = assert false
+(* TODO: try to simplify/improve this *)
+let rec split_along_piece_size l ~ps ~num_piece =
+  let a = List.to_array (align_along_piece_size l ps) in
+  let res = Array.create num_piece [] in 
+  let j = ref 0 in
+  let cur_len = ref 0 in
+  let tl = ref [] in
+  let m = Array.length a in
+  for i = 0 to num_piece -1 do 
+    tl := [];
+    cur_len := 0;
+    while !j < m && !cur_len < ps do 
+      tl := !tl @ [ a.(!j) ];
+      cur_len := !cur_len + a.(!j).len;
+      incr j;
+    done;
+    res.(i) <- !tl;
+  done;
+  assert (!j = m);
+  res 
 
-let close = assert false
+let path = "./download/" (* TODO pass in command line *)
 
-let read_to_string = assert false
+let create name ~len ~off = 
+  let name = path ^ name in
+  info "create file %s" name;
+  let llen = Int64.of_int len in
+  Unix.openfile name ~mode:[`Creat;`Rdwr]
+  >>= fun fd ->
+  Unix.ftruncate fd llen
+  >>| fun () ->
+  { name; fd; len; off }
 
-let write_to_string = assert false
+let close t =
+  info "close file %s" t.name;
+  Unix.close t.fd
 
-(* 
-let read_bitset t =
-  let rd_bitset = Reader.create t.bitset_fd in
-  let s = String.create (Bitset.bitfield_length t.owned_pieces) in
-  Reader.read rd_bitset s
-  >>| fun _ ->  (* TODO check this *)
-  let bf = Bitfield.of_string s in
-  Bitset.insert_from_bitfield t.owned_pieces bf
+let debug = true
 
-let read t = 
-  read_bitset t
-  >>= fun () ->
-  let l = Bitset.to_list t.owned_pieces in 
-  info "read files from disk %d/%d pieces read" (num_owned_pieces t) t.num_pieces;
-  let f p = Piece.read t.pieces.(p) t.file_fd in 
-  Deferred.List.iter l ~f 
- *)
+let reader_read rd s ~pos ~len =
+  if debug then
+    return (String.fill s ~pos ~len '\000')
+  else 
+    Deferred.ignore (Reader.read rd s ~pos ~len)
 
-(* 
-let write_bitset t =
-  Async_unix.Unix_syscalls.lseek t.bitset_fd ~mode:`Set 0L 
-  >>| fun _ -> (* TODO check for error *)
-  let wr_bitset = Writer.create t.bitset_fd in
-  let s = Bitfield.to_string (Bitset.to_bitfield t.owned_pieces) in
-  Writer.write wr_bitset s
+let writer_write wr s ~pos ~len =
+  if debug then
+    ()
+  else 
+    Writer.write wr s ~pos ~len
 
-(* TODO rename write_and_close *)
-let write t = 
-  info "write files to disk %d/%d pieces saved" (num_owned_pieces t) 
-    t.num_pieces;
-  (* TODO add ~how *)
-  Deferred.Array.iter t.pieces ~f:(fun p -> Piece.write p t.file_fd) 
-  >>= fun () ->
-  write_bitset t 
+let read t s ~ps = 
+     info "read from %s off = %d len = %d" t.name t.off t.len;
+     let offl = Int64.of_int t.off in
+     Async_unix.Unix_syscalls.lseek t.fd ~mode:`Set offl
+     >>= fun _ -> 
+     let rd = Reader.create t.fd in
+     let pos = t.off % ps in
+     let len = t.len in
+     reader_read rd s ~pos ~len
 
-let close t = 
-  write t 
-  >>= fun () ->
-  Unix.close t.file_fd
-  >>= fun () ->
-  Unix.close t.bitset_fd *)
+let write t s ~ps = 
+     info "write to %s off = %d len = %d" t.name t.off t.len;
+     let offl = Int64.of_int t.off in
+     Async_unix.Unix_syscalls.lseek t.fd ~mode:`Set offl
+     >>| fun _ -> 
+     let wr = Writer.create t.fd in
+     let pos = t.off % ps in
+     let len = t.len in
+     writer_write wr s ~pos ~len 
+
