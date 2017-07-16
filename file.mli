@@ -10,18 +10,22 @@ open Async
 type t
 
 (** [create ~len h ph ~name ~pl] creates a new file. This include creating all 
-    the file pieces [Piece.t] and creating the persistent (this explains the 
-    deferred return type). 
-  
+    the file pieces [Piece.t] and creating the persistent files.
+
     - [h] is the hash of the info section of the metainfo file.
     - [ph] is an array of hashed of each of individual pieces.
 
     TODO: 
     - this works only for an individual file.
     - do all the pieces have the same length? check that *)
+val create : 
+  (Bt_hash.t Array.t) -> 
+  torrent_name:string -> 
+  piece_length:int -> 
+  ( string * int ) list ->
+  t Deferred.t
 
-val create : len:int -> Bt_hash.t -> (Bt_hash.t Array.t) -> name:string 
-  -> piece_length:int -> t Deferred.t
+val length : t -> int
 
 val close : t -> unit Deferred.t
 
@@ -36,10 +40,6 @@ val has_piece : t -> int -> bool
 val num_owned_pieces : t -> int
 
 val pieces_not_requested : t -> Bitset.t
-
-(** [hash t] is the hash of the info section of the metainfo file, used in
-    handshaking *)
-val hash : t -> Bt_hash.t
 
 (** This is the [Bitfield.t] decribing the list of pieces we have *)
 val bitfield : t -> Bitfield.t

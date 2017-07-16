@@ -11,7 +11,7 @@ type t
 
 (** [create f p]. [f] is the file to be downloaded and [p] identifies
     the local peer *)
-val create: File.t -> Peer_id.t -> t
+val create: Bt_hash.t -> File.t -> Peer_id.t -> t
 
 (** Launch the *services* that listen for new messages, query the peers... 
     Does not much until peers are added. *)

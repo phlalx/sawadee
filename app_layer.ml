@@ -7,6 +7,7 @@ module M = Message
 module P = Peer
 
 type t = {
+  info_hash : Bt_hash.t;
   file : File.t;
   mutable peers : P.t list;
   peer_id : Peer_id.t;
@@ -14,12 +15,13 @@ type t = {
   interested : bool; 
 }
 
-let create file peer_id = { 
+let create info_hash file peer_id = { 
   file; 
   peers = []; 
   peer_id; 
   choked = true;
-  interested = true
+  interested = true;
+  info_hash;
 }
 
 let for_all_non_idle_peers t ~f =
@@ -136,7 +138,7 @@ let display_downloaded t =
 let add_peer t peer_addr = 
   let init_protocol (p:P.t) =
     t.peers <- p :: t.peers;
-    P.handshake p (File.hash t.file) t.peer_id
+    P.handshake p t.info_hash t.peer_id
     >>= function 
     | Ok () ->  
       debug "handshake ok with peer %s" (P.to_string p);
