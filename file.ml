@@ -88,3 +88,4 @@ let close t =
   >>= fun () ->
   Unix.close t.bitset_fd
 
+let has_piece t i = Bitset.belongs t.owned_pieces i

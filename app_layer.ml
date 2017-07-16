@@ -57,7 +57,7 @@ let request_all_blocks_from_piece (p:P.t) (piece:Piece.t) : unit =
     (P.to_string p);
   Piece.set_status piece `Requested;
   P.add_pending p (Piece.get_index piece);
-  let f ~index ~off ~len =
+  let f ~index ~off ~len ~content =
     let m = M.Request(index, off, len) in
     sexp ~level:`Debug (M.sexp_of_t m); 
     P.send_message p m in
@@ -99,15 +99,27 @@ let process_message t (p:P.t) (m:M.t) : unit =
       File.set_owned_piece t.file index; 
       send_have_messages t index 
   in
+  let process_request index bgn length =
+    Peer.validate p (File.has_piece t.file index);
+    let piece = File.get_piece t.file index in
+    let f ~index ~off ~len ~content = 
+      let m = M.Piece (index, off, content) in
+      P.send_message p m 
+    in 
+    if not t.choked then
+      Piece.iter piece ~f
+  in
   match m with
   | M.KeepAlive -> ()
   | M.Choke -> P.set_choking p true
   | M.Unchoke -> P.set_choking p false
-  | M.Interested -> P.set_interested p true; info "ignore request - not yet implemented"
+  | M.Interested -> 
+      P.set_interested p true; 
+      info "ignore request - not yet implemented"
   | M.Not_interested -> P.set_interested p false
   | M.Have index -> P.set_owned_piece p index 
   | M.Bitfield bits  -> P.set_owned_pieces p bits 
-  | M.Request (index, bgn, length) -> info "ignore request - not yet implemented"
+  | M.Request (index, bgn, length) -> process_request index bgn length
   | M.Piece (index, bgn, block) -> process_piece_message index bgn block 
   | M.Cancel (index, bgn, length) -> info "ignore cancel msg - Not yet implemented"
 

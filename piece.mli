@@ -34,7 +34,8 @@ val get_index : t -> int
     piece and is thus constant, [off] is the offset of the block, and [len]
     its length. Note that all blocks have the same length except possibly the
     last one *)
-val iter : t -> f:(index:int -> off:int -> len:int -> unit) -> unit
+val iter : t -> f:(index:int -> off:int -> len:int -> content:string -> unit) 
+  -> unit
 
 (** Updates a piece with downloaded block.
 

@@ -51,7 +51,8 @@ let iter t ~f =
   for i = 0 to (num_blocks t) - 1 do 
     let off = i * block_size in
     let len = block_length t off in
-    f ~index:t.index ~off ~len
+    let content = t.content in
+    f ~index:t.index ~off ~len ~content
   done
 
 

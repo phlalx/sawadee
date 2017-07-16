@@ -79,3 +79,7 @@ val iter_pending: t -> f: (int -> unit) -> unit
 val pending_size: t -> int
 
 val pending_to_string : t -> string
+
+(** assert a condition dependent on values received by a peer.
+    raises if false TODO: close connection with peer instead *) 
+val validate : t -> bool -> unit

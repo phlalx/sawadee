@@ -142,3 +142,5 @@ let add_pending t i = t.pending <- Int.Set.add t.pending i
 let iter_pending t ~f = Int.Set.iter t.pending ~f
 
 let is_interested t = t.interested 
+
+let validate t c = assert c

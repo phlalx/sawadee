@@ -33,6 +33,8 @@ val num_pieces : t -> int
 
 val set_owned_piece : t -> int -> unit
 
+val has_piece : t -> int -> bool
+
 val num_owned_pieces : t -> int
 
 val pieces_not_requested : t -> Bitset.t
