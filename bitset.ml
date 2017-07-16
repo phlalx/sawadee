@@ -26,6 +26,9 @@ let empty ~size = {
   num_set = 0;
 }
 
+let to_list t = assert false
+
+
 let belongs t i = t.bits.(i)
 
 let insert t i = 
@@ -78,17 +81,11 @@ let choose t : int option =
   | None -> None
   | Some (i, _) -> Some i
 
-(* 
-let from_bool_array a = 
-  { bits = Array.copy a;
-    num_set = count_bits a;
-  }
- *)
+let bitfield_length t = ((size t) + 7) / 8  
 
 let to_string t =
   let n = size t in
-  let s_len = (n + 7) / 8 in
-  let res = String.make s_len '\000' in
+  let res = String.make (bitfield_length t) '\000' in
   for i = 0 to n - 1 do
     if belongs t i then set_bit res i
   done;

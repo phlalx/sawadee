@@ -55,8 +55,11 @@ val get_status : t -> [`Requested | `Downloaded | `Not_requested | `On_disk]
 val set_status : t -> [`Requested | `Downloaded | `Not_requested | `On_disk] 
   -> unit
 
-(** write piece to fd *)
+(** write piece to fd if downloaded, set status to `On_disk *)
 val write : t -> Unix.Fd.t -> unit Deferred.t
+
+(** read piece from fd if on disk, set status to `On_disk *)
+val read : t -> Unix.Fd.t -> unit Deferred.t
 
 (** for logging purpose *)
 val to_string : t -> string

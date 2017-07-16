@@ -14,6 +14,7 @@ let start_app_layer peer_addrs file peer_id =
   let al = App_layer.create file peer_id in
   (* DEBUG ONLY, keep only a subset of peers *) 
   (* let peer_addrs = List.sub peer_addrs ~pos:0 ~len:5 in  *)
+  Signal.handle Signal.terminating ~f:(fun _ -> App_layer.stop al);
   App_layer.start al;
   List.iter ~f:(App_layer.add_peer al) peer_addrs
 
@@ -46,13 +47,10 @@ let process (f : string)  =
 
 let spec =
   let open Command.Spec in
-  empty
-  +> anon ("FILE" %: string)
+  empty +> anon ("FILE" %: string) 
 
 let command =
-  Command.basic
-    ~summary:"Download torrent file"
-    spec
+  Command.basic ~summary:"Download torrent file" spec
     (fun filename -> (fun () -> Deferred.don't_wait_for (process filename)))
 
 let () = 

@@ -79,16 +79,31 @@ let update t ~off (block:string) =
     `Ok 
   )
 
-let write t fd =
-  assert (Bitset.is_full t.blocks); 
-  assert ((String.length t.content) = t.length);
-  let wr = Writer.create fd in
+let read t fd =
+  set_status t `On_disk;
+  let rd = Reader.create fd in
   let file_offset = Int64.of_int (t.index * t.length) in
   Async_unix.Unix_syscalls.lseek fd ~mode:`Set file_offset
-  >>| fun off -> 
+  >>= fun off -> 
   assert (off = file_offset); (* TODO fail silently *)
-  Writer.write wr t.content;
-  set_status t `On_disk
+  Reader.read rd t.content 
+  >>| function
+  | `Eof -> assert false
+  | `Ok _ -> ()
+
+let write t fd =
+  if get_status t = `Downloaded then (
+    assert (Bitset.is_full t.blocks); 
+    assert ((String.length t.content) = t.length);
+    let wr = Writer.create fd in
+    let file_offset = Int64.of_int (t.index * t.length) in
+    Async_unix.Unix_syscalls.lseek fd ~mode:`Set file_offset
+    >>| fun off -> 
+    assert (off = file_offset); (* TODO fail silently *)
+    Writer.write wr t.content;
+    set_status t `On_disk )
+  else
+    return ()
 
 let is_downloaded t = t.status = `Downloaded
 

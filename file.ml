@@ -5,6 +5,7 @@ open Log.Global
 type t = {
   len : int;
   name : string;
+  (* TODO add bitfield length *)
   num_pieces : int; (** number of pieces to be downloaded *)
   pieces : Piece.t Array.t;
   info_hash : Bt_hash.t;  (** hash of the info section of the bittorrent file *)
@@ -25,9 +26,13 @@ let create ~len hash pieces_hash ~name ~piece_length =
   let pieces = Array.init num_pieces ~f:piece_init  in
   let owned_pieces = Bitset.empty ~size:num_pieces in
   Unix.openfile name ~mode:[`Creat;`Rdwr]  
-  >>= fun file_fd ->
+  >>= fun file_fd -> (* TODO check these values *)
+  Unix.ftruncate file_fd (Int64.of_int len)
+  >>= fun _ -> 
   Unix.openfile (bitset_name name) ~mode:[`Creat;`Rdwr]
-  >>| fun bitset_fd ->
+  >>= fun bitset_fd ->
+  Unix.ftruncate bitset_fd (Int64.of_int (Bitset.bitfield_length owned_pieces))
+  >>| fun _ ->
   info "create file (num piece = %d, name = %s)" num_pieces name;
   { len; name; num_pieces; pieces; info_hash = hash; owned_pieces; file_fd; 
     bitset_fd; piece_length } 
@@ -54,21 +59,29 @@ let write_bitset t =
   let wr_bitset = Writer.create t.bitset_fd in
   let s = Bitfield.to_string (Bitset.to_bitfield t.owned_pieces) in
   Writer.write wr_bitset s
- 
-let write_pieces t =
-  let f p = 
-    if (Piece.get_status p = `Downloaded) then 
-      Piece.write p t.file_fd
-    else
-      return ()
-  in 
-  Deferred.Array.iter t.pieces ~f 
+
+let read_bitset t =
+  let rd_bitset = Reader.create t.bitset_fd in
+  let s = String.create (Bitset.bitfield_length t.owned_pieces) in
+  Reader.read rd_bitset s
+  >>| fun _ ->  (* TODO check this *)
+  let bf = Bitfield.of_string s in
+  Bitset.insert_from_bitfield t.owned_pieces bf
 
 let write t = 
-    info "write files to disk";
-    write_pieces t
-    >>= fun () ->
-    write_bitset t
+  info "write files to disk";
+  (* TODO add ~how *)
+  Deferred.Array.iter t.pieces ~f:(fun p -> Piece.write p t.file_fd) 
+  >>= fun () ->
+  write_bitset t 
+
+let read t = 
+  info "read files from disk";
+  read_bitset t
+  >>| fun () ->
+  let l = Bitset.to_list t.owned_pieces in 
+  let f p = Piece.read t.pieces.(p) t.file_fd in 
+  Deferred.List.iter l ~f
 
 let close t = 
   Unix.close t.file_fd

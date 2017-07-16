@@ -2,6 +2,7 @@
     instead of array's since this is how we use this module in the program. 
     Most operations are constant time. *)
 open Core
+open Async
 
 (** An element of type [t] represents a set of integer that belongs to [0, size)
     where [size] is given at creation *) 
@@ -15,6 +16,8 @@ val create : size:int -> f:(int -> bool) -> t
 
 (** maximal number of element, don't confuse with [card] *)
 val size : t -> int
+
+val to_list : t -> int list
 
 (** test set membership, raises if outside bounds *)
 val belongs : t -> int -> bool
@@ -45,6 +48,8 @@ val choose : t -> int option
 (** [to_bitfield x] returns a bitfield as specified by the peer protocol. If 
     [size x] isn't a multiple of 8, the last bits of the string are set to 0. *)
 val to_bitfield : t -> Bitfield.t
+
+val bitfield_length : t -> int
 
 (** [insert_from_bitfield t b] fills t with bitfield [b] as specified by the 
     peer protocol.

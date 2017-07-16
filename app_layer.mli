@@ -17,6 +17,8 @@ val create: File.t -> Peer_id.t -> t
     Does not much until peers are added. *)
 val start: t -> unit
 
+val stop: t -> unit
+
 (** Add new peers to communicate with. Peer can be added dynamically. 
     This silently fails if connexion or handshake can't be established with 
     the peer. *)

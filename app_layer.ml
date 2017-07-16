@@ -1,4 +1,5 @@
 open Core
+
 open Async
 open Log.Global
 
@@ -13,12 +14,13 @@ type t = {
   interested : bool; 
 }
 
-let create file peer_id = 
-  { file; 
-    peers = []; 
-    peer_id; 
-    choked = true;
-    interested = true }
+let create file peer_id = { 
+  file; 
+  peers = []; 
+  peer_id; 
+  choked = true;
+  interested = true
+}
 
 let for_all_non_idle_peers t ~f =
   let f p = if not (P.is_idle p) then f p in List.iter t.peers ~f 
@@ -142,14 +144,19 @@ let add_peer t peer_addr =
 
   Deferred.don't_wait_for (add_peer_aux t peer_addr)
 
-let stop t = (* TODO bind this to ctrl-C *)
-  File.close t 
-  >>= fun () -> 
-  exit 0
+let stop t = 
+  let stop_aux t =
+    info "terminating";
+    File.write t.file
+    >>= fun () ->
+    File.close t.file
+    >>= fun () -> 
+    exit 0
+  in 
+  don't_wait_for (stop_aux t)
 
 let start t = 
   Clock.every (sec 10.0) (fun () -> display_downloaded t); 
-  Clock.every' (sec 10.0) (fun () -> File.write t.file);  
   Clock.every (sec 1.0) (fun () -> tick_peers t); 
   Clock.every (sec 0.001) (fun () -> request_piece t)
 
