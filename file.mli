@@ -23,8 +23,6 @@ type t
 val create : len:int -> Bt_hash.t -> (Bt_hash.t Array.t) -> name:string 
   -> piece_length:int -> t Deferred.t
 
-val write : t -> unit Deferred.t
-
 val close : t -> unit Deferred.t
 
 val get_piece : t -> int -> Piece.t

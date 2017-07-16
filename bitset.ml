@@ -26,8 +26,9 @@ let empty ~size = {
   num_set = 0;
 }
 
-let to_list t = assert false
-
+let to_list t = 
+  let f i acc b = if b then i :: acc else acc in  
+  Array.foldi t.bits ~init:[] ~f
 
 let belongs t i = t.bits.(i)
 
