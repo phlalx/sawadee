@@ -165,7 +165,7 @@ let stop t =
 
 let start t = 
   Clock.every (sec 10.0) (fun () -> display_downloaded t); 
-  Clock.every (sec 1.0) (fun () -> tick_peers t); 
+  Clock.every Global.tick (fun () -> tick_peers t); 
   Clock.every (sec 0.001) (fun () -> request_piece t)
 
 

@@ -46,10 +46,8 @@ let rec split_along_piece_size l ~ps ~num_piece =
   assert (!j = m);
   res 
 
-let path = "./download/" (* TODO pass in command line *)
-
 let create name ~len ~off = 
-  let name = path ^ name in
+  let name = Global.path ^ name in
   info "create file %s" name;
   let llen = Int64.of_int len in
   Unix.openfile name ~mode:[`Creat;`Rdwr]

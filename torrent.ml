@@ -19,8 +19,6 @@ type t = {
   files_info : file_info list
 }
 
-let hash_length = 20
-
 exception Wrong_Format
 
 let get x =
@@ -58,7 +56,7 @@ let from_chan chan =
   let piece_length_bc = get (B.dict_get info_dict_bc "piece length") in
   let piece_length = get (B.as_int piece_length_bc) in
   let info_hash = Bt_hash.of_string (Sha1.to_bin (Sha1.string info_str)) in
-  let pieces_hash = Array.map (split pieces hash_length) ~f:Bt_hash.of_string in 
+  let pieces_hash = Array.map (split pieces Bt_hash.length) ~f:Bt_hash.of_string in 
   match B.dict_get info_dict_bc "length" with
   | Some length_bc ->
     let mode = `Single_file in

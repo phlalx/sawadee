@@ -44,15 +44,21 @@ let to_string t = Socket.Address.Inet.to_string t.peer_addr
 
 exception Handshake_error
 
+let hs hash pid = 
+  sprintf "\019BitTorrent protocol\000\000\000\000\000\000\000\000%s%s" hash pid   
+
+let hs_len = 68
+let hash_len = 20 
+let info_pos = 48 
+let peer_pos = 48 
+
 let handshake t hash pid =
   let hash = Bt_hash.to_string hash in
-  let hs = sprintf "\019BitTorrent protocol\000\000\000\000\000\000\000\000%s%s" 
-      hash (Peer_id.to_string pid) in
+  let pid = Peer_id.to_string pid in
+  let hs = hs hash pid in
+
   Writer.write t.writer hs; 
-  let hs_len = 68 in
-  let hash_len = 20 in
-  let info_pos = 48 in 
-  let peer_pos = 48 in 
+
   let buf = String.create hs_len in
   Reader.really_read t.reader ~len:hs_len buf
   >>| function 

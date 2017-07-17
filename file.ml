@@ -1,6 +1,7 @@
 open Core
 open Async
 open Log.Global
+module G = Global
 
 type t = {
   len : int; (** total length of network file *)
@@ -26,7 +27,7 @@ let num_owned_pieces t = Bitset.card t.owned_pieces
 
 (* TODO redo this so that the new file is hidden, starting with a dot 
    Need to take care if name is a path *)
-let bitset_name name = (Filename.basename name) ^ "_bitset"
+let bitset_name name = (Filename.basename name) ^ G.bitset_ext
 
 let piece_init pieces_hash pfiles piece_length total_len i = 
   let adjusted_piece_length = min (total_len - i * piece_length) piece_length in

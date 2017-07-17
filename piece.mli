@@ -12,7 +12,6 @@ open Async
 (** [block_size] is the size chosen by the client to request blocks. 
     TODO: right now, the client doesn't send blocks to peers but we'll have
     to be able to accomodate other block sizes when it does *)
-val block_size : int
 
 type t
 

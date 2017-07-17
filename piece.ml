@@ -1,8 +1,7 @@
 open Core
 open Async
 open Log.Global
-
-let block_size = 32768
+module G = Global
 
 type t = {
   index : int;
@@ -15,7 +14,7 @@ type t = {
 } 
 
 let create ~index hash ~len pfiles = 
-  let num_blocks = (len + block_size - 1) / block_size in
+  let num_blocks = (len + G.block_size - 1) / G.block_size in
 
   let len_pfiles = List.fold pfiles ~init:0 ~f:(fun acc l -> l.Pfile.len + acc) in 
   assert (len_pfiles = len);
@@ -41,19 +40,13 @@ let set_not_requested t =
   if not (t.status = `Downloaded) then
     t.status <- `Not_requested
 
-let num_blocks t = (t.length + block_size - 1) / block_size
+let num_blocks t = (t.length + G.block_size - 1) / G.block_size
 
-let block_length t off = min (t.length - off) block_size 
-
-let offset_length t index =
-  let len = t.length in
-  let offset = index * block_size in
-  let block_len = min (len - offset) block_size in
-  offset, block_len
+let block_length t off = min (t.length - off) G.block_size 
 
 let iter t ~f = 
   for i = 0 to (num_blocks t) - 1 do 
-    let off = i * block_size in
+    let off = i * G.block_size in
     let len = block_length t off in
     let content = t.content in
     f ~index:t.index ~off ~len ~content
@@ -62,8 +55,8 @@ let iter t ~f =
 (* TODO this look a bit ugly *)
 let update t ~off (block:string) = 
   let index = 
-    assert (off % block_size = 0);  (* TODO other error for that *)
-    off / block_size in
+    assert (off % G.block_size = 0);  (* TODO other error for that *)
+    off / G.block_size in
   let len = String.length block in
   assert (len = (block_length t off));
   Bitset.insert t.blocks index;

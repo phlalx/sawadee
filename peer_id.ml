@@ -2,8 +2,11 @@ open Core
 
 type t = string
 
-let random () = String.init 20 ~f:(fun _ -> char_of_int (Random.int 255))
+let peer_id_length = 20
+
+let random () = 
+  String.init peer_id_length ~f:(fun _ -> char_of_int (Random.int 255))
 
 let to_string x = x
 
-let of_string x = assert (String.length x = 20); x
+let of_string x = assert (String.length x = peer_id_length); x
