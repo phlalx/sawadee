@@ -46,7 +46,7 @@ let process (f : string)  =
     flushed ()
     >>= fun () ->
     exit 1
-
+    
 let spec =
   let open Command.Spec in
   empty +> anon ("FILE" %: string) 

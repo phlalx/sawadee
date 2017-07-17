@@ -11,16 +11,12 @@ type t = {
   file : File.t;
   mutable peers : P.t list;
   peer_id : Peer_id.t;
-  choked : bool; 
-  interested : bool; 
 }
 
 let create info_hash file peer_id = { 
   file; 
   peers = []; 
   peer_id; 
-  choked = true;
-  interested = true;
   info_hash;
 }
 
@@ -37,7 +33,7 @@ let cancel_requested_pieces t peer =
 (* notify peers that we have a pieces they don't have *)
 let send_have_messages t i =
   let notify_if_doesn't_have i p =
-    if not (P.has_piece p i) && (P.is_interested p) then (
+    if not (P.has_piece p i) then (
       info "notify peer %s about piece %d" (P.to_string p) i;
       P.send_message p (M.Have i)
     ) in
@@ -67,14 +63,14 @@ let request_all_blocks_from_piece (p:P.t) (piece:Piece.t) : unit =
 
 let compute_next_request t : (Piece.t * P.t) Option.t =
   let f peer = 
-    if (P.is_idle peer) || (P.is_choking peer) || ((P.pending_size peer) >= 3) then
+    if (P.is_idle peer) || (P.is_peer_choking peer) || ((P.pending_size peer) >= 3) then
       None
     else 
       (* TODO this is not efficient *)
       let pieces_not_requested = File.pieces_not_requested t.file in
       let pieces_owned_by_peer = Peer.owned_pieces peer in
       let pieces_to_request = Bitset.inter pieces_not_requested pieces_owned_by_peer in
-      match Bitset.choose pieces_to_request with 
+      match Bitset.choose_random pieces_to_request with 
       | None -> None 
       | Some i -> Some (File.get_piece t.file i, peer)
   in
@@ -108,20 +104,20 @@ let process_message t (p:P.t) (m:M.t) : unit =
       let m = M.Piece (index, off, content) in
       P.send_message p m 
     in 
-    if not t.choked then
       Piece.iter piece ~f
   in
   match m with
   | M.KeepAlive -> ()
-  | M.Choke -> P.set_choking p true
-  | M.Unchoke -> P.set_choking p false
+  | M.Choke -> P.set_peer_choking p true
+  | M.Unchoke -> P.set_peer_choking p false
   | M.Interested -> 
-      P.set_interested p true; 
-      info "ignore request - not yet implemented"
-  | M.Not_interested -> P.set_interested p false
+      P.set_peer_interested p true; 
+      (* TODO *) (* send not choking *)
+  | M.Not_interested -> P.set_peer_interested p false
   | M.Have index -> P.set_owned_piece p index 
   | M.Bitfield bits  -> P.set_owned_pieces p bits 
-  | M.Request (index, bgn, length) -> process_request index bgn length
+  | M.Request (index, bgn, length) -> 
+    if not (Peer.am_choking p) then process_request index bgn length
   | M.Piece (index, bgn, block) -> process_piece_message index bgn block 
   | M.Cancel (index, bgn, length) -> info "ignore cancel msg - Not yet implemented"
 

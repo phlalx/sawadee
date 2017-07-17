@@ -61,7 +61,7 @@ let create pieces_hash ~torrent_name ~piece_length files =
   Array.iteri pfiles_piece_aligned ~f:g;
   let f = piece_init pieces_hash pfiles_piece_aligned piece_length len in
   let pieces = Array.init num_pieces ~f  in
-  let f i p =
+  let _f i p =
     if Bitset.belongs owned_pieces i then (
       Piece.read p
       >>| fun () ->
@@ -70,7 +70,8 @@ let create pieces_hash ~torrent_name ~piece_length files =
       return ()
     )
   in
-  Deferred.Array.iteri ~how:`Sequential pieces ~f
+  (* Deferred.Array.iteri ~how:`Sequential pieces ~f *)
+  Deferred.unit 
   >>| fun () ->
   info "create file (num piece = %d, name = %s)" num_pieces torrent_name;
   { len; 
@@ -114,7 +115,7 @@ let write_to_file_and_close t =
   >>= fun () ->
   info "Write persistent bitset (%d pieces)" (Bitset.card t.owned_pieces);
   let s = Bitfield.to_string (Bitset.to_bitfield t.owned_pieces) in
-  Pfile.write t.bitset_pfile s ~ps:t.piece_length
+  Pfile.write t.bitset_pfile s ~ps:t.piece_length 
   >>= fun _ ->
   Pfile.close t.bitset_pfile
   >>= fun () ->

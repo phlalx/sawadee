@@ -51,13 +51,21 @@ val incr_time : t -> unit
 
 (** The following functions simply get/set one bit states. *)
 
-val is_interested : t -> bool
+val is_peer_interested : t -> bool
 
-val is_choking : t -> bool
+val is_peer_choking : t -> bool
 
-val set_interested : t -> bool -> unit
+val am_interested : t -> bool
 
-val set_choking : t -> bool -> unit
+val am_choking : t -> bool
+
+val set_peer_interested : t -> bool -> unit
+
+val set_peer_choking : t -> bool -> unit
+
+val set_am_interested : t -> bool -> unit
+
+val set_am_choking : t -> bool -> unit
 
 val is_idle : t -> bool
 

@@ -10,8 +10,10 @@ open Log.Global
     of the library uses a fixed 8-bytes length (4 bytes in bittorrent) *) 
 
 type t = {
-  mutable choked : bool; 
-  mutable interested : bool;
+  mutable peer_choking : bool; 
+  mutable peer_interested : bool;
+  mutable am_choking : bool;
+  mutable am_interested : bool; 
   peer_addr : Socket.Address.Inet.t;
   mutable id : Peer_id.t;
   reader : Reader.t;
@@ -32,10 +34,10 @@ let create peer_addr ~piece_num =
   >>| function
   | Ok (_, r, w) -> 
     (* TODO use option type or dummy value instead of random peer_id *) 
-    Ok { peer_addr; have = Bitset.empty piece_num; id = Peer_id.random (); interested = false; 
-         choked = true; reader = r; writer = w; pending = Int.Set.empty;
-         time_since_last_reception = 0; time_since_last_send = 0;
-         idle = false}
+    Ok { peer_addr; have = Bitset.empty piece_num; id = Peer_id.random (); 
+         peer_interested = false; peer_choking = true; am_interested = false;
+         am_choking = true; reader = r; writer = w; pending = Int.Set.empty;
+         time_since_last_reception = 0; time_since_last_send = 0; idle = false}
   | Error err -> Error err
 
 let to_string t = Socket.Address.Inet.to_string t.peer_addr
@@ -117,11 +119,21 @@ let incr_time t =
 
 let is_idle t = t.idle
 
-let is_choking t = t.choked
+let set_peer_interested t b = t.peer_interested <- b
 
-let set_interested t b = t.interested <- b
+let set_peer_choking t b = t.peer_choking <- b
 
-let set_choking t b = t.choked <- b
+let set_am_interested t b = t.am_interested <- b
+
+let set_am_choking t b = t.am_choking <- b
+
+let is_peer_choking t = t.peer_choking
+
+let is_peer_interested t = t.peer_interested
+
+let am_choking t = t.am_choking
+
+let am_interested t = t.am_interested
 
 let pending_to_string t = 
   let l = Int.Set.to_list t.pending in 
@@ -140,7 +152,5 @@ let remove_pending t i = t.pending <- Int.Set.remove t.pending i
 let add_pending t i = t.pending <- Int.Set.add t.pending i
 
 let iter_pending t ~f = Int.Set.iter t.pending ~f
-
-let is_interested t = t.interested 
 
 let validate t c = assert c

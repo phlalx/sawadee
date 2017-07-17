@@ -82,6 +82,14 @@ let choose t : int option =
   | None -> None
   | Some (i, _) -> Some i
 
+let choose_random t : int option =
+  let f i b = if b then Some i else None in
+  let a = Array.filter_mapi t.bits ~f in
+  let n = Array.length a in
+  match n with
+  | 0 -> None
+  | _ -> Some a.(Random.int n) 
+
 let bitfield_length t = ((size t) + 7) / 8  
 
 let to_string t =
