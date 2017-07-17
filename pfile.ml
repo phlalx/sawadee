@@ -12,7 +12,7 @@ type t = {
 let to_string t = sprintf "name = %s off = %d len %d" t.name t.off t.len
 
 let rec align_along_piece_size l ps =
- match l with 
+  match l with 
   | [] -> []
   | {name; fd; len; off} :: t when (off % ps) + len <= ps -> 
     {name; fd; len; off} :: (align_along_piece_size t ps) 
@@ -75,22 +75,22 @@ let writer_write wr s ~pos ~len =
     Writer.write wr s ~pos ~len
 
 let read t s ~ps = 
-     info "read from %s off = %d len = %d" t.name t.off t.len;
-     let offl = Int64.of_int t.off in
-     Async_unix.Unix_syscalls.lseek t.fd ~mode:`Set offl
-     >>= fun _ -> 
-     let rd = Reader.create t.fd in
-     let pos = t.off % ps in
-     let len = t.len in
-     reader_read rd s ~pos ~len
+  info "read from %s off = %d len = %d" t.name t.off t.len;
+  let offl = Int64.of_int t.off in
+  Async_unix.Unix_syscalls.lseek t.fd ~mode:`Set offl
+  >>= fun _ -> 
+  let rd = Reader.create t.fd in
+  let pos = t.off % ps in
+  let len = t.len in
+  reader_read rd s ~pos ~len
 
 let write t s ~ps = 
-     info "write to %s off = %d len = %d" t.name t.off t.len;
-     let offl = Int64.of_int t.off in
-     Async_unix.Unix_syscalls.lseek t.fd ~mode:`Set offl
-     >>| fun _ -> 
-     let wr = Writer.create t.fd in
-     let pos = t.off % ps in
-     let len = t.len in
-     writer_write wr s ~pos ~len 
+  info "write to %s off = %d len = %d" t.name t.off t.len;
+  let offl = Int64.of_int t.off in
+  Async_unix.Unix_syscalls.lseek t.fd ~mode:`Set offl
+  >>| fun _ -> 
+  let wr = Writer.create t.fd in
+  let pos = t.off % ps in
+  let len = t.len in
+  writer_write wr s ~pos ~len 
 

@@ -1,52 +1,71 @@
-(** Entry point to the project. It implements the command-line options and 
-    run the various stages. So far, it includes:
-      - decoding bencoded torrent file
-      - querying the tracker to retrieve list of peers
-      - initiating the P2P protocol with one of the peers.
+(** Entry point to the project. 
 
-    All this project makes use of [Core], [Async] and [Log.Global]. *)
+    It implements the command-line options and run main stages. 
+
+    - decoding the metainfo (torrent) file
+    - creating File.t and retrieving persistent data
+    - querying the tracker to retrieve list of peers
+    - initiating the P2P layer
+    - add peers.
+
+   All modules use [Core], [Async] and [Log.Global]. *)
 
 open Core
 open Async
 open Log.Global
+module G = Global
 
 let start_app_layer info_hash peer_addrs file peer_id =
   let al = App_layer.create info_hash file peer_id in
-  (* DEBUG ONLY, keep only a subset of peers *) 
-  (* let peer_addrs = List.sub peer_addrs ~pos:0 ~len:5 in  *)
+  
+  (* register handler for ctrl-c *)
   Signal.handle Signal.terminating ~f:(fun _ -> App_layer.stop al);
   App_layer.start al;
-  List.iter ~f:(App_layer.add_peer al) peer_addrs
+  Clock.every (sec 10.0) (fun () -> App_layer.stats al);
+  let f = App_layer.add_peer al in
+  List.iter peer_addrs ~f
 
-(** [process f] initiates downloading of file described by
-    torrent file named [f]. *)
-let process (f : string)  = 
-  let c = In_channel.create f in 
+
+(** [process f] downloads files described by metainfo file [f]. *)
+let process (torrent_name : string)  = 
+
+  (* decode file *)
   let open Torrent in 
-  let { info_hash; announce; announce_list; mode; pieces_hash; piece_length; 
+  let { info_hash; 
+        announce; 
+        announce_list; 
+        mode; 
+        pieces_hash; 
+        piece_length; 
         files_info }
-    = Torrent.from_chan c in
-  info "Torrent: %s:" f;
+    = Torrent.from_file torrent_name 
+  in
+
+  info "Torrent: %s:" torrent_name;
   info "Torrent: %d files" (List.length files_info);
   info "Torrent: %d pieces" (Array.length pieces_hash);
   info "Torrent: piece length = %d" piece_length;
-  let files_info = List.map files_info ~f:(fun fi -> fi.name, fi.length) in 
-  File.create pieces_hash ~torrent_name:f ~piece_length files_info 
+
+  (* Create File.t and retrieve peristent data *)
+  File.create pieces_hash ~torrent_name ~piece_length files_info 
   >>= fun file ->
-  let peer_id = Peer_id.random () in
-  Tracker_client.init announce announce_list info_hash (File.length file) peer_id; 
+
+  let total_length = File.length file in
+
+  Tracker_client.init announce announce_list info_hash total_length G.peer_id; 
   debug "trying to connect to tracker";
   Tracker_client.query ()
   >>= function
   | Some peer_addrs -> 
-    info "tracker replies with list of %d peers" (List.length peer_addrs);
-    return (start_app_layer info_hash peer_addrs file peer_id)
+    let num_of_peers = List.length peer_addrs in 
+    info "tracker replies with list of %d peers" num_of_peers;
+    return (start_app_layer info_hash peer_addrs file G.peer_id)
   | None -> 
     info "can't connect to tracker";
     flushed ()
     >>= fun () ->
     exit 1
-    
+
 let spec =
   let open Command.Spec in
   empty +> anon ("FILE" %: string) 
@@ -59,22 +78,6 @@ let () =
   set_level `Info;
   Command.run command;
   never_returns (Scheduler.go ())
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

@@ -6,11 +6,6 @@ open Core
 
 exception Wrong_Format
 
-type file_info = {
-  name : string;
-  length : int;
-}
-
 type t = {
   info_hash : Bt_hash.t;
   announce : string;
@@ -18,7 +13,7 @@ type t = {
   piece_length : int;
   pieces_hash : Bt_hash.t Array.t;
   mode : [`Single_file | `Multiple_file];
-  files_info : file_info list
+  files_info : (string * int) list (* name and length of each individual files *)
 }
 
-val from_chan : In_channel.t -> t
+val from_file : string -> t

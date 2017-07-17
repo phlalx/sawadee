@@ -33,5 +33,6 @@ val max_non_choking_peers : int
 (** extension to serialize bitfield "_bitset" *)
 val bitset_ext : string
 
+val peer_id : Peer_id.t
 
 

@@ -90,7 +90,8 @@ let query_tracker uri =
     )
   | Error err -> return None
 
-(* TODO we query the trackers in sequence, would by better in parallel *)
+(* TODO we query the trackers in sequence, would by better in parallel
+   using the right Deferred... function *)
 let rec query_all_trackers uris =
   match uris with
   | uri :: t -> (

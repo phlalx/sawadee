@@ -4,11 +4,6 @@ open Log.Global
 
 module B = Bencode
 
-type file_info = {
-  name : string;
-  length : int;
-}
-
 type t = {
   info_hash : Bt_hash.t;
   announce : string;
@@ -16,7 +11,7 @@ type t = {
   piece_length : int;
   pieces_hash : Bt_hash.t Array.t;
   mode : [`Single_file | `Multiple_file];
-  files_info : file_info list
+  files_info : (string * int) list
 }
 
 exception Wrong_Format
@@ -32,7 +27,8 @@ let split (s:string) split_size =
   let f i = String.sub s (i * split_size) split_size in
   Array.init (n / split_size) ~f
 
-let from_chan chan =
+let from_file f =
+  let chan = In_channel.create f in 
   let bc = B.decode (`Channel chan) in 
   debug "torrent file = %s" (B.pretty_print bc);
   let announce_bc = get (B.dict_get bc "announce") in
@@ -63,20 +59,21 @@ let from_chan chan =
     let length = get (B.as_int length_bc) in
     let name_bc = get (B.dict_get info_dict_bc "name") in
     let name = get (B.as_string name_bc) in 
-    let files_info = [{name; length}] in
+    let files_info = [name, length] in
     { mode; announce; info_hash; piece_length; pieces_hash; announce_list; 
       files_info }
   | None -> 
     let mode = `Multiple_file in
     let files_bc = get (B.dict_get info_dict_bc "files") in
     let files = get (B.as_list files_bc) in 
-    let f (file_info_bc:Bencode.t) : file_info  =
+
+    let f (file_info_bc: Bencode.t) : string * int =
       let name_bc = get (B.dict_get file_info_bc "path") in
       let name_list = get (B.as_list name_bc)  in 
       let names = List.map name_list ~f:(fun n -> get (B.as_string n)) in
       let length_bc = get (B.dict_get file_info_bc "length") in
       let length = get (B.as_int length_bc) in
-      { name = Filename.of_parts names; length }
+      (Filename.of_parts names), length
     in
     let files_info = List.map files f in
     { mode; announce; info_hash; piece_length; pieces_hash; announce_list; 

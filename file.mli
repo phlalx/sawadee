@@ -43,14 +43,3 @@ val pieces_not_requested : t -> Bitset.t
 (** This is the [Bitfield.t] decribing the list of pieces we have *)
 val bitfield : t -> Bitfield.t
 
-
-
-
-
-
-
-
-
-
-
-

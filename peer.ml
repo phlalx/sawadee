@@ -33,16 +33,30 @@ let create peer_addr ~piece_num =
   try_with (function () -> Tcp.connect wtc)
   >>| function
   | Ok (_, r, w) -> 
-    (* TODO use option type or dummy value instead of random peer_id *) 
-    Ok { peer_addr; have = Bitset.empty piece_num; id = Peer_id.random (); 
-         peer_interested = false; peer_choking = true; am_interested = false;
-         am_choking = true; reader = r; writer = w; pending = Int.Set.empty;
-         time_since_last_reception = 0; time_since_last_send = 0; idle = false}
+    let res = {
+      peer_addr; 
+      have = Bitset.empty piece_num; 
+      id = Peer_id.dummy;
+      peer_interested = false; 
+      peer_choking = true; 
+      am_interested = false;
+      am_choking = true; 
+      reader = r; 
+      writer = w; 
+      pending = Int.Set.empty;
+      time_since_last_reception = 0; 
+      time_since_last_send = 0; 
+      idle = false;
+    }
+    in Ok res
+
   | Error err -> Error err
+
 
 let to_string t = Socket.Address.Inet.to_string t.peer_addr
 
 exception Handshake_error
+
 
 let hs hash pid = 
   sprintf "\019BitTorrent protocol\000\000\000\000\000\000\000\000%s%s" hash pid   
@@ -160,3 +174,11 @@ let add_pending t i = t.pending <- Int.Set.add t.pending i
 let iter_pending t ~f = Int.Set.iter t.pending ~f
 
 let validate t c = assert c
+
+let stats t = 
+  info "peer %s: idle/choking/interested %B %B %B" 
+  (to_string t) t.idle t.peer_choking t.peer_interested 
+
+
+
+

@@ -24,4 +24,6 @@ val stop: t -> unit
     the peer. *)
 val add_peer: t -> Socket.Address.Inet.t -> unit
 
+(** display various stats *)
+val stats : t -> unit
 

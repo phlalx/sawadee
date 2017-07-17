@@ -21,3 +21,5 @@ let max_non_choking_peers = 4
 
 let bitset_ext = "_bitset"
 
+let peer_id = Peer_id.random ()
+

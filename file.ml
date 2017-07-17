@@ -56,11 +56,11 @@ let create pieces_hash ~torrent_name ~piece_length files =
   Deferred.List.map ~how:`Sequential files_with_offset ~f
   >>= fun pfiles -> 
   let pfiles_piece_aligned = Pfile.split_along_piece_size pfiles piece_length num_pieces in
-  debug "Pfiles after splitting";
+(*   debug "Pfiles after splitting";
   let f pf = debug "Pfile: %s" (Pfile.to_string pf) in
   let g i l = debug "piece %d" i; List.iter l f in  
   Array.iteri pfiles_piece_aligned ~f:g;
-  let f = piece_init pieces_hash pfiles_piece_aligned piece_length len in
+ *)  let f = piece_init pieces_hash pfiles_piece_aligned piece_length len in
   let pieces = Array.init num_pieces ~f  in
   let _f i p =
     if Bitset.belongs owned_pieces i then (

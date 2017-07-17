@@ -1,10 +1,10 @@
 open Core
-
 open Async
 open Log.Global
 
 module M = Message
 module P = Peer
+module G = Global
 
 type t = {
   info_hash : Bt_hash.t;
@@ -19,6 +19,9 @@ let create info_hash file peer_id = {
   peer_id; 
   info_hash;
 }
+
+let num_pending t = 
+  List.fold t.peers ~init:0 ~f:(fun acc p -> acc + (P.pending_size p)) 
 
 let for_all_non_idle_peers t ~f =
   let f p = if not (P.is_idle p) then f p in List.iter t.peers ~f 
@@ -37,7 +40,7 @@ let send_have_messages t i =
       info "notify peer %s about piece %d" (P.to_string p) i;
       P.send_message p (M.Have i)
     ) in
-  List.iter t.peers ~f:(notify_if_doesn't_have i)
+  for_all_non_idle_peers t ~f:(notify_if_doesn't_have i)
 
 let tick_peers t = 
   let f p = 
@@ -55,7 +58,7 @@ let request_all_blocks_from_piece (p:P.t) (piece:Piece.t) : unit =
     (P.to_string p);
   Piece.set_status piece `Requested;
   P.add_pending p (Piece.get_index piece);
-  let f ~index ~off ~len ~content =
+  let f ~index ~off ~len =
     let m = M.Request(index, off, len) in
     sexp ~level:`Debug (M.sexp_of_t m); 
     P.send_message p m in
@@ -63,10 +66,10 @@ let request_all_blocks_from_piece (p:P.t) (piece:Piece.t) : unit =
 
 let compute_next_request t : (Piece.t * P.t) Option.t =
   let f peer = 
-    if (P.is_idle peer) || (P.is_peer_choking peer) || ((P.pending_size peer) >= 3) then
+    if (P.is_idle peer) || (P.is_peer_choking peer) || ((num_pending t) >= G.max_pending_request) then
       None
     else 
-      (* TODO this is not efficient *)
+      (* not very efficient *)
       let pieces_not_requested = File.pieces_not_requested t.file in
       let pieces_owned_by_peer = Peer.owned_pieces peer in
       let pieces_to_request = Bitset.inter pieces_not_requested pieces_owned_by_peer in
@@ -99,23 +102,20 @@ let process_message t (p:P.t) (m:M.t) : unit =
   in
   let process_request index bgn length =
     Peer.validate p (File.has_piece t.file index);
-    let piece = File.get_piece t.file index in
-    let f ~index ~off ~len ~content = 
-      let m = M.Piece (index, off, content) in
-      P.send_message p m 
-    in 
-      Piece.iter piece ~f
+    assert false (* TODO *)
   in
   match m with
   | M.KeepAlive -> ()
   | M.Choke -> P.set_peer_choking p true
   | M.Unchoke -> P.set_peer_choking p false
   | M.Interested -> 
-      P.set_peer_interested p true; 
-      (* TODO *) (* send not choking *)
+    P.set_peer_interested p true; 
+    (* TODO implement strategy to decide when I am not choking *) 
+    if not (P.am_choking p) then
+      P.send_message p Message.Unchoke
   | M.Not_interested -> P.set_peer_interested p false
   | M.Have index -> P.set_owned_piece p index 
-  | M.Bitfield bits  -> P.set_owned_pieces p bits 
+  | M.Bitfield bits -> P.set_owned_pieces p bits 
   | M.Request (index, bgn, length) -> 
     if not (Peer.am_choking p) then process_request index bgn length
   | M.Piece (index, bgn, block) -> process_piece_message index bgn block 
@@ -127,15 +127,17 @@ let rec wait_and_process_message t (p:P.t) =
   | `Ok m -> process_message t p m; `Repeat ()
   | `Eof -> `Finished ()
 
-let display_downloaded t =
+let stats t =
   info "**** downloaded %d/%d ****" (File.num_owned_pieces t.file) 
-    (File.num_pieces t.file)
+    (File.num_pieces t.file);
+  let f p = Peer.stats p in
+  List.iter t.peers f
 
 let add_peer t peer_addr = 
   let init_protocol (p:P.t) =
     t.peers <- p :: t.peers;
     P.handshake p t.info_hash t.peer_id
-    >>= function 
+    >>> function 
     | Ok () ->  
       debug "handshake ok with peer %s" (P.to_string p);
       if (File.num_owned_pieces t.file) > 0 then (
@@ -144,15 +146,16 @@ let add_peer t peer_addr =
       P.send_message p M.Interested;
       debug "Start message handler loop";
       Deferred.repeat_until_finished () (fun () -> wait_and_process_message t p)
-    | Error err -> info "handshake failed"; return () in 
+      >>> fun () -> ()
+    | Error err -> info "handshake failed"
+  in 
 
-  let add_peer_aux t peer_addr = 
-    P.create peer_addr (File.num_pieces t.file)
-    >>= function 
-    | Ok peer -> init_protocol peer
-    | Error err -> info "Can't connect to peer"; return () in
-
-  Deferred.don't_wait_for (add_peer_aux t peer_addr)
+  P.create peer_addr (File.num_pieces t.file)
+  >>> function 
+  | Ok peer -> init_protocol peer
+  | Error err -> 
+    let s = Socket.Address.Inet.to_string peer_addr in
+    info "can't connect to peer %s" s
 
 let stop t = 
   let stop_aux t =
@@ -163,9 +166,17 @@ let stop t =
   in 
   don't_wait_for (stop_aux t)
 
-let start t = 
-  Clock.every (sec 10.0) (fun () -> display_downloaded t); 
-  Clock.every Global.tick (fun () -> tick_peers t); 
+let start t =  
+  Clock.every G.tick (fun () -> tick_peers t); 
   Clock.every (sec 0.001) (fun () -> request_piece t)
+
+
+
+
+
+
+
+
+
 
 
