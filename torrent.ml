@@ -9,7 +9,7 @@ type file_info = {
   length : int;
 }
 
-type torrent_info = {
+type t = {
   info_hash : Bt_hash.t;
   announce : string;
   announce_list : string list list;
@@ -34,7 +34,7 @@ let split (s:string) split_size =
   let f i = String.sub s (i * split_size) split_size in
   Array.init (n / split_size) ~f
 
-let from_torrent chan =
+let from_chan chan =
   let bc = B.decode (`Channel chan) in 
   debug "torrent file = %s" (B.pretty_print bc);
   let announce_bc = get (B.dict_get bc "announce") in
@@ -83,33 +83,3 @@ let from_torrent chan =
     let files_info = List.map files f in
     { mode; announce; info_hash; piece_length; pieces_hash; announce_list; 
       files_info }
-
-type tracker_reply = {
-  complete : int;
-  incomplete : int;
-  interval : int;
-  peers : Socket.Address.Inet.t list
-}
-
-let rec decode_peers s =
-  let ar = split s 6 in
-  let compact_repr (s:string) : Socket.Address.Inet.t =
-    let addr_int32 = Binary_packing.unpack_signed_32 ~byte_order:`Big_endian 
-        ~buf:s ~pos:0 in
-    let port = Binary_packing.unpack_unsigned_16_big_endian ~pos:4 ~buf:s in
-    let addr = Unix.Inet_addr.inet4_addr_of_int32 addr_int32 in
-    Socket.Address.Inet.create addr port
-  in 
-  Array.to_list (Array.map ar ~f:compact_repr)
-
-let from_tracker_reply s =
-  let bc = B.decode (`String s) in 
-  debug "Tracker reply = %s" (B.pretty_print bc);
-  let complete = get ((B.as_int (get (B.dict_get bc "complete")))) in
-  let incomplete = get ((B.as_int (get (B.dict_get bc "incomplete")))) in
-  let interval = get ((B.as_int (get (B.dict_get bc "interval")))) in
-  let peers_str = get (B.as_string (get (B.dict_get bc "peers"))) in
-  let peers = decode_peers peers_str in
-  { complete; incomplete; interval; peers; }
-
-

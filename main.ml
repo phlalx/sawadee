@@ -22,10 +22,10 @@ let start_app_layer info_hash peer_addrs file peer_id =
     torrent file named [f]. *)
 let process (f : string)  = 
   let c = In_channel.create f in 
-  let open Extract_bencode in 
+  let open Torrent in 
   let { info_hash; announce; announce_list; mode; pieces_hash; piece_length; 
         files_info }
-    = Extract_bencode.from_torrent c in
+    = Torrent.from_chan c in
   info "Torrent: %s:" f;
   info "Torrent: %d files" (List.length files_info);
   info "Torrent: %d pieces" (Array.length pieces_hash);

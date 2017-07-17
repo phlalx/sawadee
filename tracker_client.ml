@@ -2,6 +2,8 @@ open Core
 open Async
 open Log.Global
 
+module B = Bencode
+
 (*
 This is the request sent by mu-torrent for ubuntu-17.04-desktop-amd64.iso.torrent
 
@@ -46,10 +48,52 @@ let init ~announce ~announce_list info_hash ~len peer_id =
   t := Some { announce; info_hash; left; peer_id; port; uploaded; downloaded;
               event; compact; announce_list }
 
+exception Wrong_Format 
+
+(* TODO factorize get and split with other Torrent module *)
+let get x =
+  match x with
+  | Some y -> y
+  | None -> raise Wrong_Format
+
+let split (s:string) split_size =
+  let n = String.length s in
+  assert (n % split_size = 0);
+  let f i = String.sub s (i * split_size) split_size in
+  Array.init (n / split_size) ~f
+
+type tracker_reply = {
+  complete : int;
+  incomplete : int;
+  interval : int;
+  peers : Socket.Address.Inet.t list
+}
+
+let rec decode_peers s =
+  let ar = split s 6 in
+  let compact_repr (s:string) : Socket.Address.Inet.t =
+    let addr_int32 = Binary_packing.unpack_signed_32 ~byte_order:`Big_endian 
+        ~buf:s ~pos:0 in
+    let port = Binary_packing.unpack_unsigned_16_big_endian ~pos:4 ~buf:s in
+    let addr = Unix.Inet_addr.inet4_addr_of_int32 addr_int32 in
+    Socket.Address.Inet.create addr port
+  in 
+  Array.to_list (Array.map ar ~f:compact_repr)
+
+let extract_bencode s =
+  let bc = B.decode (`String s) in 
+  debug "Tracker reply = %s" (B.pretty_print bc);
+  let complete = get ((B.as_int (get (B.dict_get bc "complete")))) in
+  let incomplete = get ((B.as_int (get (B.dict_get bc "incomplete")))) in
+  let interval = get ((B.as_int (get (B.dict_get bc "interval")))) in
+  let peers_str = get (B.as_string (get (B.dict_get bc "peers"))) in
+  let peers = decode_peers peers_str in
+  { complete; incomplete; interval; peers; }
+
 let extract_list_of_peers s =
   try 
-    let tr = Extract_bencode.from_tracker_reply s in
-    Ok tr.Extract_bencode.peers
+    let tr = extract_bencode s in
+    Ok tr.peers
   with
   | ex -> Error ex
 
