@@ -11,6 +11,7 @@ type t = {
   file : File.t;
   mutable peers : P.t list;
   peer_id : Peer_id.t;
+  mutable num_requested : int;
 }
 
 let create info_hash file peer_id = { 
@@ -18,20 +19,18 @@ let create info_hash file peer_id = {
   peers = []; 
   peer_id; 
   info_hash;
+  num_requested = 0;
 }
 
-let num_pending t = 
-  List.fold t.peers ~init:0 ~f:(fun acc p -> acc + (P.pending_size p)) 
+(* TODO make sure this invariant is maintained, maybe move this 
+   somewhere else *)
+let incr_requested t =
+  t.num_requested <- t.num_requested + 1 
 
-let for_all_non_idle_peers t ~f =
-  let f p = if not (P.is_idle p) then f p in List.iter t.peers ~f 
+let decr_requested t =
+  t.num_requested <- t.num_requested - 1
 
-let cancel_requested_pieces t peer =
-  if P.has_pending peer then (
-    let f i = Piece.set_status (File.get_piece t.file i) `Not_requested in
-    info "Cancelling queries %s" (P.pending_to_string peer) ;
-    P.iter_pending peer ~f;
-    P.clear_pending peer)
+let for_all_peers t ~f = List.iter t.peers ~f
 
 (* notify peers that we have a pieces they don't have *)
 let send_have_messages t i =
@@ -40,22 +39,30 @@ let send_have_messages t i =
       info "notify peer %s about piece %d" (P.to_string p) i;
       P.send_message p (M.Have i)
     ) in
-  for_all_non_idle_peers t ~f:(notify_if_doesn't_have i)
+  for_all_peers t ~f:(notify_if_doesn't_have i)
 
 let tick_peers t = 
   let f p = 
-    P.incr_time p;
-    if ((P.time_since_last_received_message p) >= 15) then (
-      info "Peer %s seems to be idle" (P.to_string p);
-      cancel_requested_pieces t p;
-      P.set_idle p true;
-    )
+    match P.tick p with
+    | `Ok -> ()
+    | `Idle l -> 
+      let f i = 
+        decr_requested t;
+        Piece.set_status (File.get_piece t.file i) `Not_requested in
+      let s = Sexp.to_string (List.sexp_of_t sexp_of_int l) in
+      if not (List.is_empty l) then
+        info "Cancelling requests from %s: %s" (Peer.to_string p) s;
+      List.iter l ~f
+    | `Keep_alive -> 
+      info "Sending keep alive to peer %s" (Peer.to_string p);
+      Peer.send_message p Message.KeepAlive 
   in
-  for_all_non_idle_peers t ~f
+  for_all_peers t ~f
 
-let request_all_blocks_from_piece (p:P.t) (piece:Piece.t) : unit =
+let request_all_blocks_from_piece t (p:P.t) (piece:Piece.t) : unit =
   info "Requesting piece %s from peer %s" (Piece.to_string piece) 
     (P.to_string p);
+  incr_requested t;
   Piece.set_status piece `Requested;
   P.add_pending p (Piece.get_index piece);
   let f ~index ~off ~len =
@@ -64,48 +71,66 @@ let request_all_blocks_from_piece (p:P.t) (piece:Piece.t) : unit =
     P.send_message p m in
   Piece.iter piece ~f
 
+(** Find a piece and a peer to download from.
+
+    TODO: this is really quick and dirty. Ideally, we should maintain some
+    datastructure that keeps the information we need.
+
+    We should also compute a few requests at a time. *)
 let compute_next_request t : (Piece.t * P.t) Option.t =
+
+  let pieces_not_requested = File.pieces_not_requested t.file in
+
   let f peer = 
-    if (P.is_idle peer) || (P.is_peer_choking peer) || ((num_pending t) >= G.max_pending_request) then
+    if (P.is_idle peer) || (P.is_peer_choking peer) then
       None
     else 
-      (* not very efficient *)
-      let pieces_not_requested = File.pieces_not_requested t.file in
       let pieces_owned_by_peer = Peer.owned_pieces peer in
       let pieces_to_request = Bitset.inter pieces_not_requested pieces_owned_by_peer in
       match Bitset.choose_random pieces_to_request with 
       | None -> None 
       | Some i -> Some (File.get_piece t.file i, peer)
   in
-  let l = List.map t.peers ~f in
-  match List.find l ~f:is_some with
-  | None -> None
-  | Some x -> x
+  if t.num_requested >= G.max_pending_request then
+    None
+  else
+    let l = List.map t.peers ~f in
+    match List.find l ~f:is_some with
+    | None -> None
+    | Some x -> x
 
+(** this function is polled regularly to see if there's new stuff to download.
+    We could instead have an event-loop that wakes up when the pending queue
+    is small and new pieces are availables TODO *)
 let request_piece t =
   debug "request piece";
   match compute_next_request t with
   | None -> ()
-  | Some (piece, peer) -> request_all_blocks_from_piece peer piece  
+  | Some (piece, peer) -> request_all_blocks_from_piece t peer piece  
 
 let process_message t (p:P.t) (m:M.t) : unit =
   let process_piece_message index bgn block =
     let piece = File.get_piece t.file index in
     match Piece.update piece bgn block with 
     | `Ok -> debug "got block - piece %d offset = %d" index bgn
-    | `Hash_error -> debug "hash error for piece %d" index
+    | `Hash_error -> 
+      decr_requested t;
+      Piece.set_status piece `Not_requested;
+      debug "hash error for piece %d" index
     | `Downloaded ->
       info "downloaded piece %d" index;
       P.remove_pending p index;
+      Piece.set_status piece `Downloaded;
+      decr_requested t;
       File.set_owned_piece t.file index; 
       send_have_messages t index 
   in
   let process_request index bgn length =
     Peer.validate p (File.has_piece t.file index);
     if not (Peer.am_choking p) then (
-    let piece = File.get_piece t.file index in
-    let block = Piece.get_content piece bgn length in
-    Peer.send_message p (Message.Piece (index, bgn, block)))
+      let piece = File.get_piece t.file index in
+      let block = Piece.get_content piece bgn length in
+      Peer.send_message p (Message.Piece (index, bgn, block)))
   in
   match m with
   | M.KeepAlive -> ()
@@ -114,8 +139,7 @@ let process_message t (p:P.t) (m:M.t) : unit =
   | M.Interested -> 
     P.set_peer_interested p true; 
     (* TODO implement strategy to decide when I am not choking *) 
-    if not (P.am_choking p) then
-      P.send_message p Message.Unchoke
+    if not (P.am_choking p) then P.send_message p Message.Unchoke
   | M.Not_interested -> P.set_peer_interested p false
   | M.Have index -> P.set_owned_piece p index 
   | M.Bitfield bits -> P.set_owned_pieces p bits 
@@ -133,6 +157,7 @@ let rec wait_and_process_message t (p:P.t) =
 let stats t =
   info "**** downloaded %d/%d ****" (File.num_owned_pieces t.file) 
     (File.num_pieces t.file);
+  info "pending requests %d" t.num_requested;
   let f p = Peer.stats p in
   List.iter t.peers f
 
@@ -171,10 +196,7 @@ let stop t =
 
 let start t =  
   Clock.every G.tick (fun () -> tick_peers t); 
-  Clock.every (sec 0.001) (fun () -> request_piece t)
-
-
-
+  Clock.every (sec 0.01) (fun () -> request_piece t)
 
 
 

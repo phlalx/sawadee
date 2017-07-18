@@ -65,12 +65,10 @@ let update t ~off (block:string) =
   if Bitset.is_full t.blocks then ( 
     let hash_piece = Sha1.to_bin (Sha1.string t.content) in 
     if (hash_piece = Bt_hash.to_string t.hash) then (
-      t.status <- `Downloaded;
       `Downloaded )
     else  (
       debug "Hash not equals";
       Bitset.reset t.blocks;
-      t.status <- `Not_requested;
       `Hash_error
     )  
   ) else ( 

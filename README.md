@@ -1,51 +1,75 @@
-# OCaml-torrent (work in progress)
+# A simple Bittorrent client in OCaml/Async
 
-This is a toy bittorrent client. My goal was to familializing myself with `Core` and `Async` APIs. The aim is to be able to download most type of torrent files from the command line with acceptable performance, and a code clean and documented enough so it can be useful for someone else.
+The aim of this project is to have a simple, well documented and functional bittorrent client written using the Async framework.
+
+This is an ongoing project and is quickly changing.
 
 ### Usage
 
-You will need to install some external libraries with `opam` (notably `core`, `async`, `cohttp`, `bencode`, `sha`, `uri`).
+You will need to install some external libraries with `opam` (notably `core`, `async`, `cohttp`, `bencode`, `sha`, `uri` - see `_tags` file).
 
-Compile with `make` then run `./main.byte FILE` to start the program. `FILE` is a torrent file. (e.g. `ubuntu-17.04-desktop-amd64.iso.torrent`).
+Compile with `make` then run `./main.byte FILE` to start the program. `FILE` is a torrent file. Several legal torrent files are in the archive for testing purpose but they may get obsolete in the future.
 
 ### How does it work?
 
-This my current understanding of the protocol and is subject to change!
+You should read the bittorrent specification (see references below) but in a nutshell, this is how it works. 
 
-A bittorrent file is encoded as [bencode](https://en.wikipedia.org/wiki/Bencode). First step is to decode the torrent file (we use the `bencode` library) and extract the relevant information (including the server `tracker` URL). Next step is to http-query the tracker to retrieve the list of peers sharing (parts of) the file. One important parameter of the query is the 20-bytes string `sha1` value of the info section of the torrent file. This will identify the file in subsequent queries.
+It all starts with a meta-information file (the *torrent file*) that contains information on the data to be downloaded as well as the url(s) of the *tracker(s)*. A tracker is an http-server that provides the addresses of the peers willing to share *pieces* of the data. This data can be seen as a single file from the client perspective. We call it the *network file* although this is not the terminology used in the spec). It is made of the concatenation of the individual files the user wishes to download.
 
-Once we know the list of peers, we'll talk with each of them using a binary protocol. This is done in two steps.
+The first step of the program is to decode the torrent file. It is binary encoded as [bencode](https://en.wikipedia.org/wiki/Bencode) format). We use the `bencode` library to decode it, this is done in module `Torrent`. A special value to be computed from the torrent is the *SHA1* hash (the *info hash*) of a section of the torrent file. It is a 20-bytes string that uniquely identifies the torrent and is used in some parts of the protocol. 
+
+The next step is to create the structures that will contain the network file. These are module `File` and `Piece`. A `File.t` is essentially an array of `Piece.t` plus a set of downloaded pieces (`Bitset.t`). Following the spec terminology, we call the serialized version of this set the bitfield (type `Bitfield.t`). It is a sequence of bits (1 if piece is downloaded, 0 otherwise). 
+
+Once this structure is initialized we create or retrieve the persistent data (the bitfield and the pieces already downloaded) and fill the `File.t` and `Piece.t` accordingly. Persistent data are file represented by type `PFile.t`. Note that  we need to map precisely each piece of the network file to a list of pfiles (file descriptor, offset, length). 
+
+Once this is done, we query the tracker (`Tracker_client`) with a simple GET http request whose main parameter is the info-hash. We use the `uri` library to create the request. The answer is again bencoded, and contains the list of peers.
+
+Then we initialize the *peer protocol* with an empty set of peers, and we add each of the peers. The peer protocol talks with each of them using a binary protocol. There are two steps.
+
  * an initial handshake (one round-trip message exchange)
  * then (binary asynchronous) messages to get parts of the file.
 
-Current stage of the project: 
- * both single-file format and multiple-file format are correctly read
- * annouce-list is (partialy) supported
- * several peers can be queried concurrently
- * The handshake is functional (in `App_layer`).
- * Binary messages are implemented (via serialization of `Message.t`). 
- * Per-peer state (including socket read/write, choked, interested status...) is maintained in `Peer`.
- * A `File.t` is divided in `Piece.t`. Each `Piece.t` is furthermore divided in blocks (Bitset.t describes the blocks of a piece already downloaded). 
- * In the application layer `App_layer`, after the handshake, several services are launched. 
- * One continuously wait for peer messages (block of files, information on pieces ownership, request to download...). 
- * Another one requests for pieces. At the moment, only peers that are not choking with less than a few pending request are considered. Among them, we ask for pieces that not yet requested or downloaded without any particular strategy.
-* Requests that have been pending for n seconds are canceled. 
-* File/Bitset is saved to disk on exit (termination signal) and restored at startup
+### Various notes 
+ * The module `App_layer` implements the peer protocol.
+ * both single-file and multiple-file format are correctly read
+ * annouce-list is (partialy) supported (not quite follows the spec)
+ * Binary messages are implemented using `Bin_prot` lib via serialization of `Message.t`. 
+ * Per-peer state (including socket read/write, protocol state, pending requests) is maintained in `Peer.t`.
+ * A `File.t` is divided in `Piece.t`. Each `Piece.t` is furthermore divided in blocks (a `Bitset.t` field of `Piece.t` describes the blocks of a piece already downloaded). 
+ * In `App_layer`, after the handshake, several *services* (repeating async jobs) are launched. 
+ * There is a message loop that wait and process peer messages
+ * Another one requests for random pieces by polling the number of pending requests and the availability of new pieces. This can be much improved.
+* Requests that have been pending for n seconds are canceled. When that happens, we ignore the peer and mark the pieces as non-requested.
+* File/Bitset is saved to disk on exit (termination signal) and restored at startup. This doesn't work propery yet.
 
-This works for simple cases. It is possible to download a single file torrent but a lot remains to be done. 
-* multifile torrent
-* deal correctly with requests from peers (interested/choked msg)
-* server mode when using public IP 
-* re-query trackers if needed (dynamic set of peers)
-* more testing + corner cases (corrupted persistent states, malicious peers)
-* Improve requesting strategy (e.g. rare pieces first, peer responsivness, event-based instead of polling)
-* doc
-* automatic testing
+### TODO 
 
-Morever, the code can be improved.
-* better resource management (buffers, close connections...)
+What I'd like to complete.
+
+* Understand better the system aspects.
+  * how Async plays with the file descriptors and the system threads
+  * debug the persistence layer
+  * resource management (better handling of socket connections)
+* deal correctly with requests from peers (for some reasons, I don't get any request)
+* document and clean up the code
+* more consistent error managment and more defensive from malicious peers
+* minimal testing
+* Rework the module interfaces
+  * `PFile` and move the persistence aspect from `File`. 
+  * There are invariant that span several modules that should be documented and if possible encapsulated  
+
+### Limitations
+
+Not sure I'll try to work on this.
+
+* Better usage of resources. A lot of string get allocated but this could be prevented by making a better of the `Substring` lib. 
 * Use more efficient datastructures
-* Rework the module interfaces. There are invariant that span several modules that should be identified and if possible encapsulated. 
+* We query the tracker only once but we could have a more dynamic set of peers
+* Server mode when using public IP 
+* Dealing with DHT and magnet
+* Improve requesting strategy (based on peer information, rarity of pieces, and don't use polling for piece requesting or to check peer reactivy)
+* Automatic testing / benchmarking
+* Read parameters from json files
 
 ### Resources and libs
 

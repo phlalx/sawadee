@@ -41,13 +41,16 @@ val set_owned_pieces : t -> Bitfield.t -> unit
 
 val set_owned_piece : t -> int -> unit
 
-(** In order to keep track of unresponsive or slow peers, we maintain the 
-    time since last received message as number of *ticks*. [incr_time] has
-    to be called at regular intervals. *)
+(** to be called at every [Global.tick]. Inform App_layer about this peer 
+    responsivness.
 
-val time_since_last_received_message: t -> int
+    If [`Idle l], peer is marked as idle, and pieces in `l` have to be 
+    re-requested by App_layer. Pending requests are erased on peer. 
 
-val incr_time : t -> unit 
+    If [`Keep_alive], a keep alive message has to be sent.
+
+    TODO: this would be better using time-out, but it's simple this way *)
+val tick : t -> [ `Idle of int list | `Ok | `Keep_alive ]
 
 (** The following functions simply get/set one bit states. *)
 
@@ -67,29 +70,19 @@ val set_am_interested : t -> bool -> unit
 
 val set_am_choking : t -> bool -> unit
 
+(** unresponsive peers become idle, we don't request them anymore pieces. *)
 val is_idle : t -> bool
-
-val set_idle : t -> bool -> unit
 
 (** Maintain a set of pending (index of) piece requests. This has to be
     done in order to re-request them if a peer becomes unresponsive *)
-
-val clear_pending: t -> unit 
-
-val has_pending: t -> bool
 
 val add_pending: t -> int -> unit
 
 val remove_pending: t -> int -> unit
 
-val iter_pending: t -> f: (int -> unit) -> unit
-
-val pending_size: t -> int
-
-val pending_to_string : t -> string
-
 (** assert a condition dependent on values received by a peer.
     raises if false TODO: close connection with peer instead *) 
 val validate : t -> bool -> unit
 
+(** display stats for debugging *)
 val stats : t -> unit

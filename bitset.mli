@@ -48,6 +48,8 @@ val choose : t -> int option
 (** returns any random element if non-empty *)
 val choose_random : t -> int option
 
+val to_list : t -> int list
+
 (** [to_bitfield x] returns a bitfield as specified by the peer protocol. If 
     [size x] isn't a multiple of 8, the last bits of the string are set to 0. *)
 val to_bitfield : t -> Bitfield.t

@@ -2,6 +2,7 @@ open Core
 open Async
 open Log.Global
 
+
 (** TODO see how to make a better use of buffers. We allocate a
     buffer for each send/get. Can we have one per-peer buffer? 
 
@@ -52,11 +53,9 @@ let create peer_addr ~piece_num =
 
   | Error err -> Error err
 
-
 let to_string t = Socket.Address.Inet.to_string t.peer_addr
 
 exception Handshake_error
-
 
 let hs hash pid = 
   sprintf "\019BitTorrent protocol\000\000\000\000\000\000\000\000%s%s" hash pid   
@@ -133,9 +132,14 @@ let set_owned_pieces t s = Bitset.insert_from_bitfield t.have s;
 
 let time_since_last_received_message t = t.time_since_last_reception
 
-let incr_time t =
-  t.time_since_last_send <- t.time_since_last_send + 1;
-  t.time_since_last_reception <- t.time_since_last_reception + 1
+(*     if ((P.time_since_last_received_message p) >= 15) then (
+      info "Peer %s seems to be idle" (P.to_string p);
+      cancel_requested_pieces t p;
+      P.set_idle p true;
+    )
+  in
+ *)  
+
 
 let is_idle t = t.idle
 
@@ -154,10 +158,6 @@ let is_peer_interested t = t.peer_interested
 let am_choking t = t.am_choking
 
 let am_interested t = t.am_interested
-
-let pending_to_string t = 
-  let l = Int.Set.to_list t.pending in 
-  Sexp.to_string (List.sexp_of_t sexp_of_int l)
 
 let set_idle t b = t.idle <- b
 
@@ -178,6 +178,31 @@ let validate t c = assert c
 let stats t = 
   info "peer %s: idle/choking/interested %B %B %B" 
   (to_string t) t.idle t.peer_choking t.peer_interested 
+
+let tick t =
+  t.time_since_last_send <- t.time_since_last_send + 1;
+  t.time_since_last_reception <- t.time_since_last_reception + 1;
+  let is_ka = t.time_since_last_send >= Global.keep_alive in 
+  let is_id = t.time_since_last_reception >= Global.idle in 
+  match (is_ka, is_id) with 
+  | (_, true) -> 
+    let l = Int.Set.to_list t.pending in 
+    set_idle t true;
+    clear_pending t;
+    `Idle l 
+  | (true, _) -> `Keep_alive
+  | (false, false) -> 
+     set_idle t false;
+     `Ok
+
+
+
+
+
+
+
+
+
 
 
 
