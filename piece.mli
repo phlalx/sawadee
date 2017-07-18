@@ -25,6 +25,8 @@ val create : index:int -> Bt_hash.t -> len:int -> Pfile.t list -> t
     make things a little more abstract. *)
 val get_index : t -> int
 
+val get_content : t -> off:int -> len:int -> string 
+
 (** Iter through the blocks of the piece. Typically to send them to the peers.
 
     In this implementation, we always request all blocks at the same time

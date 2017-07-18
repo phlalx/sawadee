@@ -102,7 +102,10 @@ let process_message t (p:P.t) (m:M.t) : unit =
   in
   let process_request index bgn length =
     Peer.validate p (File.has_piece t.file index);
-    assert false (* TODO *)
+    if not (Peer.am_choking p) then (
+    let piece = File.get_piece t.file index in
+    let block = Piece.get_content piece bgn length in
+    Peer.send_message p (Message.Piece (index, bgn, block)))
   in
   match m with
   | M.KeepAlive -> ()

@@ -21,6 +21,8 @@ let create ~index hash ~len pfiles =
   { index; status = `Not_requested; length = len; hash; content = String.create len; 
     blocks = Bitset.empty num_blocks; pfiles }
 
+let get_content t ~off ~len = assert false
+
 let get_status t = t.status
 
 let set_status t st = t.status <- st
