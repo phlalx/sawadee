@@ -24,7 +24,7 @@ let create
     peer_id 
     piece_length 
     total_length
-    = 
+  = 
   (* open/create files *)
   let num_pieces = Array.length pieces_hash in
   Pers.create bf_name bf_len file_infos num_pieces piece_length 
@@ -90,42 +90,14 @@ let request_all_blocks_from_piece t (p:P.t) (piece:Piece.t) : unit =
     P.send_message p m in
   Piece.iter piece ~f
 
-(** Find a piece and a peer to download from.
-
-    TODO: this is really quick and dirty. Ideally, we should maintain some
-    datastructure that keeps the information we need.
-
-    We should also compute a few requests at a time. *)
-let compute_next_request t : (Piece.t * P.t) Option.t =
-
-  let pieces_not_requested = File.pieces_not_requested t.file in
-
-  let f peer = 
-    if (P.is_idle peer) || (P.is_peer_choking peer) then
-      None
-    else 
-      let pieces_owned_by_peer = Peer.owned_pieces peer in
-      let pieces_to_request = Bitset.inter pieces_not_requested pieces_owned_by_peer in
-      match Bitset.choose_random pieces_to_request with 
-      | None -> None 
-      | Some i -> Some (File.get_piece t.file i, peer)
-  in
-  if t.num_requested >= G.max_pending_request then
-    None
-  else
-    let l = List.map t.peers ~f in
-    match List.find l ~f:is_some with
-    | None -> None
-    | Some x -> x
-
 (** this function is polled regularly to see if there's new stuff to download.
     We could instead have an event-loop that wakes up when the pending queue
     is small and new pieces are availables TODO *)
 let request_piece t =
-  debug "request piece";
-  match compute_next_request t with
-  | None -> ()
-  | Some (piece, peer) -> request_all_blocks_from_piece t peer piece  
+  if t.num_requested < G.max_pending_request then
+    match Strategy.next_request t.file t.peers with
+    | None -> ()
+    | Some (piece, peer) -> request_all_blocks_from_piece t peer piece  
 
 let process_message t (p:P.t) (m:M.t) : unit =
   let process_piece_message index bgn block =
