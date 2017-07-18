@@ -55,7 +55,7 @@ let for_all_peers t ~f = List.iter t.peers ~f
 let send_have_messages t i =
   let notify_if_doesn't_have i p =
     if not (P.has_piece p i) then (
-      info "notify peer %s about piece %d" (P.to_string p) i;
+      debug "notify peer %s about piece %d" (P.to_string p) i;
       P.send_message p (M.Have i)
     ) in
   for_all_peers t ~f:(notify_if_doesn't_have i)
@@ -141,6 +141,7 @@ let process_message t (p:P.t) (m:M.t) : unit =
       P.remove_pending p index;
       Piece.set_status piece `Downloaded;
       decr_requested t;
+      Pers.write_to_pipe t.pers piece;
       File.set_owned_piece t.file index; 
       send_have_messages t index 
   in
