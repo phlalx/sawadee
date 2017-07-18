@@ -10,16 +10,12 @@ type t = {
   length : int;
   content : string; (* TODO could be a substring *)
   blocks : Bitset.t;
-  pfiles : Pfile.t list;
 } 
 
-let create ~index hash ~len pfiles = 
+let create ~index hash ~len = 
   let num_blocks = (len + G.block_size - 1) / G.block_size in
-
-  let len_pfiles = List.fold pfiles ~init:0 ~f:(fun acc l -> l.Pfile.len + acc) in 
-  assert (len_pfiles = len);
   { index; status = `Not_requested; length = len; hash; content = String.create len; 
-    blocks = Bitset.empty num_blocks; pfiles }
+    blocks = Bitset.empty num_blocks }
 
 let get_content t ~off ~len = assert false
 
@@ -74,20 +70,6 @@ let update t ~off (block:string) =
   ) else ( 
     `Ok 
   )
-
-let read t =
-  info "read piece %d from disk" t.index;
-  let f pf = 
-    Pfile.read pf t.content ~ps:t.length in
-  Deferred.List.iter t.pfiles ~f
-
-let write t =
-  info "write piece %d to disk" t.index;
-    assert (Bitset.is_full t.blocks); 
-    assert ((String.length t.content) = t.length);
-    let f pf =
-      Pfile.write pf t.content ~ps:t.length in
-    Deferred.List.iter t.pfiles ~f
 
 let is_downloaded t = t.status = `Downloaded
 

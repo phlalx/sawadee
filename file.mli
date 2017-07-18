@@ -19,14 +19,11 @@ type t
 
 val create : 
   (Bt_hash.t Array.t) -> 
-  torrent_name:string -> 
   piece_length:int -> 
-  (string * int) list ->
+  total_length:int ->
   t Deferred.t
 
 val length : t -> int
-
-val write_to_file_and_close : t -> unit Deferred.t
 
 val get_piece : t -> int -> Piece.t
 

@@ -1,17 +1,23 @@
 (** Application layer. 
 
-  This module is responsible to download a file by querying the remote peers,
-  and serve peers request. It maintains application state and implements i
-  the *peer protocol. *)
+    This module is responsible to download a file by querying the remote peers,
+    and serve peers request. It maintains application state and implements i
+    the *peer protocol. *)
 
 open Core
 open Async
 
 type t
 
-(** [create f p]. [f] is the file to be downloaded and [p] identifies
-    the local peer *)
-val create: Bt_hash.t -> File.t -> Peer_id.t -> t
+val create: 
+  Bt_hash.t 
+  -> string -> int 
+  -> (string * int) list  
+  -> Bt_hash.t Array.t
+  -> Peer_id.t 
+  -> int (* Piece length *)
+  -> int (* total length *)
+  -> t Deferred.t
 
 (** Launch the *services* that listen for new messages, query the peers... 
     Does not much until peers are added. *)
@@ -24,6 +30,7 @@ val stop: t -> unit
     the peer. *)
 val add_peer: t -> Socket.Address.Inet.t -> unit
 
-(** display various stats *)
-val stats : t -> unit
 
+  (* let total_length = File.length file in *)
+
+  (* let len = List.fold files ~init:0 ~f:(fun acc (_,l) -> l + acc) in  *)

@@ -8,23 +8,12 @@
     - initiating the P2P layer
     - add peers.
 
-   All modules use [Core], [Async] and [Log.Global]. *)
+    All modules use [Core], [Async] and [Log.Global]. *)
 
 open Core
 open Async
 open Log.Global
 module G = Global
-
-let start_app_layer info_hash peer_addrs file peer_id =
-  let al = App_layer.create info_hash file peer_id in
-  
-  (* register handler for ctrl-c *)
-  Signal.handle Signal.terminating ~f:(fun _ -> App_layer.stop al);
-  App_layer.start al;
-  Clock.every (sec 10.0) (fun () -> App_layer.stats al);
-  let f = App_layer.add_peer al in
-  List.iter peer_addrs ~f
-
 
 (** [process f] downloads files described by metainfo file [f]. *)
 let process (torrent_name : string)  = 
@@ -41,16 +30,14 @@ let process (torrent_name : string)  =
     = Torrent.from_file torrent_name 
   in
 
+  let num_pieces = Array.length pieces_hash in
+
   info "Torrent: %s:" torrent_name;
   info "Torrent: %d files" (List.length files_info);
-  info "Torrent: %d pieces" (Array.length pieces_hash);
+  info "Torrent: %d pieces" num_pieces;
   info "Torrent: piece length = %d" piece_length;
 
-  (* Create File.t and retrieve peristent data *)
-  File.create pieces_hash ~torrent_name ~piece_length files_info 
-  >>= fun file ->
-
-  let total_length = File.length file in
+  let total_length = List.fold files_info ~init:0 ~f:(fun acc (_,l) -> l + acc) in 
 
   Tracker_client.init announce announce_list info_hash total_length G.peer_id; 
   debug "trying to connect to tracker";
@@ -59,7 +46,24 @@ let process (torrent_name : string)  =
   | Some peer_addrs -> 
     let num_of_peers = List.length peer_addrs in 
     info "tracker replies with list of %d peers" num_of_peers;
-    return (start_app_layer info_hash peer_addrs file G.peer_id)
+    let bitfield_name = (Filename.basename torrent_name) ^ G.bitset_ext in
+    let bf_length = Bitset.bitfield_length_from_size num_pieces in 
+    App_layer.create 
+      info_hash 
+      bitfield_name bf_length 
+      files_info
+      pieces_hash
+      G.peer_id 
+      piece_length
+      total_length
+    >>= fun al ->
+    let stop _ = App_layer.stop al in
+    (* register handler for ctrl-c *)
+    Signal.handle Signal.terminating ~f:stop;
+    App_layer.start al;
+    let f = App_layer.add_peer al in
+    List.iter peer_addrs ~f;
+    Deferred.unit
   | None -> 
     info "can't connect to tracker";
     flushed ()

@@ -92,6 +92,8 @@ let choose_random t : int option =
 
 let bitfield_length t = ((size t) + 7) / 8  
 
+let bitfield_length_from_size i = (i + 7) / 8
+
 let to_string t =
   let n = size t in
   let res = String.make (bitfield_length t) '\000' in

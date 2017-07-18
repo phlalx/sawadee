@@ -1,6 +1,10 @@
 (** Set of integers represented as array of bits. We use set terminology 
     instead of array's since this is how we use this module in the program. 
-    Most operations are constant time. *)
+    Most operations are constant time. 
+
+    We refered as [Bitfield.t] the serialized string of the bitset, suc
+
+  *)
 open Core
 open Async
 
@@ -55,6 +59,9 @@ val to_list : t -> int list
 val to_bitfield : t -> Bitfield.t
 
 val bitfield_length : t -> int
+
+(** size of bitfield from bitset size *)
+val bitfield_length_from_size : int -> int
 
 (** [insert_from_bitfield t b] fills t with bitfield [b] as specified by the 
     peer protocol.

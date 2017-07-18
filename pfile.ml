@@ -60,37 +60,38 @@ let close t =
   info "close file %s" t.name;
   Unix.close t.fd
 
-let debug = true 
-
-let reader_read rd s ~pos ~len =
-  if debug then
-    return (String.fill s ~pos ~len '\000')
-  else 
-    Deferred.ignore (Reader.read rd s ~pos ~len)
-
-let writer_write wr s ~pos ~len =
-  if debug then
-    ()
-  else 
-    Writer.write wr s ~pos ~len
-
 let read t s ~ps = 
-  info "read from %s off = %d len = %d" t.name t.off t.len;
-  let offl = Int64.of_int t.off in
-  Async_unix.Unix_syscalls.lseek t.fd ~mode:`Set offl
-  >>= fun _ -> 
-  let rd = Reader.create t.fd in
+  let fd = t.fd in
+  let offset = t.off in
+  let bytes = Bigstring.of_string s in
   let pos = t.off % ps in
   let len = t.len in
-  reader_read rd s ~pos ~len
+  let f desc = Bigstring.pread_assume_fd_is_nonblocking ~offset ~pos ~len desc bytes in
+  info "write to %s off = %d len = %d" t.name t.off t.len;
+  Fd.syscall ~nonblocking:true fd f;
+  return ()
 
 let write t s ~ps = 
-  info "write to %s off = %d len = %d" t.name t.off t.len;
-  let offl = Int64.of_int t.off in
-  Async_unix.Unix_syscalls.lseek t.fd ~mode:`Set offl
-  >>| fun _ -> 
-  let wr = Writer.create t.fd in
+  let fd = t.fd in
+  let offset = t.off in
+  let bytes = Bigstring.of_string s in
   let pos = t.off % ps in
   let len = t.len in
-  writer_write wr s ~pos ~len 
+  let f desc = Bigstring.pwrite_assume_fd_is_nonblocking ~offset ~pos ~len desc bytes in
+  info "write to %s off = %d len = %d" t.name t.off t.len;
+  Fd.syscall ~nonblocking:true fd f;
+  return ()
+
+
+
+
+
+
+
+
+
+
+
+
+
 

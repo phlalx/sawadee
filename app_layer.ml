@@ -12,15 +12,33 @@ type t = {
   mutable peers : P.t list;
   peer_id : Peer_id.t;
   mutable num_requested : int;
+  pers : Pers.t;
 }
 
-let create info_hash file peer_id = { 
-  file; 
-  peers = []; 
-  peer_id; 
-  info_hash;
-  num_requested = 0;
-}
+let create 
+    info_hash 
+    bf_name 
+    bf_len 
+    file_infos 
+    pieces_hash 
+    peer_id 
+    piece_length 
+    total_length
+    = 
+  (* open/create files *)
+  let num_pieces = Array.length pieces_hash in
+  Pers.create bf_name bf_len file_infos num_pieces piece_length 
+  >>= fun pers ->
+  File.create pieces_hash ~piece_length ~total_length
+  >>| fun file ->
+  { 
+    file; 
+    peers = []; 
+    peer_id; 
+    info_hash;
+    num_requested = 0;
+    pers;
+  }
 
 (* TODO make sure this invariant is maintained, maybe move this 
    somewhere else *)
@@ -188,8 +206,8 @@ let add_peer t peer_addr =
 let stop t = 
   let stop_aux t =
     info "terminating";
-    File.write_to_file_and_close t.file
-    >>= fun () -> 
+    Pers.close t.pers
+    >>= fun () ->
     exit 0
   in 
   don't_wait_for (stop_aux t)

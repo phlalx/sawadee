@@ -27,6 +27,8 @@ type t = {
   off : int;
 }
 
+(* let pipe_rd, pipe_wr = Pipe.create (); *)
+
 val split_along_piece_size : t list -> ps:int -> num_piece:int -> (t list) Array.t
 
 val create : string -> len:int -> off:int -> t Deferred.t

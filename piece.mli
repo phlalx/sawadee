@@ -16,7 +16,7 @@ type t
 (** [create i h ~len pfs] creates a piece at index [i] in the file with hash [h]
     (given in the metainfo file) and length [len]. [pfs] are the pfiles
     where this piece should be read/written.  *)
-val create : index:int -> Bt_hash.t -> len:int -> Pfile.t list -> t
+val create : index:int -> Bt_hash.t -> len:int -> t
 
 (** return the index of a piece.
 
@@ -54,12 +54,6 @@ val get_status : t -> [`Requested | `Downloaded | `Not_requested | `On_disk]
 
 val set_status : t -> [`Requested | `Downloaded | `Not_requested | `On_disk] 
   -> unit
-
-(** write piece to disk if downloaded, set status to `On_disk *)
-val write : t -> unit Deferred.t
-
-(** read piece from disk if on disk, set status to `On_disk *)
-val read : t -> unit Deferred.t
 
 (** for logging purpose *)
 val to_string : t -> string
