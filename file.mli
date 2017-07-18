@@ -21,7 +21,8 @@ val create :
   (Bt_hash.t Array.t) -> 
   piece_length:int -> 
   total_length:int ->
-  t Deferred.t
+  Bitfield.t ->
+  t
 
 val length : t -> int
 

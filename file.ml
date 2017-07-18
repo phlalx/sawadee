@@ -17,19 +17,17 @@ let piece_init pieces_hash piece_length total_len i =
   let adjusted_piece_length = min (total_len - i * piece_length) piece_length in
   Piece.create i pieces_hash.(i) adjusted_piece_length
 
-let create pieces_hash ~piece_length ~total_length =
+let create pieces_hash ~piece_length ~total_length bitfield =
 
   let num_pieces = Array.length pieces_hash in
   (* TODO: move that to a validation function of the torrent file *)
   assert (num_pieces = (total_length + piece_length - 1) / piece_length);
 
-  let owned_pieces = Bitset.empty ~size:num_pieces in
+  let owned_pieces = Bitset.from_bitfield bitfield num_pieces in 
+  info "Retrieved persistent bitset: %d pieces saved" (Bitset.card owned_pieces);
 
   let f = piece_init pieces_hash piece_length total_length in
   let pieces = Array.init num_pieces ~f  in
-  (* Deferred.Array.iteri ~how:`Sequential pieces ~f *)
-  Deferred.unit 
-  >>| fun () ->
   info "create file (num piece = %d)" num_pieces;
   { len = total_length; 
     num_pieces; 

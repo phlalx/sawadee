@@ -36,21 +36,21 @@ let create name len info_files num_pieces piece_length =
 let close t = 
   Unix.close t.bitfield_fd
 
+let read_bitfield t = 
+  let s = String.create t.bitfield_len in
+  let rd = Reader.create t.bitfield_fd in
+  Reader.read rd s ~len:t.bitfield_len 
+  >>| fun _ ->
+  Bitfield.of_string s 
 
-(* 
-let read_bitfield owned_pieces name len piece_length =
-  Pfile.create name ~len ~off:0 
-  >>= fun bitset ->
-  let s = String.create len in
-  Pfile.read bitset s ~ps:piece_length  (* TODO shouldn't be needed *)
-  >>| fun () -> 
-  let bf = Bitfield.of_string s in
-  Bitset.insert_from_bitfield owned_pieces bf;
-  bitset
+let write_and_close_bitfield t bf = 
+  let wr = Writer.create t.bitfield_fd in
+  Writer.write wr (Bitfield.to_string bf);
+  Writer.close wr
 
- *)
-(* 
 
+
+(*)
 let create pieces_hash ~torrent_name ~piece_length files =
 
   let num_pieces = Array.length pieces_hash in

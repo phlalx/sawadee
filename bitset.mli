@@ -58,6 +58,8 @@ val to_list : t -> int list
     [size x] isn't a multiple of 8, the last bits of the string are set to 0. *)
 val to_bitfield : t -> Bitfield.t
 
+val from_bitfield : Bitfield.t -> int -> t
+
 val bitfield_length : t -> int
 
 (** size of bitfield from bitset size *)

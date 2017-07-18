@@ -29,8 +29,9 @@ let create
   let num_pieces = Array.length pieces_hash in
   Pers.create bf_name bf_len file_infos num_pieces piece_length 
   >>= fun pers ->
-  File.create pieces_hash ~piece_length ~total_length
-  >>| fun file ->
+  Pers.read_bitfield pers
+  >>| fun bitfield ->
+  let file = File.create pieces_hash ~piece_length ~total_length bitfield in
   { 
     file; 
     peers = []; 
@@ -206,7 +207,7 @@ let add_peer t peer_addr =
 let stop t = 
   let stop_aux t =
     info "terminating";
-    Pers.close t.pers
+    Pers.write_and_close_bitfield t.pers (File.bitfield t.file) 
     >>= fun () ->
     exit 0
   in 
