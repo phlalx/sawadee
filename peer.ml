@@ -132,15 +132,6 @@ let set_owned_pieces t s = Bitset.insert_from_bitfield t.have s;
 
 let time_since_last_received_message t = t.time_since_last_reception
 
-(*     if ((P.time_since_last_received_message p) >= 15) then (
-      info "Peer %s seems to be idle" (P.to_string p);
-      cancel_requested_pieces t p;
-      P.set_idle p true;
-    )
-  in
- *)  
-
-
 let is_idle t = t.idle
 
 let set_peer_interested t b = t.peer_interested <- b

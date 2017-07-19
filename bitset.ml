@@ -55,7 +55,7 @@ let get_bit (bits:string) i =
   let bit = i mod 8 in
   let c = String.get bits byte_num in
   let i = int_of_char c in
-  ((i lsr bit) % 2) = 1
+  ((i lsr (7 - bit)) % 2) = 1
 
 (** set i-th bit from a string. Bit 0 is right-most *)
 let set_bit (bits:string) i = 
@@ -102,14 +102,16 @@ let bitfield_length t = ((size t) + 7) / 8
 let bitfield_length_from_size i = (i + 7) / 8
 
 let to_string t =
+    List.to_string ~f:string_of_int (to_list t)
+
+let to_bitfield t = 
   let n = size t in
   let res = String.make (bitfield_length t) '\000' in
   for i = 0 to n - 1 do
     if belongs t i then set_bit res i
   done;
-  res
+  Bitfield.of_string res
 
-let to_bitfield t = Bitfield.of_string (to_string t)
 
 
 

@@ -33,6 +33,7 @@ let create
   >>= fun bitfield ->
   let file = File.create pieces_hash ~piece_length ~total_length bitfield in
   info "read from file: %d pieces" (File.num_owned_pieces file);
+  info "read from file: %s" (File.pieces_to_string file);
   let read_piece p : unit Deferred.t =
     let i = Piece.get_index p in
     if File.has_piece file i then ( 
@@ -81,7 +82,7 @@ let tick_peers t =
       let f i = 
         decr_requested t;
         Piece.set_status (File.get_piece t.file i) `Not_requested in
-      let s = Sexp.to_string (List.sexp_of_t sexp_of_int l) in
+      let s = List.to_string ~f:string_of_int l in
       if not (List.is_empty l) then
         info "Cancelling requests from %s: %s" (Peer.to_string p) s;
       List.iter l ~f
@@ -195,6 +196,7 @@ let add_peer t peer_addr =
 let stop t = 
   let stop_aux t =
     info "written to file: %d pieces" (File.num_owned_pieces t.file);
+    info "written to file: %s" (File.pieces_to_string t.file);
     Pers.write_and_close_bitfield t.pers (File.bitfield t.file) 
     >>= fun () ->
     Pers.close_all_files t.pers

@@ -51,19 +51,22 @@ let iter t ~f =
     f ~index:t.index ~off ~len 
   done
 
+let is_hash_ok t =
+  let hash_piece = Sha1.to_bin (Sha1.string t.content) in 
+  hash_piece = Bt_hash.to_string t.hash
+
 (* TODO this look a bit ugly *)
 let update t ~off (block:string) = 
   let index = 
     assert (off % G.block_size = 0);  (* TODO other error for that *)
     off / G.block_size in
   let len = String.length block in
-  assert (len = (block_length t off));
+  assert (len = block_length t off);
   Bitset.insert t.blocks index;
   String.blit ~src:block ~src_pos:0 ~dst:t.content ~dst_pos:off ~len;
   if Bitset.is_full t.blocks then ( 
-    let hash_piece = Sha1.to_bin (Sha1.string t.content) in 
-    if (hash_piece = Bt_hash.to_string t.hash) then (
-      `Downloaded )
+    if is_hash_ok t then 
+      `Downloaded 
     else  (
       debug "Hash not equals";
       Bitset.reset t.blocks;

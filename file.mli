@@ -40,6 +40,8 @@ val num_owned_pieces : t -> int
 
 val pieces_not_requested : t -> Bitset.t
 
+val pieces_to_string : t -> string
+
 (** This is the [Bitfield.t] decribing the list of pieces we have *)
 val bitfield : t -> Bitfield.t
 

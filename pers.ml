@@ -13,15 +13,17 @@ type t = {
 }
 
 (* disable actual read/write *)
-let debug_flag = true 
+let debug_flag = false 
 
 let read_piece t p = 
   let i = Piece.get_index p in
   info "read piece %d from disk" i;
   let f pf = 
-    info "writing piece to %s" (Pfile.to_string pf);
+    info "reading piece %d from %s" i (Pfile.to_string pf);
     let s = Piece.get_content2 p in
     Pfile.read pf s (String.length s)
+    >>| fun () ->
+    assert (Piece.is_hash_ok p)
   in
   if debug_flag then
     return ()
@@ -31,9 +33,9 @@ let read_piece t p =
 let read_from_pipe t =
   let read_piece p = 
     let i = Piece.get_index p in
-    info "read from pipe piece %d" i;
+    debug "read from pipe piece %d" i;
     let f pf = 
-      info "writing piece to %s" (Pfile.to_string pf);
+      info "writing piece %d to %s" i (Pfile.to_string pf);
       let s = Piece.get_content2 p in
       Pfile.write pf s (String.length s)
     in
@@ -46,13 +48,14 @@ let read_from_pipe t =
 
 let read_bitfield t = 
   info "reading bitfield";
-  (* let bs = Bigstring.create t.bitfield_len  *)
-  let bs = Bigstring.init t.bitfield_len ~f:(fun i -> char_of_int 0)
+  let bs = Bigstring.create t.bitfield_len 
 in
+  Unix.lseek t.bitfield_fd 0L ~mode:`Set
+  >>= fun _ ->
   let f fd = 
-    Bigstring.pread_assume_fd_is_nonblocking fd bs ~len:t.bitfield_len ~pos:0 
+    Bigstring.read fd bs ~len:t.bitfield_len ~pos:0 
   in
-  match Fd.syscall (* ~nonblocking:true *) t.bitfield_fd f with 
+  match Fd.syscall t.bitfield_fd f with 
   | `Ok _ ->
       return (Bitfield.of_string (Bigstring.to_string bs))
   | `Already_closed -> assert false
@@ -92,11 +95,18 @@ let close_all_files t =
   info "closing all files";
   Deferred.List.iter t.pfiles ~f:Pfile.close 
 
-
 let write_and_close_bitfield t bf = 
-  let wr = Writer.create t.bitfield_fd in
-  Writer.write wr (Bitfield.to_string bf);
-  Writer.close wr
+  let bs = Bigstring.of_string (Bitfield.to_string bf) in
+  Unix.lseek t.bitfield_fd 0L ~mode:`Set
+  >>= fun _ ->
+  let f fd = 
+    Bigstring.write fd bs ~len:t.bitfield_len ~pos:0 
+  in
+  match Fd.syscall t.bitfield_fd f with 
+  | `Ok _ ->
+      Fd.close t.bitfield_fd
+  | `Already_closed -> assert false
+  | `Error exn -> raise exn
 
 let write_piece t p = 
   debug "Piece %d is pushed to the I/O pipe" (Piece.get_index p);

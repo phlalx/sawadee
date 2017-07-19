@@ -21,8 +21,6 @@ val create : size:int -> f:(int -> bool) -> t
 (** maximal number of element, don't confuse with [card] *)
 val size : t -> int
 
-val to_list : t -> int list
-
 (** test set membership, raises if outside bounds *)
 val belongs : t -> int -> bool
 
@@ -53,6 +51,8 @@ val choose : t -> int option
 val choose_random : t -> int option
 
 val to_list : t -> int list
+
+val to_string : t -> string
 
 (** [to_bitfield x] returns a bitfield as specified by the peer protocol. If 
     [size x] isn't a multiple of 8, the last bits of the string are set to 0. *)

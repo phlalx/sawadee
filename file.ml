@@ -57,7 +57,7 @@ let has_piece t i = Bitset.belongs t.owned_pieces i
 
 let length t = t.len 
 
-
+let pieces_to_string t = Bitset.to_string t.owned_pieces
 
 
 

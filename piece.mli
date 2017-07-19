@@ -57,5 +57,7 @@ val get_status : t -> [`Requested | `Downloaded | `Not_requested | `On_disk]
 val set_status : t -> [`Requested | `Downloaded | `Not_requested | `On_disk] 
   -> unit
 
+val is_hash_ok : t -> bool
+
 (** for logging purpose *)
 val to_string : t -> string
