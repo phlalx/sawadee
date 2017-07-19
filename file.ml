@@ -28,7 +28,6 @@ let create pieces_hash ~piece_length ~total_length bitfield =
   assert (num_pieces = (total_length + piece_length - 1) / piece_length);
 
   let owned_pieces = Bitset.from_bitfield bitfield num_pieces in 
-  info "Retrieved persistent bitset: %d pieces saved" (Bitset.card owned_pieces);
 
   let f = piece_init pieces_hash piece_length total_length owned_pieces in
   let pieces = Array.init num_pieces ~f  in
@@ -39,6 +38,8 @@ let create pieces_hash ~piece_length ~total_length bitfield =
     piece_length;
     pieces;
   } 
+
+let deferred_iter_piece t ~f = Deferred.Array.iter t.pieces ~f
 
 let bitfield t = Bitset.to_bitfield t.owned_pieces
 

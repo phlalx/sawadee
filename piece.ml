@@ -19,6 +19,8 @@ let create ~index hash ~len =
 
 let get_content t ~off ~len = assert false
 
+let get_content2 t = t.content
+
 let get_status t = t.status
 
 let set_status t st = t.status <- st

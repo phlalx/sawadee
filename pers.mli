@@ -10,10 +10,15 @@ val create :
   int (* piece_length *) ->
   t Deferred.t
 
-val close : t -> unit Deferred.t
+val close_all_files : t -> unit Deferred.t
 
 val read_bitfield : t -> Bitfield.t Deferred.t
 
 val write_and_close_bitfield : t -> Bitfield.t -> unit Deferred.t
 
-val write_to_pipe : t -> Piece.t -> unit
+val write_piece : t -> Piece.t -> unit
+
+val read_piece : t -> Piece.t -> unit Deferred.t
+
+
+

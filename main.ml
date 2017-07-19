@@ -46,7 +46,7 @@ let process (torrent_name : string)  =
   | Some peer_addrs -> 
     let num_of_peers = List.length peer_addrs in 
     info "tracker replies with list of %d peers" num_of_peers;
-    let bitfield_name = (Filename.basename torrent_name) ^ G.bitset_ext in
+    let bitfield_name = G.path ^ (Filename.basename torrent_name) ^ G.bitset_ext in
     let bf_length = Bitset.bitfield_length_from_size num_pieces in 
     App_layer.create 
       info_hash 

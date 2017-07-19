@@ -28,6 +28,8 @@ val length : t -> int
 
 val get_piece : t -> int -> Piece.t
 
+val deferred_iter_piece : t -> f:(Piece.t -> unit Deferred.t) -> unit Deferred.t
+
 val num_pieces : t -> int
 
 val set_owned_piece : t -> int -> unit

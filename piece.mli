@@ -27,6 +27,8 @@ val get_index : t -> int
 
 val get_content : t -> off:int -> len:int -> string 
 
+val get_content2 : t -> string
+
 (** Iter through the blocks of the piece. Typically to send them to the peers.
 
     In this implementation, we always request all blocks at the same time

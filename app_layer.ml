@@ -7,12 +7,12 @@ module P = Peer
 module G = Global
 
 type t = {
-  info_hash : Bt_hash.t;
   file : File.t;
   mutable peers : P.t list;
+  pers : Pers.t;
+  info_hash : Bt_hash.t;
   peer_id : Peer_id.t;
   mutable num_requested : int;
-  pers : Pers.t;
 }
 
 let create 
@@ -30,8 +30,21 @@ let create
   Pers.create bf_name bf_len file_infos num_pieces piece_length 
   >>= fun pers ->
   Pers.read_bitfield pers
-  >>| fun bitfield ->
+  >>= fun bitfield ->
   let file = File.create pieces_hash ~piece_length ~total_length bitfield in
+  info "read from file: %d pieces" (File.num_owned_pieces file);
+  let read_piece p : unit Deferred.t =
+    let i = Piece.get_index p in
+    if File.has_piece file i then ( 
+      Piece.set_status p `On_disk;
+      File.set_owned_piece file (Piece.get_index p);
+      Pers.read_piece pers p
+    ) else (
+      return ()
+    )
+  in
+  File.deferred_iter_piece file ~f:read_piece
+  >>| fun () ->
   { 
     file; 
     peers = []; 
@@ -113,7 +126,8 @@ let process_message t (p:P.t) (m:M.t) : unit =
       P.remove_pending p index;
       Piece.set_status piece `Downloaded;
       decr_requested t;
-      Pers.write_to_pipe t.pers piece;
+      (* Piece.set_status piece `On_disk; *)
+      Pers.write_piece t.pers piece;
       File.set_owned_piece t.file index; 
       send_have_messages t index 
   in
@@ -179,8 +193,10 @@ let add_peer t peer_addr =
 
 let stop t = 
   let stop_aux t =
-    info "terminating";
+    info "written to file: %d pieces" (File.num_owned_pieces t.file);
     Pers.write_and_close_bitfield t.pers (File.bitfield t.file) 
+    >>= fun () ->
+    Pers.close_all_files t.pers
     >>= fun () ->
     exit 0
   in 
