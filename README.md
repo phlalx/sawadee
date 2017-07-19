@@ -57,7 +57,8 @@ What I'd like to complete in the near future.
 * Rework the module interfaces
   * Persistence is dirty and has to be rethought 
   * There are invariant that span several modules that could be encapsulated
-* document and clean up the code
+* document, review, and clean up the code
+  * use syntactic extension for async
 * testing
 
 And possibly:
