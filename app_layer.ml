@@ -169,10 +169,10 @@ let stats t =
 
 let add_peer t peer_addr = 
   let init_protocol (p:P.t) =
-    t.peers <- p :: t.peers;
     P.handshake p t.info_hash t.peer_id
     >>> function 
     | Ok () ->  
+      t.peers <- p :: t.peers;
       debug "handshake ok with peer %s" (P.to_string p);
       if (File.num_owned_pieces t.file) > 0 then (
         P.send_message p (M.Bitfield (File.bitfield t.file))
@@ -181,7 +181,8 @@ let add_peer t peer_addr =
       debug "Start message handler loop";
       Deferred.repeat_until_finished () (fun () -> wait_and_process_message t p)
       >>> fun () -> ()
-    | Error err -> info "handshake failed"
+    | Error err -> 
+       info "handshake with peer %s failed" (Peer.to_string p)
   in 
 
   P.create peer_addr (File.num_pieces t.file)

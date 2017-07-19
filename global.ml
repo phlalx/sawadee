@@ -15,7 +15,7 @@ let keep_alive = 180
 
 let path = "./download/" 
 
-let max_pending_request = 10
+let max_pending_request = 5 
 
 let max_non_choking_peers = 4
 

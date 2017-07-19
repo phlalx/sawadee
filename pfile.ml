@@ -61,25 +61,25 @@ let close t =
   Unix.close t.fd
 
 let read t s ~ps = 
-  let fd = t.fd in
+  let _fd = t.fd in
   let offset = t.off in
   let bytes = Bigstring.of_string s in
   let pos = t.off % ps in
   let len = t.len in
-  let f desc = Bigstring.pread_assume_fd_is_nonblocking ~offset ~pos ~len desc bytes in
+  let _f desc = Bigstring.pread_assume_fd_is_nonblocking ~offset ~pos ~len desc bytes in
   info "write to %s off = %d len = %d" t.name t.off t.len;
-  Fd.syscall ~nonblocking:true fd f;
+  (* Fd.syscall ~nonblocking:true fd f; *)
   return ()
 
 let write t s ~ps = 
-  let fd = t.fd in
+  let _fd = t.fd in
   let offset = t.off in
   let bytes = Bigstring.of_string s in
   let pos = t.off % ps in
   let len = t.len in
-  let f desc = Bigstring.pwrite_assume_fd_is_nonblocking ~offset ~pos ~len desc bytes in
+  let _f desc = Bigstring.pwrite_assume_fd_is_nonblocking ~offset ~pos ~len desc bytes in
   info "write to %s off = %d len = %d" t.name t.off t.len;
-  Fd.syscall ~nonblocking:true fd f;
+  (* Fd.syscall ~nonblocking:true fd f; *)
   return ()
 
 

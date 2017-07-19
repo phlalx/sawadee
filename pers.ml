@@ -13,7 +13,7 @@ type t = {
 }
 
 (* disable actual read/write *)
-let debug = true 
+let debug_flag = true 
 
 let read_piece t p = 
   let i = Piece.get_index p in
@@ -23,7 +23,7 @@ let read_piece t p =
     let s = Piece.get_content2 p in
     Pfile.read pf s (String.length s)
   in
-  if debug then
+  if debug_flag then
     return ()
   else
     Deferred.List.iter t.piece_to_pfiles.(i) ~f
@@ -39,7 +39,7 @@ let read_from_pipe t =
     in
     Deferred.List.iter t.piece_to_pfiles.(i) ~f
   in
-  if debug then
+  if debug_flag then
     return ()
   else
     Pipe.iter t.rd ~f:read_piece
@@ -99,5 +99,5 @@ let write_and_close_bitfield t bf =
   Writer.close wr
 
 let write_piece t p = 
-  info "Piece %d is pushed to the I/O pipe" (Piece.get_index p);
+  debug "Piece %d is pushed to the I/O pipe" (Piece.get_index p);
   Pipe.write_without_pushback t.wr p 
