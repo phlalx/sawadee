@@ -4,8 +4,6 @@
 
 open Core
 
-exception Wrong_Format
-
 type t = {
   info_hash : Bt_hash.t;
   announce : string;

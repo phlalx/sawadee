@@ -27,19 +27,6 @@ let init ~announce ~announce_list info_hash ~len peer_id =
   t := Some { announce; info_hash; left; peer_id; uploaded; downloaded;
               event; compact; announce_list }
 
-exception Wrong_Format 
-
-(* TODO factorize get and split with other Torrent module *)
-let get x =
-  match x with
-  | Some y -> y
-  | None -> raise Wrong_Format
-
-let split (s:string) split_size =
-  let n = String.length s in
-  assert (n % split_size = 0);
-  let f i = String.sub s (i * split_size) split_size in
-  Array.init (n / split_size) ~f
 
 type tracker_reply = {
   complete : int;
@@ -49,7 +36,8 @@ type tracker_reply = {
 }
 
 let rec decode_peers s =
-  let ar = split s 6 in
+  let peer_addr_length = 6 in
+  let ar = Bencode_utils.split s peer_addr_length in
   let compact_repr (s:string) : Socket.Address.Inet.t =
     let addr_int32 = Binary_packing.unpack_signed_32 ~byte_order:`Big_endian 
         ~buf:s ~pos:0 in
@@ -62,6 +50,7 @@ let rec decode_peers s =
 let extract_bencode s =
   let bc = B.decode (`String s) in 
   debug "Tracker reply = %s" (B.pretty_print bc);
+  let open Bencode_utils in
   let complete = get ((B.as_int (get (B.dict_get bc "complete")))) in
   let incomplete = get ((B.as_int (get (B.dict_get bc "incomplete")))) in
   let interval = get ((B.as_int (get (B.dict_get bc "interval")))) in
@@ -93,7 +82,7 @@ let rec query_all_trackers uris =
   match%bind Deferred.List.filter_map uris ~how:`Parallel ~f:query_tracker with 
   | res :: _ -> return (Ok res)
   | [] -> return (Error (Error.of_string "can connect to tracker"))
- 
+
 let query () =
   let t = Option.value_exn !t in
   let announces =  

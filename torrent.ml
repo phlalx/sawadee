@@ -14,20 +14,8 @@ type t = {
   files_info : (string * int) list
 }
 
-exception Wrong_Format
-
-let get x =
-  match x with
-  | Some y -> y
-  | None -> raise Wrong_Format
-
-let split (s:string) split_size =
-  let n = String.length s in
-  assert (n % split_size = 0);
-  let f i = String.sub s (i * split_size) split_size in
-  Array.init (n / split_size) ~f
-
 let from_file f =
+  let open Bencode_utils in
   let chan = In_channel.create f in 
   let bc = B.decode (`Channel chan) in 
   debug "torrent file = %s" (B.pretty_print bc);
