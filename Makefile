@@ -1,7 +1,7 @@
 .PHONY:	all clean debug test byte native test_bitset
 
 OCB_FLAGS = -tag bin_annot -use-ocamlfind # -cflag -safe-string 
-OCB =	ocamlbuild $(OCB_FLAGS)
+OCB =	ocamlbuild $(OCB_FLAGS) -I src
 
 all: byte
 
