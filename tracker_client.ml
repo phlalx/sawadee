@@ -88,17 +88,12 @@ let query_tracker uri =
     )
   | Error err -> return None
 
-(* TODO we query the trackers in sequence, would by better in parallel
-   using the right Deferred... function *)
+(* TODO we return any tracker that returns an answer, not quite the spec *)
 let rec query_all_trackers uris =
-  match uris with
-  | uri :: t -> (
-    debug "trying %s" (Uri.to_string uri);
-    match%bind query_tracker uri with  
-    | Some res -> return (Some res)
-    | None -> query_all_trackers t)
-  | [] -> return None 
-
+  match%bind Deferred.List.filter_map uris ~how:`Parallel ~f:query_tracker with 
+  | res :: _ -> return (Ok res)
+  | [] -> return (Error (Error.of_string "can connect to tracker"))
+ 
 let query () =
   let t = Option.value_exn !t in
   let announces =  

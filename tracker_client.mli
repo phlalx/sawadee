@@ -14,4 +14,5 @@ val init : announce:string -> announce_list:string list list -> Bt_hash.t
     If [announce_list] given in [init] is not empty, we use it and query all
     the trackers in turn until we get an answer. This is not exactly what is
     described in http://bittorrent.org/beps/bep_0012.html. TODO *)
-val query: unit -> (Socket.Address.Inet.t list) Option.t Deferred.t
+val query: unit -> (Socket.Address.Inet.t list) Or_error.t Deferred.t
+
