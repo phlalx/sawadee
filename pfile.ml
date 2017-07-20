@@ -50,10 +50,8 @@ let create name ~len ~off =
   let name = Global.path ^ name in
   info "create file %s" name;
   let llen = Int64.of_int len in
-  Unix.openfile name ~mode:[`Creat;`Rdwr]
-  >>= fun fd ->
-  Unix.ftruncate fd llen
-  >>| fun () ->
+  let%bind fd = Unix.openfile name ~mode:[`Creat;`Rdwr] in
+  Unix.ftruncate fd llen >>| fun () ->
   { name; fd; len; off }
 
 let close t =
@@ -65,8 +63,7 @@ let read t s ~ps =
   let bytes = Bigstring.of_string s in
   let pos = t.off % ps in
   let len = t.len in
-  Unix.lseek t.fd offset ~mode:`Set
-  >>= fun off_res ->
+  let%bind off_res = Unix.lseek t.fd offset ~mode:`Set in
   assert (offset = off_res);
   let f desc = Bigstring.read ~pos ~len desc bytes in
   info "read from %s off = %d len = %d" t.name t.off t.len;
@@ -74,8 +71,8 @@ let read t s ~ps =
   | `Already_closed -> assert false
   | `Ok l -> 
     Bigstring.To_string.blit ~src:bytes ~dst:s ~src_pos:0 ~dst_pos:0 ~len:t.len ;
-
-    assert (l = t.len); Deferred.unit
+    assert (l = t.len); 
+    Deferred.unit
   | `Error exn  -> raise exn
 
 let write t s ~ps = 
@@ -83,8 +80,7 @@ let write t s ~ps =
   let bytes = Bigstring.of_string s in
   let pos = t.off % ps in
   let len = t.len in
-  Unix.lseek t.fd offset ~mode:`Set
-  >>= fun off_res ->
+  let%bind off_res = Unix.lseek t.fd offset ~mode:`Set in
   assert (offset = off_res);
   let f desc = Bigstring.write ~pos ~len desc bytes in
   info "write to %s off = %d len = %d" t.name t.off t.len;

@@ -3,9 +3,9 @@ open Core
 open Async
 open Log.Global 
 
+(* use pipe *)
 let rec copy_blocks buffer r w =
-  Reader.read r buffer
-  >>= function
+  match%bind Reader.read r buffer with
   | `Eof -> return ()
   | `Ok bytes_read ->
     debug "got something!";

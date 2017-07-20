@@ -34,7 +34,7 @@ let create peer_addr ~piece_num =
   try_with (function () -> Tcp.connect wtc)
   >>| function
   | Ok (_, r, w) -> 
-    let res = {
+    Ok {
       peer_addr; 
       have = Bitset.empty piece_num; 
       id = Peer_id.dummy;
@@ -49,8 +49,6 @@ let create peer_addr ~piece_num =
       time_since_last_send = 0; 
       idle = false;
     }
-    in Ok res
-
   | Error err -> Error err
 
 let to_string t = Socket.Address.Inet.to_string t.peer_addr
@@ -88,13 +86,12 @@ let handshake t hash pid =
 
 let get_message t =
   (* this should be big enough to contain [Piece.block_size]
-     and the message header *)
+     and the message header TODO *)
   let buf = Bin_prot.Common.create_buf 40000 in  
   (* we need to get the prefix length first to know how many bytes to
      read *)
   let prefix_len_substr = Bigsubstring.create buf ~pos:0 ~len:4 in 
-  Reader.really_read_bigsubstring t.reader prefix_len_substr
-  >>= function
+  match%bind Reader.really_read_bigsubstring t.reader prefix_len_substr with
   | `Eof _ -> return `Eof
   | `Ok -> (
       let pos_ref = ref 0 in

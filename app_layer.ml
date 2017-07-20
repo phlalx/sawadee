@@ -27,10 +27,8 @@ let create
   = 
   (* open/create files *)
   let num_pieces = Array.length pieces_hash in
-  Pers.create bf_name bf_len file_infos num_pieces piece_length 
-  >>= fun pers ->
-  Pers.read_bitfield pers
-  >>= fun bitfield ->
+  let%bind pers = Pers.create bf_name bf_len file_infos num_pieces piece_length  in
+  let%bind bitfield = Pers.read_bitfield pers in
   let file = File.create pieces_hash ~piece_length ~total_length bitfield in
   info "read from file: %d pieces" (File.num_owned_pieces file);
   info "read from file: %s" (File.pieces_to_string file);
@@ -44,8 +42,7 @@ let create
       return ()
     )
   in
-  File.deferred_iter_piece file ~f:read_piece
-  >>| fun () ->
+  File.deferred_iter_piece file ~f:read_piece >>| fun () ->
   { 
     file; 
     peers = []; 
@@ -197,10 +194,8 @@ let stop t =
   let stop_aux t =
     info "written to file: %d pieces" (File.num_owned_pieces t.file);
     info "written to file: %s" (File.pieces_to_string t.file);
-    Pers.write_and_close_bitfield t.pers (File.bitfield t.file) 
-    >>= fun () ->
-    Pers.close_all_files t.pers
-    >>= fun () ->
+    Pers.write_and_close_bitfield t.pers (File.bitfield t.file) >>= fun () ->
+    Pers.close_all_files t.pers >>= fun () ->
     exit 0
   in 
   don't_wait_for (stop_aux t)

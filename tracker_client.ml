@@ -78,11 +78,9 @@ let extract_list_of_peers s =
 
 
 let query_tracker uri =
-  try_with (fun () -> Cohttp_async.Client.get uri)
-  >>= function 
+  match%bind try_with (fun () -> Cohttp_async.Client.get uri) with
   | Ok (_, body)  -> (
-      Cohttp_async.Body.to_string body 
-      >>= fun s ->
+      let%bind s = Cohttp_async.Body.to_string body in
       return (extract_list_of_peers s)
       >>| function 
       | Ok res -> Some res
@@ -96,8 +94,7 @@ let rec query_all_trackers uris =
   match uris with
   | uri :: t -> (
     debug "trying %s" (Uri.to_string uri);
-    query_tracker uri 
-    >>= function 
+    match%bind query_tracker uri with  
     | Some res -> return (Some res)
     | None -> query_all_trackers t)
   | [] -> return None 

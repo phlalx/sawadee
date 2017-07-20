@@ -41,14 +41,13 @@ let process (torrent_name : string)  =
 
   Tracker_client.init announce announce_list info_hash total_length G.peer_id; 
   debug "trying to connect to tracker";
-  Tracker_client.query ()
-  >>= function
+  match%bind Tracker_client.query () with
   | Some peer_addrs -> 
     let num_of_peers = List.length peer_addrs in 
     info "tracker replies with list of %d peers" num_of_peers;
     let bitfield_name = G.path ^ (Filename.basename torrent_name) ^ G.bitset_ext in
     let bf_length = Bitset.bitfield_length_from_size num_pieces in 
-    App_layer.create 
+    let%bind al = App_layer.create 
       info_hash 
       bitfield_name bf_length 
       files_info
@@ -56,8 +55,8 @@ let process (torrent_name : string)  =
       G.peer_id 
       piece_length
       total_length
-    >>= fun al ->
-    let stop _ = App_layer.stop al in
+    in
+    let stop (_:Signal.t) = App_layer.stop al in
     (* register handler for ctrl-c *)
     Signal.handle Signal.terminating ~f:stop;
     App_layer.start al;
@@ -66,8 +65,7 @@ let process (torrent_name : string)  =
     Deferred.unit
   | None -> 
     info "can't connect to tracker";
-    flushed ()
-    >>= fun () ->
+    flushed () >>= fun () ->
     exit 1
 
 let spec =
