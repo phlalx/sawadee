@@ -8,9 +8,9 @@ open Async
 
 type t 
 
-(** [Create addr ~piece_num] tries to open the connexion with a peer. 
-    [piece_num] is the number of pieces in the file to be downloaded *)
-val create: Socket.Address.Inet.t -> piece_num:int -> (t,exn) result Deferred.t 
+(** connexion already established *)
+val create : Socket.Address.Inet.t -> Reader.t -> Writer.t ->
+[`Am_initiating | `Peer_initiating ] -> t
 
 (** Used to identify peers in log "IP/PORT" - but could be peer_id *)
 val to_string : t -> string
@@ -36,7 +36,6 @@ val owned_pieces : t -> Bitset.t
 
 (** Sets the bitfield describing the list of pieces owned by peer. We use 
     the format defined in the bittorrent protocol.  *)
-
 val set_owned_pieces : t -> Bitfield.t -> unit
 
 val set_owned_piece : t -> int -> unit
@@ -86,3 +85,5 @@ val validate : t -> bool -> unit
 
 (** display stats for debugging *)
 val stats : t -> unit
+
+val init_bitfield : t -> int -> unit

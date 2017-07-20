@@ -3,7 +3,7 @@
 	[
 		{
 			"follow_symlinks": true,
-			"path": ".",
+			"path": "src",
       "folder_exclude_patterns": ["_build"],
       "file_exclude_patterns": ["*.native"]
 		}
@@ -15,10 +15,12 @@
             "shell_cmd": "make",
             "file_regex": "^[ ]*File \"(...*?)\", line ([0-9]*)",
             "selector": "source.ocaml",
+            "working_dir": "${project_path}",
           },
         {
             "name": "My Doc",
-            "shell_cmd": "make doc"
+            "shell_cmd": "make doc",
+            "working_dir": "${project_path}",
         }
     ]
 }

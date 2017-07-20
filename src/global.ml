@@ -13,7 +13,21 @@ let idle = 15
 
 let keep_alive = 180
 
-let path = "./download/" 
+let default_path = "download/"
+
+let path_ = ref default_path
+
+let port_ = ref None
+
+let port_exn () = Option.value_exn !port_
+
+let path () = !path_
+
+let set_port p = port_ := Some p 
+
+let set_path p = path_ := p ^ "/" 
+
+let is_server () = Option.is_some !port_
 
 let max_pending_request = 5 
 

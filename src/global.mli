@@ -20,10 +20,15 @@ val idle : tick
 (** Time before sending a keep-alive *)
 val keep_alive : tick
 
-(** path where to store downloaded file and bitfields 
-    "./download/" *)
+val is_server : unit -> bool 
 
-val path : string
+val path : unit -> string
+
+val port_exn : unit -> int
+
+val set_path : string -> unit
+
+val set_port : int -> unit
 
 val max_pending_request : int 
 

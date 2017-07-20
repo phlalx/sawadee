@@ -2,6 +2,8 @@ open Core
 
 type t = string
 
+let length = 20
+
 let peer_id_length = 20
 
 let random () = 

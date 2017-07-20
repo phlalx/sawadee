@@ -15,69 +15,34 @@ open Async
 open Log.Global
 module G = Global
 
-(** [process f] downloads files described by metainfo file [f]. *)
-let process (torrent_name : string)  = 
+let process 
+    (torrent_name : string)
+    (port : int option) (* TODO ajouter le port dans la query *)
+    (path : string option) = 
 
-  (* decode file *)
-  let open Torrent in 
-  let { info_hash; 
-        announce; 
-        announce_list; 
-        mode; 
-        pieces_hash; 
-        piece_length; 
-        files_info }
-    = Torrent.from_file torrent_name 
-  in
+  (match path with
+   | None -> ()
+   | Some p -> G.set_path p);
+  (match port with
+   | None -> ()
+   | Some p -> G.set_port p);
 
-  let num_pieces = Array.length pieces_hash in
-
-  info "Torrent: %s:" torrent_name;
-  info "Torrent: %d files" (List.length files_info);
-  info "Torrent: %d pieces" num_pieces;
-  info "Torrent: piece length = %d" piece_length;
-
-  let total_length = List.fold files_info ~init:0 ~f:(fun acc (_,l) -> l + acc) in 
-
-  Tracker_client.init announce announce_list info_hash total_length G.peer_id; 
-  debug "trying to connect to tracker";
-  match%bind Tracker_client.query () with
-  | Ok peer_addrs -> 
-    let num_of_peers = List.length peer_addrs in 
-    info "tracker replies with list of %d peers" num_of_peers;
-    let bitfield_name = (Filename.basename torrent_name) ^ G.bitset_ext in
-    let bf_length = Bitset.bitfield_length_from_size num_pieces in 
-    let%bind pwp = Pwp.create 
-      info_hash 
-      bitfield_name bf_length 
-      files_info
-      pieces_hash
-      G.peer_id 
-      piece_length
-      total_length
-    in
-    let stop (_:Signal.t) = Pwp.stop pwp in
-    (* register handler for ctrl-c *)
-    Signal.handle Signal.terminating ~f:stop;
-    Pwp.start pwp;
-    let f = Pwp.add_peer pwp in
-    List.iter peer_addrs ~f;
-    Deferred.unit
-  | Error err -> 
-    info "can't connect to tracker";
-    flushed () >>= fun () ->
-    exit 1
+  don't_wait_for (Start.process torrent_name)
 
 let spec =
   let open Command.Spec in
-  empty +> anon ("FILE" %: string) 
+  empty +> 
+  flag "-p" (optional string) ~doc:" set path (default = 'download')" +> 
+  flag "-l" (optional int) ~doc:" set server mode with port" +> 
+  flag "-v" (no_arg) ~doc:" verbose" +> 
+  anon ("FILE" %: string) 
 
 let command =
   Command.basic ~summary:"Download torrent file" spec
-    (fun filename -> (fun () -> Deferred.don't_wait_for (process filename)))
+    (fun path port verbose filename () -> process filename port path)
 
 let () = 
-  set_level `Info;
+  set_level `Debug;
   Command.run command;
   never_returns (Scheduler.go ())
 

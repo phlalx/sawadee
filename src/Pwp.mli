@@ -17,7 +17,7 @@ val create:
   -> Peer_id.t 
   -> int (* Piece length *)
   -> int (* total length *)
-  -> t Deferred.t
+  -> t Or_error.t Deferred.t
 
 (** Launch the *services* that listen for new messages, query the peers... 
     Does not much until peers are added. *)
@@ -28,9 +28,4 @@ val stop: t -> unit
 (** Add new peers to communicate with. Peer can be added dynamically. 
     This silently fails if connexion or handshake can't be established with 
     the peer. *)
-val add_peer: t -> Socket.Address.Inet.t -> unit
-
-
-  (* let total_length = File.length file in *)
-
-  (* let len = List.fold files ~init:0 ~f:(fun acc (_,l) -> l + acc) in  *)
+val add_peer: t -> Peer.t -> unit

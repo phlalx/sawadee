@@ -2,7 +2,6 @@ open Core
 open Async
 open Log.Global
 
-
 (** TODO see how to make a better use of buffers. We allocate a
     buffer for each send/get. Can we have one per-peer buffer? 
 
@@ -19,51 +18,60 @@ type t = {
   mutable id : Peer_id.t;
   reader : Reader.t;
   writer : Writer.t;
-  have : Bitset.t;
+  mutable have : Bitset.t;
   mutable pending : Int.Set.t;
   mutable time_since_last_reception : int;
   mutable time_since_last_send : int;
   mutable idle : bool;
+  kind : [`Am_initiating | `Peer_initiating ]
 }
 
-(* TODO simply use option types for errors? *)
-
-let create peer_addr ~piece_num = 
-  let wtc = Tcp.to_inet_address peer_addr in
-  debug "trying to connect to peer %s" (Socket.Address.Inet.to_string peer_addr);
-  try_with (function () -> Tcp.connect wtc)
-  >>| function
-  | Ok (_, r, w) -> 
-    Ok {
-      peer_addr; 
-      have = Bitset.empty piece_num; 
-      id = Peer_id.dummy;
-      peer_interested = false; 
-      peer_choking = true; 
-      am_interested = false;
-      am_choking = true; 
-      reader = r; 
-      writer = w; 
-      pending = Int.Set.empty;
-      time_since_last_reception = 0; 
-      time_since_last_send = 0; 
-      idle = false;
-    }
-  | Error err -> Error err
+let create peer_addr r w kind =
+  {
+    peer_addr; 
+    have = Bitset.empty 0; 
+    id = Peer_id.dummy;
+    peer_interested = false; 
+    peer_choking = true; 
+    am_interested = false;
+    am_choking = true; 
+    reader = r; 
+    writer = w; 
+    pending = Int.Set.empty;
+    time_since_last_reception = 0; 
+    time_since_last_send = 0; 
+    idle = false;
+    kind;
+  }
 
 let to_string t = Socket.Address.Inet.to_string t.peer_addr
 
 exception Handshake_error
 
-let hs hash pid = 
-  sprintf "\019BitTorrent protocol\000\000\000\000\000\000\000\000%s%s" hash pid   
+let hs_prefix = "\019BitTorrent protocol\000\000\000\000\000\000\000\000"  
 
-let hs_len = 68
-let hash_len = 20 
-let info_pos = 48 
-let peer_pos = 48 
+let hs hash pid = sprintf "%s%s%s" hs_prefix hash pid   
 
-let handshake t hash pid =
+let hs_len = (String.length hs_prefix) + Bt_hash.length + Bt_hash.length (* 68 *)
+
+(* handshake:
+   initiator sends 20 bytes prefix + info_hash + pid
+   respondant sends same sequence with its own pid.
+   hash must match.
+*)
+
+(* validate sequence received and extract peer id *)
+let validate_handshake received info_hash =
+  let hash_pos = String.length hs_prefix  in
+  let peer_pos = hash_pos + Bt_hash.length in
+  assert ((String.length received) = hs_len);
+  let info_hash_rep = String.sub received ~pos:hash_pos ~len:Bt_hash.length in
+  let remote_peer_id = String.sub received ~pos:peer_pos ~len:Peer_id.length in
+  match info_hash_rep = info_hash with
+  | true -> Some remote_peer_id
+  | false -> None
+
+let initiate_handshake t hash pid =
   let hash = Bt_hash.to_string hash in
   let pid = Peer_id.to_string pid in
   let hs = hs hash pid in
@@ -73,16 +81,37 @@ let handshake t hash pid =
   let buf = String.create hs_len in
   Reader.really_read t.reader ~len:hs_len buf
   >>| function 
-  | `Ok -> 
-    let info_hash_rep = String.sub buf ~pos:info_pos ~len:hash_len in
-    let remote_peer_id = String.sub buf ~pos:peer_pos ~len:hash_len in
-    if info_hash_rep = hash then 
-      Error Handshake_error
-    else ( 
-      t.id <- Peer_id.of_string remote_peer_id;
-      Ok ()
+  | `Ok -> ( 
+      match validate_handshake buf hash with
+      | None -> Error Handshake_error
+      | Some p -> t.id <- Peer_id.of_string p; Ok ()
     ) 
   | `Eof _ -> Error Handshake_error
+
+let wait_for_handshake t hash pid =
+  let hash = Bt_hash.to_string hash in
+  let pid = Peer_id.to_string pid in
+  let hs = hs hash pid in
+  let buf = String.create hs_len in
+  Reader.really_read t.reader buf ~len:hs_len 
+  >>| function
+  | `Ok -> ( 
+      match validate_handshake buf hash with
+      | None -> Error Handshake_error
+      | Some p -> 
+        t.id <- Peer_id.of_string p;
+        Writer.write t.writer ~len:hs_len hs;
+        Ok ()
+    )
+  | `Eof _ -> Error Handshake_error
+
+(* TODO: see if handshake is asynchronous, we may need only one function,
+  otherwise factorize the common part *)
+let handshake t hash pid =
+  if t.kind = `Am_initiating then
+    initiate_handshake t hash pid 
+  else
+    wait_for_handshake t hash pid
 
 let get_message t =
   (* this should be big enough to contain [Piece.block_size]
@@ -165,7 +194,7 @@ let validate t c = assert c
 
 let stats t = 
   info "peer %s: idle/choking/interested %B %B %B" 
-  (to_string t) t.idle t.peer_choking t.peer_interested 
+    (to_string t) t.idle t.peer_choking t.peer_interested 
 
 let tick t =
   t.time_since_last_send <- t.time_since_last_send + 1;
@@ -180,9 +209,11 @@ let tick t =
     `Idle l 
   | (true, _) -> `Keep_alive
   | (false, false) -> 
-     set_idle t false;
-     `Ok
+    set_idle t false;
+    `Ok
 
+(* TODO must be call right after handshake *)
+let init_bitfield t num_piece = t.have <- Bitset.empty num_piece
 
 
 

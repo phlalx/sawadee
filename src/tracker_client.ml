@@ -4,6 +4,7 @@ open Log.Global
 
 module B = Bencode
 
+(* TODO don't forget to send port when -l is set *)
 type t = {
   announce : string;
   announce_list : string list list;
@@ -28,52 +29,12 @@ let init ~announce ~announce_list info_hash ~len peer_id =
               event; compact; announce_list }
 
 
-type tracker_reply = {
-  complete : int;
-  incomplete : int;
-  interval : int;
-  peers : Socket.Address.Inet.t list
-}
-
-let rec decode_peers s =
-  let peer_addr_length = 6 in
-  let ar = Bencode_utils.split s peer_addr_length in
-  let compact_repr (s:string) : Socket.Address.Inet.t =
-    let addr_int32 = Binary_packing.unpack_signed_32 ~byte_order:`Big_endian 
-        ~buf:s ~pos:0 in
-    let port = Binary_packing.unpack_unsigned_16_big_endian ~pos:4 ~buf:s in
-    let addr = Unix.Inet_addr.inet4_addr_of_int32 addr_int32 in
-    Socket.Address.Inet.create addr port
-  in 
-  Array.to_list (Array.map ar ~f:compact_repr)
-
-let extract_bencode s =
-  let bc = B.decode (`String s) in 
-  debug "Tracker reply = %s" (B.pretty_print bc);
-  let open Bencode_utils in
-  let complete = get ((B.as_int (get (B.dict_get bc "complete")))) in
-  let incomplete = get ((B.as_int (get (B.dict_get bc "incomplete")))) in
-  let interval = get ((B.as_int (get (B.dict_get bc "interval")))) in
-  let peers_str = get (B.as_string (get (B.dict_get bc "peers"))) in
-  let peers = decode_peers peers_str in
-  { complete; incomplete; interval; peers; }
-
-let extract_list_of_peers s =
-  try 
-    let tr = extract_bencode s in
-    Ok tr.peers
-  with
-  | ex -> Error ex
-
-
 let query_tracker uri =
   match%bind try_with (fun () -> Cohttp_async.Client.get uri) with
   | Ok (_, body)  -> (
       let%bind s = Cohttp_async.Body.to_string body in
-      return (extract_list_of_peers s)
-      >>| function 
-      | Ok res -> Some res
-      | Error err -> None
+      let r = Tracker_reply.from_bencode s in
+      return (Some r.Tracker_reply.peers)
     )
   | Error err -> return None
 

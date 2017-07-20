@@ -1,3 +1,5 @@
-(** Simple echo TCP server. Just used for testing. *)
+open Core
 
-val start : unit -> unit
+val start :  (Async.Socket.Address.Inet.t ->
+  Async.Reader.t -> Async.Writer.t -> 
+  unit Async_kernel__Deferred.t) -> unit

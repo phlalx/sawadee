@@ -43,7 +43,7 @@ let create
     )
   in
   File.deferred_iter_piece file ~f:read_piece >>| fun () ->
-  { 
+  Ok { 
     file; 
     peers = []; 
     peer_id; 
@@ -165,12 +165,13 @@ let stats t =
   let f p = Peer.stats p in
   List.iter t.peers f
 
-let add_peer t peer_addr = 
-  let init_protocol (p:P.t) =
-    P.handshake p t.info_hash t.peer_id
+let add_peer t p =
+  debug "start handshaking with with peer %s" (P.to_string p);
+  P.handshake p t.info_hash t.peer_id  
     >>> function 
     | Ok () ->  
-      t.peers <- p :: t.peers;
+      t.peers <- p :: t.peers; 
+      Peer.init_bitfield p  (File.num_pieces t.file);
       debug "handshake ok with peer %s" (P.to_string p);
       if (File.num_owned_pieces t.file) > 0 then (
         P.send_message p (M.Bitfield (File.bitfield t.file))
@@ -181,14 +182,6 @@ let add_peer t peer_addr =
       >>> fun () -> ()
     | Error err -> 
        info "handshake with peer %s failed" (Peer.to_string p)
-  in 
-
-  P.create peer_addr (File.num_pieces t.file)
-  >>> function 
-  | Ok peer -> init_protocol peer
-  | Error err -> 
-    let s = Socket.Address.Inet.to_string peer_addr in
-    info "can't connect to peer %s" s
 
 let stop t = 
   let stop_aux t =

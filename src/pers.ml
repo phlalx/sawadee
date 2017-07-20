@@ -101,7 +101,7 @@ let read_from_pipe t =
   Pipe.iter t.rd ~f:read_piece
 
 let open_file name ~len = 
-  let pname = G.path ^ name in
+  let pname = (G.path ()) ^ name in
   info "create file %s with length %d" pname len;
   let llen = Int64.of_int len in
   let%bind fd = Unix.openfile pname ~mode:[`Creat;`Rdwr] in
