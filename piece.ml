@@ -8,18 +8,19 @@ type t = {
   mutable status : [ `Requested | `Downloaded | `Not_requested | `On_disk ];
   hash : Bt_hash.t;
   length : int;
-  content : string; (* TODO could be a substring *)
+  content : Bigstring.t; (* TODO could be a substring of the whole network file? *)
   blocks : Bitset.t;
 } 
 
 let create ~index hash ~len = 
   let num_blocks = (len + G.block_size - 1) / G.block_size in
-  { index; status = `Not_requested; length = len; hash; content = String.create len; 
+  { index; status = `Not_requested; length = len; hash; content = Bigstring.create len; 
     blocks = Bitset.empty num_blocks }
 
-let get_content t ~off ~len = assert false
+let get_content t ~off ~len = 
+  Bigstring.to_string ~pos:off ~len t.content
 
-let get_content2 t = t.content
+let get_bigstring_content t = t.content
 
 let get_status t = t.status
 
@@ -52,7 +53,7 @@ let iter t ~f =
   done
 
 let is_hash_ok t =
-  let hash_piece = Sha1.to_bin (Sha1.string t.content) in 
+  let hash_piece = Sha1.to_bin (Sha1.string (Bigstring.to_string t.content)) in 
   hash_piece = Bt_hash.to_string t.hash
 
 (* TODO this look a bit ugly *)
@@ -63,7 +64,7 @@ let update t ~off (block:string) =
   let len = String.length block in
   assert (len = block_length t off);
   Bitset.insert t.blocks index;
-  String.blit ~src:block ~src_pos:0 ~dst:t.content ~dst_pos:off ~len;
+  Bigstring.From_string.blit ~src:block ~src_pos:0 ~dst:t.content ~dst_pos:off ~len;
   if Bitset.is_full t.blocks then ( 
     if is_hash_ok t then 
       `Downloaded 

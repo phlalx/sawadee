@@ -54,8 +54,8 @@ let read_piece t p =
   info "read piece %d from disk" i;
   let f pf = 
     info "reading piece %d from %s" i (Pfile.to_string pf);
-    let s = Piece.get_content2 p in
-    Pfile.read pf s (String.length s) >>| fun () ->
+    let s = Piece.get_bigstring_content p in
+    Pfile.read pf s (Bigstring.length s) >>| fun () ->
     assert (Piece.is_hash_ok p)
   in
   Deferred.List.iter t.piece_to_pfiles.(i) ~f
@@ -66,8 +66,8 @@ let read_from_pipe t =
     debug "read from pipe piece %d" i;
     let f pf = 
       info "writing piece %d to %s" i (Pfile.to_string pf);
-      let s = Piece.get_content2 p in
-      Pfile.write pf s (String.length s)
+      let s = Piece.get_bigstring_content p in
+      Pfile.write pf s (Bigstring.length s)
     in
     Deferred.List.iter t.piece_to_pfiles.(i) ~f
   in

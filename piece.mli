@@ -25,9 +25,11 @@ val create : index:int -> Bt_hash.t -> len:int -> t
     make things a little more abstract. *)
 val get_index : t -> int
 
-val get_content : t -> off:int -> len:int -> string 
+(* use for messages *)
+val get_content : t -> off:int -> len:int  -> string 
 
-val get_content2 : t -> string
+(* use for serialization R/W *)
+val get_bigstring_content : t -> Bigstring.t
 
 (** Iter through the blocks of the piece. Typically to send them to the peers.
 

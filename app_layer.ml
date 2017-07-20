@@ -133,7 +133,7 @@ let process_message t (p:P.t) (m:M.t) : unit =
     Peer.validate p (File.has_piece t.file index);
     if not (Peer.am_choking p) then (
       let piece = File.get_piece t.file index in
-      let block = Piece.get_content piece bgn length in
+      let block = Piece.get_content piece ~off:bgn ~len:length in
       Peer.send_message p (Message.Piece (index, bgn, block)))
   in
   match m with
