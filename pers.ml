@@ -12,6 +12,43 @@ type t = {
   rd : Piece.t Pipe.Reader.t;
 }
 
+let rec align_along_piece_size l ps =
+  let open Pfile in
+  match l with 
+  | [] -> []
+  | {name; fd; len; off} :: t when (off % ps) + len <= ps -> 
+    {name; fd; len; off} :: (align_along_piece_size t ps) 
+  | {name; fd; len; off} :: t -> 
+    let len' = ps - (off % ps) in
+    assert (len' > 0);
+    assert( ((off + len') % ps) = 0);
+    { name; fd; len = len'; off } :: 
+    (align_along_piece_size 
+       ({ name; fd; off = off + len'; len = len - len'} :: t) 
+       ps)
+
+(* TODO: try to simplify/improve this *)
+let rec split_along_piece_size l ~ps ~num_piece =
+  let open Pfile in
+  let a = List.to_array (align_along_piece_size l ps) in
+  let res = Array.create num_piece [] in 
+  let j = ref 0 in
+  let cur_len = ref 0 in
+  let tl = ref [] in
+  let m = Array.length a in
+  for i = 0 to num_piece -1 do 
+    tl := [];
+    cur_len := 0;
+    while !j < m && !cur_len < ps do 
+      tl := !tl @ [ a.(!j) ];
+      cur_len := !cur_len + a.(!j).len;
+      incr j;
+    done;
+    res.(i) <- !tl;
+  done;
+  assert (!j = m);
+  res 
+
 let read_piece t p = 
   let i = Piece.get_index p in
   info "read piece %d from disk" i;
@@ -36,6 +73,7 @@ let read_from_pipe t =
   in
   Pipe.iter t.rd ~f:read_piece
 
+(* TODO use a more conventional method for reading/write bitfield *)
 let read_bitfield t = 
   info "reading bitfield";
   let bs = Bigstring.create t.bitfield_len 
@@ -62,7 +100,7 @@ let create name len info_files num_pieces piece_length =
   let f (name, len, off) = Pfile.create name ~len ~off in
   Deferred.List.map ~how:`Sequential files_with_offset ~f
   >>| fun pfiles -> 
-  let piece_to_pfiles = Pfile.split_along_piece_size pfiles piece_length num_pieces in
+  let piece_to_pfiles = split_along_piece_size pfiles piece_length num_pieces in
   let rd, wr = Pipe.create () in
   let t = 
     {

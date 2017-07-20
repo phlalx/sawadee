@@ -27,8 +27,6 @@ type t = {
   off : int;
 }
 
-val split_along_piece_size : t list -> ps:int -> num_piece:int -> (t list) Array.t
-
 val create : string -> len:int -> off:int -> t Deferred.t
 
 val close : t -> unit Deferred.t
