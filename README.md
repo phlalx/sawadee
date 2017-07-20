@@ -1,8 +1,8 @@
 # A simple Bittorrent client in OCaml/Async
 
-The aim of this project is to have a simple, well documented and functional bittorrent client written with the Async framework.
+This aims to be a simple, well documented and functional bittorrent client written with the Async framework.
 
-This is an ongoing project and is quickly changing.
+But it is not quite there yet :) This is an ongoing project and is quickly changing.
 
 ### Usage
 
@@ -15,6 +15,8 @@ Compile with `make` then run `./main.byte FILE` to start the program. `FILE` is 
 You should read the bittorrent specification (see references below) but in a nutshell, this is how it works. It all starts with a meta-information file (the *torrent file*) that contains information on the data to be downloaded as well as the url(s) of the *tracker(s)*. A tracker is an http-server that provides the addresses of the peers willing to share *pieces* of the data. This data can be seen as a single file from the client perspective. We call it the *network file* (this is not the terminology used in the spec). It is made of the concatenation of the individual files the user wishes to download. Once the peers are known, communication is established with some of them in order to request the precious pieces. At the same time, peers can query the client to request pieces they don't have. 
 
 ### Implementation
+
+This is a high-level description. The ocamldoc should be more precise and up-to-date.
 
 The first step of the program is to decode the torrent file. It is binary encoded as [bencode](https://en.wikipedia.org/wiki/Bencode) format). We use the `bencode` library to decode it, this is done in module `Torrent`. Both single-file and multiple-file torrent format are implemented. 
 
@@ -33,9 +35,9 @@ Per-peer state (including socket reader/writer, protocol state, pending requests
  A `File.t` is essentially an array of `Piece.t` plus a set of downloaded pieces (`Bitset.t`). Following the spec terminology, we call the serialized version of this set the *bitfield* (type `Bitfield.t`). It is simply an array of bits defining the possession of each individual piece.  Each `Piece.t` is furthermore divided into blocks (a `Bitset.t` field of `Piece.t` describes the blocks of a piece already downloaded). Note that the unit of ownership (advertised to other peers) is a piece (torrent-defined), and the unit of transmission is a block (client specific, commonly 16KB or 32KB).
 
 Two types of objects are saved to disk. One is a bitfield of the pieces already downloaded (so we can resume downloading after quitting the client), and the other are the actual files.
-Persistence is dealt with in modules `PFile` and `Pers`.
+Persistence is dealt with in module `Pers`.
 
-We map each piece of the network file to a list of `Pfiles.t` (file descriptor, offset, length). This has to be done carefully, especially for multiple files where a piece can be mapped to several files. `Pers` sets up a writing "master thread" that processes sequentially the writing requests sent asynchronously through a pipe. 
+We map each piece of the network file to a list of `Pers.segment` (file descriptor, offset, length). This has to be done carefully, especially for multiple files where a piece can be mapped to several files. Moreover, `Pers` sets up a writing "master thread" that processes sequentially the writing requests sent asynchronously through a pipe. 
 
 Concerning the protocol, per-peer state (including socket read/write, protocol state, pending requests) is maintained in `Peer.t`.
 `App_layer` implements the actual protocol (and initializes the various structures). After the handshake, a couple of "threads" are launched.
@@ -49,16 +51,17 @@ Besides, requests that have been pending for n seconds are canceled. To check th
 
 What I'd like to complete in the near future.
 
+* document, review, and clean up the code
+* deal correctly with requests from peers (for some reasons, I don't get any request, although the code is there)
+* more consistent error management 
+  * now there are a lot of asserts, unguarded possible exceptions and so on.
+  * detect incorrect behavior from peers. 
 * resource management
   * better handling (closing) of socket connections 
-  * better usage of buffer. Buffers keep getting allocated with very little efficiency concern.
-* deal correctly with requests from peers (for some reasons, I don't get any request, although the code is there)
-* more consistent error management and more defensive from malicious peers. Right now, there are a lot of asserts, unguarded possible exceptions and so on.
+  * better usage of buffer. Buffers keep getting allocated with no efficiency concern.
 * Rework the module interfaces
-  * Persistence is dirty and has to be rethought 
   * There are invariant that span several modules that could be encapsulated
-* document, review, and clean up the code
-  * use syntactic extension for async
+  * encapsulation could be better overall
 * testing
 
 And possibly:
