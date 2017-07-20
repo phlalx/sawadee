@@ -14,7 +14,7 @@ val close_all_files : t -> unit Deferred.t
 
 val read_bitfield : t -> Bitfield.t Deferred.t
 
-val write_and_close_bitfield : t -> Bitfield.t -> unit Deferred.t
+val write_bitfield : t -> Bitfield.t -> unit Deferred.t
 
 val write_piece : t -> Piece.t -> unit
 

@@ -14,8 +14,7 @@ open Async
 type t
 
 (** [create i h ~len pfs] creates a piece at index [i] in the file with hash [h]
-    (given in the metainfo file) and length [len]. [pfs] are the pfiles
-    where this piece should be read/written.  *)
+    (given in the metainfo file) and length [len].  *)
 val create : index:int -> Bt_hash.t -> len:int -> t
 
 (** return the index of a piece.

@@ -1,5 +1,4 @@
-(** File to be downloaded by the P2P protocol (we call it also the network file
-    to distinguish it from the file system files (PFile.t)). 
+(** Network File to be downloaded by the P2P protocol.
 
     All the information to create a file come from the metainfo file. A file
     is divided into [Piece.t] that are created upon creation of the file
@@ -11,7 +10,7 @@ open Async
 type t
 
 (** [create ~len h ph ~name ~pl files] creates a new file. This include creating all 
-    the file pieces [Piece.t] and creating the persistent files [PFile.t].
+    the file pieces [Piece.t].
 
     - [h] is the hash of the info section of the metainfo file.
     - [ph] is an array of hashed of each of individual pieces. 

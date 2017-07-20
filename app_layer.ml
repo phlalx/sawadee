@@ -194,7 +194,7 @@ let stop t =
   let stop_aux t =
     info "written to file: %d pieces" (File.num_owned_pieces t.file);
     info "written to file: %s" (File.pieces_to_string t.file);
-    Pers.write_and_close_bitfield t.pers (File.bitfield t.file) >>= fun () ->
+    Pers.write_bitfield t.pers (File.bitfield t.file) >>= fun () ->
     Pers.close_all_files t.pers >>= fun () ->
     exit 0
   in 
