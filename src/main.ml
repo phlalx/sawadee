@@ -47,7 +47,7 @@ let process (torrent_name : string)  =
     info "tracker replies with list of %d peers" num_of_peers;
     let bitfield_name = (Filename.basename torrent_name) ^ G.bitset_ext in
     let bf_length = Bitset.bitfield_length_from_size num_pieces in 
-    let%bind al = App_layer.create 
+    let%bind pwp = Pwp.create 
       info_hash 
       bitfield_name bf_length 
       files_info
@@ -56,11 +56,11 @@ let process (torrent_name : string)  =
       piece_length
       total_length
     in
-    let stop (_:Signal.t) = App_layer.stop al in
+    let stop (_:Signal.t) = Pwp.stop pwp in
     (* register handler for ctrl-c *)
     Signal.handle Signal.terminating ~f:stop;
-    App_layer.start al;
-    let f = App_layer.add_peer al in
+    Pwp.start pwp;
+    let f = Pwp.add_peer pwp in
     List.iter peer_addrs ~f;
     Deferred.unit
   | Error err -> 

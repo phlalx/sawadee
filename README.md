@@ -24,12 +24,12 @@ The torrent gives various information, notably the tracker url, the list of file
 
 We query the tracker (`Tracker_client`) with a simple GET http request whose main parameter is the info-hash. We use the `uri` library to create the request. The answer is again bencoded, and contains the list of peers.
 
-When we got the list of peers, we initiate the *peer protocol* with each of the peers (`Peer.t`). It is is a binary protocol that proceeds in two steps:
+When we got the list of peers, we initiate the *peer wire protocol* with each of the peers (`Peer.t`). It is is a binary protocol that proceeds in two steps:
 
  * an initial handshake (one round-trip message exchange)
  * then (binary asynchronous) messages to get parts of the file.
 
-Messages are defined by type `Message.t` and serialized using `Bin_prot` core module. The module `App_layer` implements the peer protocol and initializes the `File` datastructure (to store the network file), and the persistence module `Pers`. 
+Messages are defined by type `Message.t` and serialized using `Bin_prot` core module. The module `Pwp` implements the peer wire protocol initializes the `File` datastructure (to store the network file), and the persistence module `Pers`. 
 Per-peer state (including socket reader/writer, protocol state, pending requests) is maintained in `Peer.t`.
 
  A `File.t` is essentially an array of `Piece.t` plus a set of downloaded pieces (`Bitset.t`). Following the spec terminology, we call the serialized version of this set the *bitfield* (type `Bitfield.t`). It is simply an array of bits defining the possession of each individual piece.  Each `Piece.t` is furthermore divided into blocks (a `Bitset.t` field of `Piece.t` describes the blocks of a piece already downloaded). Note that the unit of ownership (advertised to other peers) is a piece (torrent-defined), and the unit of transmission is a block (client specific, commonly 16KB or 32KB).
@@ -38,9 +38,6 @@ Two types of objects are saved to disk. One is a bitfield of the pieces already 
 Persistence is dealt with in module `Pers`.
 
 We map each piece of the network file to a list of `Pers.segment` (file descriptor, offset, length). This has to be done carefully, especially for multiple files where a piece can be mapped to several files. Moreover, `Pers` sets up a writing "master thread" that processes sequentially the writing requests sent asynchronously through a pipe. 
-
-Concerning the protocol, per-peer state (including socket read/write, protocol state, pending requests) is maintained in `Peer.t`.
-`App_layer` implements the actual protocol (and initializes the various structures). After the handshake, a couple of "threads" are launched.
 
  * There is a message loop that wait and process peer messages
  * Another one requests for random pieces by polling the number of pending requests and the availability of new pieces. 

@@ -1,7 +1,7 @@
 (** P2P layer of the protocol. 
 
     Type [t] is used to maintain state related to a peer and communication 
-    functions. This is exclusively used by [App_layer] module peer. *)
+    functions. This is exclusively used by [Pwp] module. *)
 
 open Core
 open Async
@@ -41,11 +41,11 @@ val set_owned_pieces : t -> Bitfield.t -> unit
 
 val set_owned_piece : t -> int -> unit
 
-(** to be called at every [Global.tick]. Inform App_layer about this peer 
+(** to be called at every [Global.tick]. Inform `Pwp` about this peer 
     responsivness.
 
     If [`Idle l], peer is marked as idle, and pieces in `l` have to be 
-    re-requested by App_layer. Pending requests are erased on peer. 
+    re-requested by `Pwp`. Pending requests are erased on peer. 
 
     If [`Keep_alive], a keep alive message has to be sent.
 
