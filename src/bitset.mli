@@ -9,14 +9,14 @@
 open Core
 open Async
 
-(** An element of type [t] represents a set of integer that belongs to [0, size)
+(** An element of type [t] represents a set of integer that belongs to \[0, size)
     where [size] is fixed and given at creation *) 
 type t 
 
 (** [empty size] is an empty set *)
 val empty : size:int -> t
 
-(** [create size f] is the set of int in [0, size) satisfying predicate [f] *)
+(** [create size f] is the set of int in \[0, size) satisfying predicate [f] *)
 val create : size:int -> f:(int -> bool) -> t
 
 (** maximal number of element, don't confuse with [card] *)
