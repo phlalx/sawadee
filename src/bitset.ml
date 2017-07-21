@@ -1,4 +1,5 @@
-(* quick implementation using an array of bool  *)
+(* quick and not efficient implementation using an array of bool  *)
+
 open Core
 
 type t = {
@@ -76,8 +77,6 @@ let from_bitfield bf num =
   let t = empty num in
   insert_from_bitfield t bf;
   t
-  (* TODO check that remaining bits are 0 *)
-
 
 let inter t1 t2 = 
   let bits : bool Array.t = Array.map2_exn t1.bits t2.bits ~f:(&&) in
@@ -111,7 +110,3 @@ let to_bitfield t =
     if belongs t i then set_bit res i
   done;
   Bitfield.of_string res
-
-
-
-

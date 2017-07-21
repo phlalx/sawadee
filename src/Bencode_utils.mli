@@ -1,3 +1,4 @@
+(** Utility functions used for extracting bencode *)
 open Core
 
 exception Bencode_error

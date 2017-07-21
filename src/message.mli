@@ -1,4 +1,5 @@
 (** Messages in the peer protocol. 
+
     See [https://wiki.theory.org/index.php/BitTorrentSpecification#Message_flow>].
 
     This module describes the type of messages and conversion to/from binary
@@ -9,8 +10,7 @@
     We use OCaml ints instead of the [Int32.t] specified by the protocol. This
     shouldn't be a limitation. 
 
-    TODO: 
-    - can we generate conversion functions automatically using a syntax
+    TODO: can we generate conversion functions automatically using a syntax
       extension? *)
 open Bin_prot
 

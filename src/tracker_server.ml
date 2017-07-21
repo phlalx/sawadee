@@ -3,7 +3,9 @@
     It doesn't check the query and always returns the same set of peers.
     127.0.0.1:6000
     127.0.0.1:6001
-    127.0.0.1:6002 *)
+    127.0.0.1:6002
+
+  TODO: add a simple memory! *)
 
 open Core
 open Async

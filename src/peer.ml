@@ -29,12 +29,12 @@ type t = {
 let create peer_addr r w kind =
   {
     peer_addr; 
-    have = Bitset.empty 0; 
+    have = Bitset.empty 0; (* to be set by [init_size_owned_pieces] *)
     id = Peer_id.dummy;
     peer_interested = false; 
     peer_choking = true; 
     am_interested = true;
-    am_choking = false; (* TODO normally start as choking and not intersted *) 
+    am_choking = false; (* TODO should start as choking and not interested *) 
     reader = r; 
     writer = w; 
     pending = Int.Set.empty;
@@ -217,8 +217,8 @@ let tick t =
     set_idle t false;
     `Ok
 
-(* TODO must be call right after handshake *)
-let init_bitfield t num_piece = t.have <- Bitset.empty num_piece
+(* must be call right after handshake *)
+let init_size_owned_pieces t num_piece = t.have <- Bitset.empty num_piece
 
 
 

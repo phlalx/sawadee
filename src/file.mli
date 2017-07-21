@@ -1,20 +1,23 @@
 (** Network File to be downloaded by the P2P protocol.
 
-    All the information to create a file come from the metainfo file. A file
-    is divided into [Piece.t] that are created upon creation of the file
-    (see [Piece.t] doc). *)
+  A [File.t] is an array of [Piece.t]. It maintains the state of each piece
+  as well as a bitset of owned pieces.
+
+  TODO: This is not a good abstraction because we access sometimes [File.t]
+  and sometimes [Piece.t] from [Pwp]. It means the client module) needs to ensure 
+  that some invariants hold (i.e. state of a piece compatible with bitset). *)
 
 open Core
 open Async
 
 type t
 
-(** [create ~len h ph ~name ~pl files] creates a new file. This include creating all 
-    the file pieces [Piece.t].
+(** [create ph ~piece_length total_length bf] creates a [File.t]. 
+    - [h] is the info hash
+    - [ph] is the array of pieces hashs
+    - [bf] is the bitfield of pieces already downloaded. 
 
-    - [h] is the hash of the info section of the metainfo file.
-    - [ph] is an array of hashed of each of individual pieces. 
-    - [files] are the file names and their length *)
+  TODO: check why is bitfield need here *)
 
 val create : 
   (Bt_hash.t Array.t) -> 

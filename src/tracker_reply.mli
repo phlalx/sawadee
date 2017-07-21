@@ -1,3 +1,6 @@
+(* Data client/server tracker interaction.
+
+  This is answered by the server to the client as bencode. *)
 open Core
 open Async
 

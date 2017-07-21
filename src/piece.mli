@@ -4,12 +4,13 @@
      into blocks. A piece is the unit of "ownership". That is, peer advertise and
      request pieces. A Block is the unit of transmission in the peer protocol. We
      only  expose blocks to client modules through the [iter] and [update]
-     functions. *)
+     functions. 
+
+    Block size is defined globally in [Global].
+ *)
 
 open Core
 open Async
-
-(** [block_size] is the size chosen by the client to request blocks. *)
 
 type t
 
@@ -17,11 +18,7 @@ type t
     (given in the metainfo file) and length [len].  *)
 val create : index:int -> Bt_hash.t -> len:int -> t
 
-(** return the index of a piece.
-
-    TODO probably can get rid of function, it's only used for pending set
-    of pieces index in Peer.t. We could use a set of Piece.t instead to 
-    make things a little more abstract. *)
+(** return the index of a piece. *)
 val get_index : t -> int
 
 (* use for messages *)

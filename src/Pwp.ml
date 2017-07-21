@@ -112,7 +112,7 @@ let process_message t (p:P.t) (m:M.t) : unit =
       P.remove_pending p index;
       Piece.set_status piece `Downloaded;
       decr_requested t;
-      (* Piece.set_status piece `On_disk; *)
+      (* Piece.set_status piece `On_disk;  TODO needed? *)
       Pers.write_piece t.pers piece;
       File.set_owned_piece t.file index; 
       send_have_messages t index 
@@ -158,7 +158,7 @@ let add_peer t p =
   >>= function 
   | Ok () ->  
     t.peers <- p :: t.peers; 
-    Peer.init_bitfield p  (File.num_pieces t.file);
+    Peer.init_size_owned_pieces p (File.num_pieces t.file);
     debug "handshake ok with peer %s" (P.to_string p);
     if (File.num_owned_pieces t.file) > 0 then (
       P.send_message p (M.Bitfield (File.bitfield t.file))

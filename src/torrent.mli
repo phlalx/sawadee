@@ -1,4 +1,4 @@
-(** Extract relevant information from torrent (meta-info file)
+(** Information directly obtained from a torrent.
 
     @raise Wrong_format if binary doesn't have the expected structure. *)
 

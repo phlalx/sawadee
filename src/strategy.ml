@@ -5,12 +5,7 @@ open Log.Global
 
 module P = Peer
 
-(** Find a piece and a peer to download from.
-
-    TODO: this is really quick and dirty. Ideally, we should maintain some
-    datastructure that keeps the information we need.
-
-    We should also compute a few requests at a time. *)
+(** Find a piece and a peer to download from. *)
 let next_request file peers : (Piece.t * P.t) Option.t =
 
   let pieces_not_requested = File.pieces_not_requested file in

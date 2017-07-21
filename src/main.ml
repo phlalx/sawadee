@@ -1,14 +1,6 @@
 (** Entry point to the project. 
 
-    It implements the command-line options and run main stages. 
-
-    - decoding the metainfo (torrent) file
-    - creating File.t and retrieving persistent data
-    - querying the tracker to retrieve list of peers
-    - initiating the P2P layer
-    - add peers.
-
-    All modules use [Core], [Async] and [Log.Global]. *)
+    It implements the command-line options and call [Start.process] *)
 
 open Core
 open Async

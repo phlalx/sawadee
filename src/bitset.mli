@@ -1,15 +1,16 @@
-(** Set of integers represented as array of bits. We use set terminology 
-    instead of array's since this is how we use this module in the program. 
-    Most operations are constant time. 
+(** Set of integers represented as array of bits. 
 
-    We refered as [Bitfield.t] the serialized string of the bitset, suc
+    We use set terminology instead of array's since this is how we use this
+    module in the program. Most operations are constant time. 
 
-  *)
+    We refered as [Bitfield.t] the serialized string of the bitset. It is
+    used both in messages and on disk to represent the list of owned pieces  
+    of the network file. *)
 open Core
 open Async
 
 (** An element of type [t] represents a set of integer that belongs to [0, size)
-    where [size] is given at creation *) 
+    where [size] is fixed and given at creation *) 
 type t 
 
 (** [empty size] is an empty set *)
@@ -59,17 +60,18 @@ val to_string : t -> string
 val to_bitfield : t -> Bitfield.t
 
 val from_bitfield : Bitfield.t -> int -> t
+(** TODO: according to the specification, we should check that bitfield has 
+    the right size and all extra bits are set to 0 *)
+
+(** [insert_from_bitfield t b] fills t with bits in bitfield [b] as 
+    specified by the peer protocol. *)
+val insert_from_bitfield : t -> Bitfield.t -> unit
+
 
 val bitfield_length : t -> int
 
-(** size of bitfield from bitset size *)
+(** [bitfield_length_from_size n] is size of bitfield from the bitset size.
+    This is needed when we need to allocate space for the bitfield. *)
 val bitfield_length_from_size : int -> int
-
-(** [insert_from_bitfield t b] fills t with bitfield [b] as specified by the 
-    peer protocol.
-
-    TODO: check that [size t] and [Bitfield.length b] satisfy the protocol spec
-    and that extra-bits in [b] are indeed set to 0 *)
-val insert_from_bitfield : t -> Bitfield.t -> unit
 
 

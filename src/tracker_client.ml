@@ -4,12 +4,10 @@ open Log.Global
 
 module B = Bencode
 
-(* TODO don't forget to send port when -l is set *)
 type t = {
   announce : string;
   announce_list : string list list;
   info_hash : Bt_hash.t;
-  peer_id : Peer_id.t;
   uploaded : string;
   downloaded : string;
   event : string;
@@ -25,17 +23,14 @@ let init (t : Torrent.t) =
     total_length;
     info_hash;
     announce_list;
-    announce;
-    _
+    announce
   } = t in
   let left = string_of_int total_length in
   let uploaded = "0" in
   let downloaded = "0" in
   let event = "started" in 
   let compact = "1" in
-  let peer_id = Global.peer_id in
-  tc := Some { announce; info_hash; left; 
-              peer_id; uploaded; downloaded; event; compact; 
+  tc := Some { announce; info_hash; left; uploaded; downloaded; event; compact; 
               announce_list = t.announce_list }
 
 
@@ -60,16 +55,22 @@ let query () =
     match t.announce_list with 
     | [] -> [t.announce]
     | x -> List.fold x ~init:[] ~f:(@) (* quick and dirty flattening *) in 
-  let params = 
+  let params_base = 
     [("info_hash", Bt_hash.to_string t.info_hash); 
-     ("peer_id", Peer_id.to_string t.peer_id); 
+     ("peer_id", Peer_id.to_string Global.peer_id); 
      ("uploaded", t.uploaded);
      ("downloaded", t.downloaded);
      ("event", t.event);
      ("left", t.left);
      ("compact", t.compact );
     ] in
-
+  let params = 
+    if Global.is_server () then
+      let port = string_of_int (Global.port_exn ()) in
+      ("port", port) :: params_base
+    else
+      params_base
+  in
   let create_uri_with_query (x:string) = 
     let uri = Uri.of_string x in Uri.with_query' uri params in
 

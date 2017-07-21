@@ -1,5 +1,6 @@
-(** This module defines client-specific constant that are used elsewhere
-    in the program. *)
+(** Client-specific global constant 
+
+    TODO : put this in a JSON file. *)
 
 open Core
 open Async

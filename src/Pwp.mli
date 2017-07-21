@@ -1,22 +1,38 @@
-(** Application layer. 
+(** Peer wire protocol. 
 
-    This module is responsible to download a file by querying the remote peers,
-    and serve peers request. It maintains application state and implements i
-    the *peer protocol. *)
+    This central module is responsible of downloading a file by interacting 
+    with the peers. 
+
+    To do so, it needs to maintain a bunch of objects. This includes:
+    - the data being downloaded (see [File.t] and [Piece.t])
+    - the [Peers.t] 
+    - reading/write things on disk via [Pers.t]
+
+    TODO: maybe it would be better to keep [Pers.t] outside of this module. *)
 
 open Core
 open Async
 
 type t
 
+(** [create tor] retrieve the persistent data and initializes [File.t] 
+    structure. *)
 val create: Torrent.t -> t Or_error.t Deferred.t 
 
-(** Launch the *services* that listen for new messages, query the peers... 
-    Does not much until peers are added. *)
+(** Launch the *threads* that periodically request pieces and *tick* the peers to
+    check for idleness. Does not much until peers are added. 
+
+    TODO: this work by polling the peers to see if they have new pieces. Ideally
+    the requesting thread should wake up with some events (e.g. 
+    arrival of new pieces) *)
 val start: t -> unit
 
+(** write all data to disk and exit. Called by termination handler *)
 val stop: t -> unit
 
-(** Add new peers to communicate with. Peer can be added dynamically. 
-    This deferred is determined if peer fails *)
+(** Add new peers to communicate with. Connexion is already established.
+    Try handshake with peer, and launches message-reading loop.
+
+    This deferred is determined if peer fails.
+    TODO add proper Error.t *)
 val add_peer: t -> Peer.t -> unit Deferred.t 

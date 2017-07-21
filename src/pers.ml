@@ -1,17 +1,4 @@
-(** Persistence. 
 
-    Pieces are mapped to [segment] of files.
-
-    A file can be partitionned into several such [segment] sharing the same fd.
-    To each [Piece.t] index, we map a list of segment used for reading to/from 
-    the disk.
-
-    Network file :  | - piece 1 - | - piece 2 - | ......... | - piece n - |
-                    | segment |       segment         | seg | seg |  seg  |
-
-    Files are opened to the right size using [create].
-
-*)
 open Core
 open Async
 open Log.Global
@@ -37,32 +24,32 @@ type t = {
 }
 
 (* TODO: try to simplify/improve this *)
-let rec align_along_piece_size l ps =
+let rec align_along_piece_length l pl =
   match l with 
   | [] -> []
-  | {name; fd; len; off} :: t when (off % ps) + len <= ps -> 
-    {name; fd; len; off} :: (align_along_piece_size t ps) 
+  | {name; fd; len; off} :: t when (off % pl) + len <= pl -> 
+    {name; fd; len; off} :: (align_along_piece_length t pl) 
   | {name; fd; len; off} :: t -> 
-    let len' = ps - (off % ps) in
+    let len' = pl - (off % pl) in
     assert (len' > 0);
-    assert( ((off + len') % ps) = 0);
+    assert( ((off + len') % pl) = 0);
     { name; fd; len = len'; off } :: 
-    (align_along_piece_size 
+    (align_along_piece_length 
        ({ name; fd; off = off + len'; len = len - len'} :: t) 
-       ps)
+       pl)
 
 (* TODO: try to simplify/improve this *)
-let rec split_along_piece_size l ~ps ~num_piece =
-  let a = List.to_array (align_along_piece_size l ps) in
-  let res = Array.create num_piece [] in 
+let rec split_along_piece_length l pl num_pieces =
+  let a = List.to_array (align_along_piece_length l pl) in
+  let res = Array.create num_pieces [] in 
   let j = ref 0 in
   let cur_len = ref 0 in
   let tl = ref [] in
   let m = Array.length a in
-  for i = 0 to num_piece -1 do 
+  for i = 0 to num_pieces -1 do 
     tl := [];
     cur_len := 0;
-    while !j < m && !cur_len < ps do 
+    while !j < m && !cur_len < pl do 
       tl := !tl @ [ a.(!j) ];
       cur_len := !cur_len + a.(!j).len;
       incr j;
@@ -124,7 +111,7 @@ let create bf_name bf_len info_files num_pieces piece_length =
   let%bind fds = Deferred.List.map ~how:`Sequential info_files ~f in
   let rd, wr = Pipe.create () in
   let segments = make_segments fds info_files in
-  let segments_of_piece = split_along_piece_size segments piece_length num_pieces in
+  let segments_of_piece = split_along_piece_length segments piece_length num_pieces in
   let print_list_segments segments = 
     List.iter segments ~f:(fun s -> info "segment %s" (segment_to_string s)) in
   let f i ls = 

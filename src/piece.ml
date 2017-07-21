@@ -8,17 +8,18 @@ type t = {
   mutable status : [ `Requested | `Downloaded | `Not_requested | `On_disk ];
   hash : Bt_hash.t;
   length : int;
-  content : Bigstring.t; (* TODO could be a substring of the whole network file? *)
+  (* TODO content could be a substring of the whole network file? *)
+  content : Bigstring.t; 
   blocks : Bitset.t;
 } 
 
 let create ~index hash ~len = 
   let num_blocks = (len + G.block_size - 1) / G.block_size in
-  { index; status = `Not_requested; length = len; hash; content = Bigstring.create len; 
+  { index; status = `Not_requested; length = len; hash; 
+    content = Bigstring.create len; 
     blocks = Bitset.empty num_blocks }
 
-let get_content t ~off ~len = 
-  Bigstring.to_string ~pos:off ~len t.content
+let get_content t ~off ~len = Bigstring.to_string ~pos:off ~len t.content
 
 let get_bigstring_content t = t.content
 
@@ -43,6 +44,7 @@ let set_not_requested t =
 
 let num_blocks t = (t.length + G.block_size - 1) / G.block_size
 
+(* the last block can have a differeny size *)
 let block_length t off = min (t.length - off) G.block_size 
 
 let iter t ~f = 
@@ -53,10 +55,10 @@ let iter t ~f =
   done
 
 let is_hash_ok t =
+  (* TODO see if there is a Sha1.bigstring *)
   let hash_piece = Sha1.to_bin (Sha1.string (Bigstring.to_string t.content)) in 
   hash_piece = Bt_hash.to_string t.hash
 
-(* TODO this look a bit ugly *)
 let update t ~off (block:string) = 
   let index = 
     assert (off % G.block_size = 0);  (* TODO other error for that *)
