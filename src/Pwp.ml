@@ -15,21 +15,16 @@ type t = {
   mutable num_requested : int;
 }
 
-let create 
-    info_hash 
-    bf_name 
-    bf_len 
-    file_infos 
-    pieces_hash 
-    peer_id 
-    piece_length 
-    total_length
-  = 
-  (* open/create files *)
-  let num_pieces = Array.length pieces_hash in
-  let%bind pers = Pers.create bf_name bf_len file_infos num_pieces piece_length  in
+let create t = 
+  let open Torrent in
+  let { files_info; num_pieces; piece_length; torrent_name; total_length; 
+        info_hash; pieces_hash } = t in
+  let bf_name = (Filename.basename torrent_name) ^ G.bitset_ext in
+  let bf_len = Bitset.bitfield_length_from_size num_pieces in 
+  let%bind pers = Pers.create bf_name bf_len files_info num_pieces piece_length  in
   let%bind bitfield = Pers.read_bitfield pers in
   let file = File.create pieces_hash ~piece_length ~total_length bitfield in
+  let peer_id = G.peer_id in
   info "read from file: %d pieces" (File.num_owned_pieces file);
   info "read from file: %s" (File.pieces_to_string file);
   let read_piece p : unit Deferred.t =
@@ -43,14 +38,7 @@ let create
     )
   in
   File.deferred_iter_piece file ~f:read_piece >>| fun () ->
-  Ok { 
-    file; 
-    peers = []; 
-    peer_id; 
-    info_hash;
-    num_requested = 0;
-    pers;
-  }
+  Ok { file; peers = []; peer_id; info_hash; num_requested = 0; pers }
 
 (* TODO make sure this invariant is maintained, maybe move this 
    somewhere else *)

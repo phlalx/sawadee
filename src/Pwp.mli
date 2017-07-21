@@ -9,15 +9,7 @@ open Async
 
 type t
 
-val create: 
-  Bt_hash.t 
-  -> string -> int 
-  -> (string * int) list  
-  -> Bt_hash.t Array.t
-  -> Peer_id.t 
-  -> int (* Piece length *)
-  -> int (* total length *)
-  -> t Or_error.t Deferred.t
+val create: Torrent.t -> t Or_error.t Deferred.t 
 
 (** Launch the *services* that listen for new messages, query the peers... 
     Does not much until peers are added. *)

@@ -4,8 +4,7 @@ open Core
 open Async
 
 (** Initialize client with data used in subsequent queries *)
-val init : announce:string -> announce_list:string list list -> Bt_hash.t 
-  -> len:int -> Peer_id.t -> unit           
+val init : Torrent.t -> unit
 
 (** Initial query, retrieve list of peer addresses. Module must be initialized 
     with [init] first. There are other info in the tracker response but 

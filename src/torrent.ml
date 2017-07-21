@@ -10,8 +10,11 @@ type t = {
   announce_list : string list list;
   piece_length : int;
   pieces_hash : Bt_hash.t Array.t;
-  mode : [`Single_file | `Multiple_file];
-  files_info : (string * int) list
+  files_info : (string * int) list; 
+  torrent_name : string;
+  total_length : int;
+  num_pieces : int;
+  num_files : int;
 }
 
 let from_file f =
@@ -41,28 +44,29 @@ let from_file f =
   let piece_length = get (B.as_int piece_length_bc) in
   let info_hash = Bt_hash.of_string (Sha1.to_bin (Sha1.string info_str)) in
   let pieces_hash = Array.map (split pieces Bt_hash.length) ~f:Bt_hash.of_string in 
-  match B.dict_get info_dict_bc "length" with
-  | Some length_bc ->
-    let mode = `Single_file in
-    let length = get (B.as_int length_bc) in
-    let name_bc = get (B.dict_get info_dict_bc "name") in
-    let name = get (B.as_string name_bc) in 
-    let files_info = [name, length] in
-    { mode; announce; info_hash; piece_length; pieces_hash; announce_list; 
-      files_info }
-  | None -> 
-    let mode = `Multiple_file in
-    let files_bc = get (B.dict_get info_dict_bc "files") in
-    let files = get (B.as_list files_bc) in 
-
-    let f (file_info_bc: Bencode.t) : string * int =
-      let name_bc = get (B.dict_get file_info_bc "path") in
-      let name_list = get (B.as_list name_bc)  in 
-      let names = List.map name_list ~f:(fun n -> get (B.as_string n)) in
-      let length_bc = get (B.dict_get file_info_bc "length") in
+  let num_pieces = Array.length pieces_hash in
+  let torrent_name = f in
+  let files_info = (
+    match B.dict_get info_dict_bc "length" with
+    | Some length_bc ->
       let length = get (B.as_int length_bc) in
-      (Filename.of_parts names), length
-    in
-    let files_info = List.map files f in
-    { mode; announce; info_hash; piece_length; pieces_hash; announce_list; 
-      files_info }
+      let name_bc = get (B.dict_get info_dict_bc "name") in
+      let name = get (B.as_string name_bc) in 
+      [name, length]
+    | None -> 
+      let files_bc = get (B.dict_get info_dict_bc "files") in
+      let files = get (B.as_list files_bc) in 
+      let f (file_info_bc: Bencode.t) : string * int =
+        let name_bc = get (B.dict_get file_info_bc "path") in
+        let name_list = get (B.as_list name_bc)  in 
+        let names = List.map name_list ~f:(fun n -> get (B.as_string n)) in
+        let length_bc = get (B.dict_get file_info_bc "length") in
+        let length = get (B.as_int length_bc) in
+        (Filename.of_parts names), length
+      in
+      List.map files f) 
+  in 
+  let num_files = List.length files_info in 
+  let total_length = List.fold files_info ~init:0 ~f:(fun acc (_,l) -> l + acc)  in
+  { announce; info_hash; piece_length; pieces_hash; announce_list; 
+    files_info; torrent_name; total_length; num_pieces; num_files }

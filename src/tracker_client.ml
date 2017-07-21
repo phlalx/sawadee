@@ -17,16 +17,26 @@ type t = {
   compact : string;
 }
 
-let t = ref None
+let tc = ref None
 
-let init ~announce ~announce_list info_hash ~len peer_id =
-  let left = string_of_int len in
+let init (t : Torrent.t) =
+  let open Torrent in
+  let { 
+    total_length;
+    info_hash;
+    announce_list;
+    announce;
+    _
+  } = t in
+  let left = string_of_int total_length in
   let uploaded = "0" in
   let downloaded = "0" in
   let event = "started" in 
   let compact = "1" in
-  t := Some { announce; info_hash; left; peer_id; uploaded; downloaded;
-              event; compact; announce_list }
+  let peer_id = Global.peer_id in
+  tc := Some { announce; info_hash; left; 
+              peer_id; uploaded; downloaded; event; compact; 
+              announce_list = t.announce_list }
 
 
 let query_tracker uri =
@@ -45,7 +55,7 @@ let rec query_all_trackers uris =
   | [] -> return (Error (Error.of_string "can connect to tracker"))
 
 let query () =
-  let t = Option.value_exn !t in
+  let t = Option.value_exn !tc in
   let announces =  
     match t.announce_list with 
     | [] -> [t.announce]

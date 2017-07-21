@@ -3,9 +3,11 @@ open Async
 open Log.Global
 module G = Global
 
+open Torrent
+
 let peer_create peer_addr = 
   let wtc = Tcp.to_inet_address peer_addr in
-  debug "trying to connect to peer %s" (Socket.Address.Inet.to_string peer_addr);
+  debug "try connecting to peer %s" (Socket.Address.Inet.to_string peer_addr);
   try_with (function () -> Tcp.connect wtc)
   >>| function
   | Ok (_, r, w) -> 
@@ -27,27 +29,17 @@ let add_peers pwp peer_addrs =
   in
   List.iter peer_addrs ~f;
   if G.is_server () then  (
-
     let handler pwp addr r w =
       info "Received connection on server";
       let p = Peer.create addr r w `Peer_initiating  in
       Pwp.add_peer pwp p
     in 
-
-(*       let buf = "---" in
-      Reader.really_read r buf >>| fun _ ->
-      info "yuy"
- *)
     Server.start (handler pwp));
+
   Deferred.unit
 
-let start_pwp peer_addrs num_pieces torrent_name info_hash files_info 
-    pieces_hash piece_length total_length =
-  let bitfield_name = (Filename.basename torrent_name) ^ G.bitset_ext in
-  let bf_length = Bitset.bitfield_length_from_size num_pieces in 
-  match%bind Pwp.create info_hash bitfield_name bf_length files_info pieces_hash
-               G.peer_id piece_length total_length
-  with 
+let start_pwp t peer_addrs =
+  match%bind Pwp.create t with 
   | Ok pwp -> add_peers pwp peer_addrs
   | Error err -> assert false
 
@@ -56,31 +48,19 @@ let process torrent_name =
 
   (* Decode torrent file *)
 
-  let open Torrent in 
-  let { info_hash; announce; announce_list; mode; pieces_hash; piece_length; 
-        files_info }
-    = Torrent.from_file torrent_name 
-  in
+  let t = Torrent.from_file torrent_name in
+  info "Torrent: %s:" t.torrent_name;
+  info "Torrent: %d files" t.num_files;
+  info "Torrent: %d pieces" t.num_pieces;
+  info "Torrent: piece length = %d" t.piece_length;
 
-  let num_pieces = Array.length pieces_hash in
-  let num_files = List.length files_info in
-
-  info "Torrent: %s:" torrent_name;
-  info "Torrent: %d files" num_files;
-  info "Torrent: %d pieces" num_pieces;
-  info "Torrent: piece length = %d" piece_length;
-
-  let total_length = List.fold files_info ~init:0 ~f:(fun acc (_,l) -> l + acc)
-  in 
-
-  Tracker_client.init announce announce_list info_hash total_length G.peer_id; 
+  Tracker_client.init t;
   debug "trying to connect to tracker";
   match%bind Tracker_client.query () with
   | Ok peer_addrs -> 
     let num_of_peers = List.length peer_addrs in 
     info "tracker replies with list of %d peers" num_of_peers;
-    start_pwp peer_addrs num_pieces torrent_name info_hash files_info
-      pieces_hash piece_length total_length 
+    start_pwp t peer_addrs
 
   | Error err -> 
     info "can't connect to tracker";

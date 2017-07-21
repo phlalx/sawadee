@@ -10,8 +10,11 @@ type t = {
   announce_list : string list list;
   piece_length : int;
   pieces_hash : Bt_hash.t Array.t;
-  mode : [`Single_file | `Multiple_file];
-  files_info : (string * int) list (* name and length of each individual files *)
+  files_info : (string * int) list; (* name and length of each individual files *)
+  torrent_name : string;
+  total_length : int;
+  num_pieces : int;
+  num_files : int;
 }
 
 val from_file : string -> t
