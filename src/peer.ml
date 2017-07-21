@@ -33,8 +33,8 @@ let create peer_addr r w kind =
     id = Peer_id.dummy;
     peer_interested = false; 
     peer_choking = true; 
-    am_interested = false;
-    am_choking = true; 
+    am_interested = true;
+    am_choking = false; (* TODO normally start as choking and not intersted *) 
     reader = r; 
     writer = w; 
     pending = Int.Set.empty;
@@ -46,7 +46,8 @@ let create peer_addr r w kind =
 
 let to_string t = Socket.Address.Inet.to_string t.peer_addr
 
-exception Handshake_error
+exception Handshake_error of int
+exception Hash_error
 
 let hs_prefix = "\019BitTorrent protocol\000\000\000\000\000\000\000\000"  
 
@@ -72,38 +73,42 @@ let validate_handshake received info_hash =
   | false -> None
 
 let initiate_handshake t hash pid =
+  info "initiate handshake with %s" (to_string t);
   let hash = Bt_hash.to_string hash in
   let pid = Peer_id.to_string pid in
   let hs = hs hash pid in
 
-  Writer.write t.writer hs; 
+  Writer.write t.writer hs ~len:hs_len; 
+  info "wrote %S (%d) bytes" hs hs_len;
 
   let buf = String.create hs_len in
   Reader.really_read t.reader ~len:hs_len buf
   >>| function 
   | `Ok -> ( 
       match validate_handshake buf hash with
-      | None -> Error Handshake_error
+      | None -> Error Hash_error
       | Some p -> t.id <- Peer_id.of_string p; Ok ()
     ) 
-  | `Eof _ -> Error Handshake_error
+  | `Eof i -> Error (Handshake_error i)
 
 let wait_for_handshake t hash pid =
+  info "wait for handshake from %s" (to_string t);
   let hash = Bt_hash.to_string hash in
   let pid = Peer_id.to_string pid in
   let hs = hs hash pid in
   let buf = String.create hs_len in
+  info "trying to read %d bytes" hs_len;
   Reader.really_read t.reader buf ~len:hs_len 
   >>| function
   | `Ok -> ( 
       match validate_handshake buf hash with
-      | None -> Error Handshake_error
+      | None -> Error Hash_error
       | Some p -> 
         t.id <- Peer_id.of_string p;
         Writer.write t.writer ~len:hs_len hs;
         Ok ()
     )
-  | `Eof _ -> Error Handshake_error
+  | `Eof i -> Error (Handshake_error i)
 
 (* TODO: see if handshake is asynchronous, we may need only one function,
   otherwise factorize the common part *)

@@ -20,7 +20,7 @@ let add_peers pwp peer_addrs =
   let f peer_addr = (
     peer_create peer_addr
     >>> function 
-    | Ok peer -> Pwp.add_peer pwp peer 
+    | Ok peer -> don't_wait_for (Pwp.add_peer pwp peer)
     | Error err -> 
       let s = Socket.Address.Inet.to_string peer_addr in
       info "can't connect to peer %s" s) 
@@ -29,10 +29,15 @@ let add_peers pwp peer_addrs =
   if G.is_server () then  (
 
     let handler pwp addr r w =
-      let p = Peer.create addr r w `Peer_initiating in
-      return (Pwp.add_peer pwp p)
+      info "Received connection on server";
+      let p = Peer.create addr r w `Peer_initiating  in
+      Pwp.add_peer pwp p
     in 
 
+(*       let buf = "---" in
+      Reader.really_read r buf >>| fun _ ->
+      info "yuy"
+ *)
     Server.start (handler pwp));
   Deferred.unit
 

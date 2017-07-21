@@ -24,7 +24,7 @@ type segment = {
   len : int
 }
 
-let segment_to_string t = sprintf "name = %s off = %d" t.name t.off
+let segment_to_string t = sprintf "name = %s off = %d len = %d" t.name t.off t.len
 
 type t = {
   fds : Unix.Fd.t list;
@@ -81,7 +81,9 @@ let read_piece t p =
     let s = Piece.get_bigstring_content p in
     let pos = off % t.piece_length in
     Io.read fd s off pos len >>| fun () ->
-    assert (Piece.is_hash_ok p)
+    (* assert (Piece.is_hash_ok p); *)
+    info "ok";
+
   in
   Deferred.List.iter t.segments_of_piece.(i) ~f
 
@@ -115,6 +117,7 @@ let make_segments fds info_files =
   let f (name, len, off) fd = { name; fd; len; off } in
   List.map2_exn files_with_offset fds ~f
 
+
 let create bf_name bf_len info_files num_pieces piece_length = 
   let%bind bitfield_fd = open_file bf_name bf_len in
   let f (name, len) = open_file name ~len in
@@ -122,6 +125,13 @@ let create bf_name bf_len info_files num_pieces piece_length =
   let rd, wr = Pipe.create () in
   let segments = make_segments fds info_files in
   let segments_of_piece = split_along_piece_size segments piece_length num_pieces in
+  let print_list_segments segments = 
+    List.iter segments ~f:(fun s -> info "segment %s" (segment_to_string s)) in
+  let f i ls = 
+    info "piece %d" i;
+    print_list_segments ls
+  in
+  Array.iteri segments_of_piece ~f;
   let t = 
     {
       fds;

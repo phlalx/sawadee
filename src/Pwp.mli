@@ -26,6 +26,5 @@ val start: t -> unit
 val stop: t -> unit
 
 (** Add new peers to communicate with. Peer can be added dynamically. 
-    This silently fails if connexion or handshake can't be established with 
-    the peer. *)
-val add_peer: t -> Peer.t -> unit
+    This deferred is determined if peer fails *)
+val add_peer: t -> Peer.t -> unit Deferred.t 

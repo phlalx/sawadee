@@ -142,7 +142,6 @@ let process_message t (p:P.t) (m:M.t) : unit =
   | M.Unchoke -> P.set_peer_choking p false
   | M.Interested -> 
     P.set_peer_interested p true; 
-    (* TODO implement strategy to decide when I am not choking *) 
     if not (P.am_choking p) then P.send_message p Message.Unchoke
   | M.Not_interested -> P.set_peer_interested p false
   | M.Have index -> P.set_owned_piece p index 
@@ -168,20 +167,23 @@ let stats t =
 let add_peer t p =
   debug "start handshaking with with peer %s" (P.to_string p);
   P.handshake p t.info_hash t.peer_id  
-    >>> function 
-    | Ok () ->  
-      t.peers <- p :: t.peers; 
-      Peer.init_bitfield p  (File.num_pieces t.file);
-      debug "handshake ok with peer %s" (P.to_string p);
-      if (File.num_owned_pieces t.file) > 0 then (
-        P.send_message p (M.Bitfield (File.bitfield t.file))
-      );
-      P.send_message p M.Interested;
-      debug "Start message handler loop";
-      Deferred.repeat_until_finished () (fun () -> wait_and_process_message t p)
-      >>> fun () -> ()
-    | Error err -> 
-       info "handshake with peer %s failed" (Peer.to_string p)
+  >>= function 
+  | Ok () ->  
+    t.peers <- p :: t.peers; 
+    Peer.init_bitfield p  (File.num_pieces t.file);
+    debug "handshake ok with peer %s" (P.to_string p);
+    if (File.num_owned_pieces t.file) > 0 then (
+      P.send_message p (M.Bitfield (File.bitfield t.file))
+    );
+    P.send_message p M.Interested;
+    debug "Start message handler loop";
+    Deferred.repeat_until_finished () (fun () -> wait_and_process_message t p)
+  | Error err -> 
+    let e = Error.of_exn err in
+    let e = Error.sexp_of_t e in
+    let e = Sexp.to_string e in
+    info "handshake with peer %s failed %s" (Peer.to_string p) e;
+    Deferred.unit
 
 let stop t = 
   let stop_aux t =
@@ -196,10 +198,6 @@ let stop t =
 let start t =  
   Clock.every G.tick (fun () -> tick_peers t); 
   Clock.every (sec 0.01) (fun () -> request_piece t)
-
-
-
-
 
 
 

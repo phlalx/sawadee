@@ -3,6 +3,11 @@
 OCB_FLAGS = -tag bin_annot -use-ocamlfind # -cflag -safe-string 
 OCB =	ocamlbuild $(OCB_FLAGS) -I src
 
+#TEST_LOCAL = tests/torrents/multifiles_localhost_6969.torrent
+TEST_LOCAL = tests/torrents/singlefile_localhost_6969.torrent
+#TEST_REMOTE = tests/torrents/ubuntu-17.04-desktop-amd64.iso.torrent
+TEST_REMOTE = tests/torrents/NuTyX_x86_64-20170625.torrent
+
 all: test.byte tracker_server.byte
 
 test.byte:
@@ -13,7 +18,7 @@ tracker_server.byte:
 
 # test simple torrent file (single-file), many seeders 
 test: main.byte
-	./main.byte torrents/NuTyX_x86_64-20170625.torrent
+	./main.byte $(TEST_REMOTE)
 
 # run server tracker for local testing
 run_server: tracker_server.byte
@@ -21,11 +26,11 @@ run_server: tracker_server.byte
 
 # run server first, then local_test1 
 local_test1: main.byte
-	./main.byte -l 6000 torrents/test-localhost-6969.torrent
+	./main.byte -l 6000 $(TEST_LOCAL)
 
 # run server and local_test1 first, then local_test2
 local_test2: main.byte
-	./main.byte -p download2 torrents/test-localhost-6969.torrent
+	./main.byte -p download2 $(TEST_LOCAL)
 	
 doc:
 	$(OCB) .docdir/index.html
