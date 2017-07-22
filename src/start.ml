@@ -2,55 +2,92 @@ open Core
 open Async
 open Log.Global
 module G = Global
+module P = Peer
 module Em = Error_msg
 
-let wait_for_incoming_peers pwp =
-  let handler pwp addr r w =
+let stop file pers = 
+  let stop_aux file pers =
+    info "written to files: %d pieces" (File.num_owned_pieces file);
+    debug "written to files: %s" (File.pieces_to_string file);
+    Pers.write_bitfield pers (File.bitfield file) >>= fun () ->
+    Pers.close_all_files pers >>= fun () ->
+    exit 0
+  in 
+  don't_wait_for (stop_aux file pers)
+
+let wait_for_incoming_peers pwp torrent =
+
+  let open Torrent in
+  let { info_hash; num_pieces } = torrent in
+
+  let handler addr r w =
     info "incoming connection on server from peer %s"
       (Socket.Address.Inet.to_string addr);
-    let p = Peer.create addr r w `Peer_initiating  in
-    Pwp.add_peer pwp p
+    let open Deferred.Or_error.Monad_infix in 
+    let peer = Peer.create addr r w `Peer_initiating  in
+    Peer.handshake peer info_hash G.peer_id
+    >>= fun () ->
+    Peer.init_size_owned_pieces peer num_pieces;
+    Deferred.ok (Pwp.add_peer pwp peer) 
   in 
+
+  let handler_ignore_error addr r w =
+    handler addr r w 
+    >>| function
+    | Ok () -> () 
+    | Error err -> 
+      info "Error connecting with peer %s" (Socket.Address.Inet.to_string addr);
+      debug "Error connecting %s" (Sexp.to_string (Error.sexp_of_t err))
+  in
+
   if G.is_server () then  (
     let port = G.port_exn () in
-    Server.start (handler pwp) ~port
+    Server.start handler_ignore_error ~port
   ) 
 
-let register_termination_handler pwp =
-  Signal.handle Signal.terminating ~f:(fun _ -> Pwp.stop pwp)
+let add_peers_from_tracker pwp torrent addrs =
 
-let add_peers_from_tracker pwp peer_addrs =
+  let open Torrent in 
+  let { info_hash; num_pieces } = torrent in
 
-  let peer_create peer_addr = 
-    let wtc = Tcp.to_inet_address peer_addr in
-    debug "try connecting to peer %s" (Socket.Address.Inet.to_string peer_addr);
-    try_with (function () -> Tcp.connect wtc)
-    >>| function
-    | Ok (_, r, w) -> Ok (Peer.create peer_addr r w `Am_initiating)
-    | Error err -> Error err
+  (* Add a peer for this torrent. The steps are:
+      - connecting
+      - creating the peer data structure
+      - handshake
+      - adding the peer
+
+     Several of this steps can fail. We connect them using a Or_error monad *) 
+
+  let add_peer addr = 
+    let open Deferred.Or_error.Monad_infix in 
+    let wtc = Tcp.to_inet_address addr in
+    debug "try connecting to peer %s" (Socket.Address.Inet.to_string addr);
+    Deferred.Or_error.try_with (function () -> Tcp.connect wtc)
+    >>= fun (_, r, w) ->
+    Deferred.ok (return (Peer.create addr r w `Am_initiating))
+    >>= fun peer ->
+    Peer.handshake peer info_hash G.peer_id
+    >>= fun () ->
+    Peer.init_size_owned_pieces peer num_pieces;
+    Deferred.ok (Pwp.add_peer pwp peer) 
   in
 
-  let add_peer pwp peer_addr = 
-    peer_create peer_addr
-    >>= function 
-    | Ok peer -> Pwp.add_peer pwp peer
+  (* TODO check if there is an API function for this step *)
+  let add_peer_ignore_error addr =
+    add_peer addr 
+    >>| function 
+    | Ok () -> ()
     | Error err -> 
-      Socket.Address.Inet.to_string peer_addr
-      |> info "can't connect to peer %s";
-      Deferred.unit
+      info "Error connecting with peer %s" 
+        (Socket.Address.Inet.to_string addr);
+      debug "Error connecting %s" (Sexp.to_string (Error.sexp_of_t err))
   in
-  Deferred.List.iter ~how:`Parallel peer_addrs ~f:(add_peer pwp)
 
-let start_pwp t peer_addrs =
-  match%bind Pwp.create t with 
-  | Ok pwp -> 
-    Pwp.start pwp;
-    wait_for_incoming_peers pwp;
-    register_termination_handler pwp;
-    add_peers_from_tracker pwp peer_addrs
-  | Error err -> assert false 
+  Deferred.List.iter ~how:`Parallel addrs ~f:add_peer_ignore_error
 
 let process f =
+
+  (***** read torrent file *****)
 
   let t = try 
       Torrent.from_file f
@@ -61,16 +98,58 @@ let process f =
     | ex -> raise ex
   in 
 
-  let%bind peer_addrs = match%bind Tracker_client.query t with
-    | Some peer_addrs -> return peer_addrs 
+  (***** get list of peers ****)
+
+  let%bind addrs = match%bind Tracker_client.query t with
+    | Some addrs -> return addrs 
     | None -> failwith (Em.tracker_error ())
   in
- 
-  let num_of_peers = List.length peer_addrs in 
+  let num_of_peers = List.length addrs in 
   info "tracker replies with list of %d peers" num_of_peers;
-  start_pwp t peer_addrs
 
+  (***** open all files (files to download + bitset) **********)
 
+  let open Torrent in
+  let { files_info; num_pieces; piece_length; torrent_name; total_length; 
+        info_hash; pieces_hash } = t in
+
+  let bf_name = (Filename.basename torrent_name) ^ G.bitset_ext in
+  let bf_len = Bitset.bitfield_length_from_size num_pieces in 
+
+  let%bind pers = Pers.create bf_name bf_len files_info num_pieces piece_length  in
+
+  (**** read bitfield *****)
+
+  let%bind bitfield = Pers.read_bitfield pers in
+
+  (****** initialize File.t and retrive persistent data *******)
+
+  let file = File.create pieces_hash ~piece_length ~total_length bitfield in
+
+  info "read from files: %d pieces" (File.num_owned_pieces file);
+  debug "read from files: %s" (File.pieces_to_string file);
+
+  let read_piece p : unit Deferred.t =
+    let i = Piece.get_index p in
+    if File.has_piece file i then ( 
+      Piece.set_status p `On_disk;
+      File.set_owned_piece file (Piece.get_index p);
+      Pers.read_piece pers p
+    ) else (
+      return ()
+    )
+  in
+
+  File.deferred_iter_piece file ~f:read_piece >>= fun () ->
+
+  (******* create Pwp.t *************)
+
+  let pwp = Pwp.create t file pers in
+
+  wait_for_incoming_peers pwp t;
+  Signal.handle Signal.terminating ~f:(fun _ -> stop file pers);
+  Pwp.start pwp;
+  add_peers_from_tracker pwp t addrs
 
 
 

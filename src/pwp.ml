@@ -10,35 +10,12 @@ type t = {
   file : File.t;
   mutable peers : P.t list;
   pers : Pers.t;
-  info_hash : Bt_hash.t;
-  peer_id : Peer_id.t;
   mutable num_requested : int;
 }
 
-let create t = 
-  let open Torrent in
-  let { files_info; num_pieces; piece_length; torrent_name; total_length; 
-        info_hash; pieces_hash } = t in
-  let bf_name = (Filename.basename torrent_name) ^ G.bitset_ext in
-  let bf_len = Bitset.bitfield_length_from_size num_pieces in 
-  let%bind pers = Pers.create bf_name bf_len files_info num_pieces piece_length  in
-  let%bind bitfield = Pers.read_bitfield pers in
-  let file = File.create pieces_hash ~piece_length ~total_length bitfield in
+let create t file pers = 
   let peer_id = G.peer_id in
-  info "read from files: %d pieces" (File.num_owned_pieces file);
-  debug "read from files: %s" (File.pieces_to_string file);
-  let read_piece p : unit Deferred.t =
-    let i = Piece.get_index p in
-    if File.has_piece file i then ( 
-      Piece.set_status p `On_disk;
-      File.set_owned_piece file (Piece.get_index p);
-      Pers.read_piece pers p
-    ) else (
-      return ()
-    )
-  in
-  File.deferred_iter_piece file ~f:read_piece >>| fun () ->
-  Ok { file; peers = []; peer_id; info_hash; num_requested = 0; pers }
+  { file; peers = []; num_requested = 0; pers }
 
 (* TODO make sure this invariant is maintained, maybe move this 
    somewhere else *)
@@ -154,35 +131,13 @@ let stats t =
   List.iter t.peers f
 
 let add_peer t p =
-  debug "start handshaking with with peer %s" (P.to_string p);
-  P.handshake p t.info_hash t.peer_id  
-  >>= function 
-  | Ok () ->  
-    t.peers <- p :: t.peers; 
-    Peer.init_size_owned_pieces p (File.num_pieces t.file);
-    debug "handshake ok with peer %s" (P.to_string p);
-    if (File.num_owned_pieces t.file) > 0 then (
-      P.send_message p (M.Bitfield (File.bitfield t.file))
-    );
-    P.send_message p M.Interested;
-    debug "start message handler loop";
-    Deferred.repeat_until_finished () (fun () -> wait_and_process_message t p)
-  | Error err -> 
-    let e = Error.of_exn err in
-    let e = Error.sexp_of_t e in
-    let e = Sexp.to_string e in
-    info "handshake with peer %s failed %s" (Peer.to_string p) e;
-    Deferred.unit
-
-let stop t = 
-  let stop_aux t =
-    info "written to files: %d pieces" (File.num_owned_pieces t.file);
-    debug "written to files: %s" (File.pieces_to_string t.file);
-    Pers.write_bitfield t.pers (File.bitfield t.file) >>= fun () ->
-    Pers.close_all_files t.pers >>= fun () ->
-    exit 0
-  in 
-  don't_wait_for (stop_aux t)
+  t.peers <- p :: t.peers;
+  if (File.num_owned_pieces t.file) > 0 then (
+    P.send_message p (M.Bitfield (File.bitfield t.file))
+  );
+  P.send_message p M.Interested;
+  debug "start message handler loop";
+  Deferred.repeat_until_finished () (fun () -> wait_and_process_message t p)
 
 let start t =  
   Clock.every (sec 10.0) (fun () -> stats t); 

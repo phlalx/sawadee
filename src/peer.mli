@@ -23,11 +23,13 @@ type t
     from the tracker's list of peer. This makes only a difference in the 
     handshake. *)
 val create : Socket.Address.Inet.t -> Reader.t -> Writer.t ->
-[`Am_initiating | `Peer_initiating ] -> t
+  [`Am_initiating | `Peer_initiating ] -> t
 
 (** maximal number of owned pieces, should be called right after handshake 
 
-    TODO: this would be better as a [create] parameter. *)
+    Note that this isn't necessarily known at creation time. In server mode, 
+    we don't know what torrent the peer is going to request. This is not the case
+    now, but we could be serving more than one torrent *)
 val init_size_owned_pieces : t -> int -> unit
 
 (** Used to identify peers in log "IP/PORT" - but could be peer_id *)
@@ -36,7 +38,7 @@ val to_string : t -> string
 (** Communication functions *)
 
 (** [handshake x info_hash pid] initiates the pwt protocol with peer [x].
-    
+
     It consists in a round-trip message of the form.
        fixed_prefix ^ info_hash ^ pid
 
@@ -46,7 +48,7 @@ val to_string : t -> string
     is the one we're using). 
 
     As a side effect, we save the peer_id but don't validate it. *)
-val handshake: t -> Bt_hash.t -> Peer_id.t -> (unit, exn) result Deferred.t
+val handshake: t -> Bt_hash.t -> Peer_id.t -> unit Deferred.Or_error.t
 
 val get_message : t -> Message.t Reader.Read_result.t Deferred.t
 

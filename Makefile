@@ -6,15 +6,15 @@ OCB =	ocamlbuild $(OCB_FLAGS) -I src
 #TEST_REMOTE = tests/torrents/ubuntu-17.04-desktop-amd64.iso.torrent
 TEST_REMOTE = tests/torrents/NuTyX_x86_64-20170625.torrent
 
-all: test.byte tracker_server.byte
+all: byte tracker_server.byte
 
-test.byte:
+byte:
 	$(OCB) main.byte
 
 tracker_server.byte:
 	$(OCB) tracker_server.byte
 
-test: main.byte
+test: byte
 	./main.byte $(TEST_REMOTE)
 	
 doc:

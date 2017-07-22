@@ -45,11 +45,8 @@ let create peer_addr r w kind =
   }
 
 let to_string t = 
-  sprintf("%S:%d") (Peer_id.to_string t.id)
+  sprintf("%S:%d") (Peer_id.to_readable_string t.id)
     (Socket.Address.Inet.port t.peer_addr)
-
-exception Handshake_error of int
-exception Hash_error
 
 let hs_prefix = "\019BitTorrent protocol\000\000\000\000\000\000\000\000"  
 
@@ -87,12 +84,12 @@ let initiate_handshake t hash pid =
   >>| function 
   | `Ok -> ( 
       match validate_handshake buf hash with
-      | None -> Error Hash_error
+      | None -> Error (Error.of_string "hash error")
       | Some p -> t.id <- Peer_id.of_string p;
         info "handshake ok with %s" (to_string t);
         Ok ()
     ) 
-  | `Eof i -> Error (Handshake_error i)
+  | `Eof _ -> Error (Error.of_string "handshake error")
 
 let wait_for_handshake t hash pid =
   debug "handshake (wait) from %s" (to_string t);
@@ -105,14 +102,14 @@ let wait_for_handshake t hash pid =
   >>| function
   | `Ok -> ( 
       match validate_handshake buf hash with
-      | None -> Error Hash_error
+      | None -> Error (Error.of_string "hash error")
       | Some p -> 
         t.id <- Peer_id.of_string p;
         Writer.write t.writer ~len:hs_len hs;
         info "handshake ok with %s" (to_string t);
         Ok ()
     )
-  | `Eof i -> Error (Handshake_error i)
+  | `Eof _ -> Error (Error.of_string "handshake error")
 
 (* TODO: see if handshake is asynchronous, we may need only one function,
    otherwise factorize the common part *)
