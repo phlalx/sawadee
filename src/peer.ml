@@ -26,6 +26,8 @@ type t = {
   kind : [`Am_initiating | `Peer_initiating ]
 }
 
+let peer_id t = t.id 
+
 let create peer_addr r w kind =
   {
     peer_addr; 

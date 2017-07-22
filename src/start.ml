@@ -15,6 +15,10 @@ let stop file pers =
   in 
   don't_wait_for (stop_aux file pers)
 
+
+(* Creates a server that wait for connection from peers.
+
+   After handshake, peer is initialized and added to Pwp. *)
 let wait_for_incoming_peers pwp torrent =
 
   let open Torrent in
@@ -56,7 +60,8 @@ let add_peers_from_tracker pwp torrent addrs =
       - handshake
       - adding the peer
 
-     Several of this steps can fail. We connect them using a Or_error monad *) 
+     Some of these steps can fail. Errors are eventually ignored, but 
+     propagated with an Or_error monad *) 
 
   let add_peer addr = 
     let open Deferred.Or_error.Monad_infix in 

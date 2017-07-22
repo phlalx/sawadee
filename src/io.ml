@@ -2,6 +2,11 @@ open Core
 open Async
 open Log.Global
 
+let enabled = ref true
+
+let enable_write () = enabled := true
+let disable_write () = enabled := false
+
 let seek_and_io fd bytes ~off ~pos ~len operation =
   let offset = Int64.of_int off in
   let%bind off_res = Unix.lseek fd offset ~mode:`Set in
@@ -16,9 +21,12 @@ let seek_and_io fd bytes ~off ~pos ~len operation =
   | `Already_closed -> assert false
   | `Ok l -> assert (l = len); Deferred.unit
   | `Error exn  -> raise exn
- 
+
 let write fd bytes ~off ~pos ~len =
-  seek_and_io fd bytes ~off ~pos ~len `Write
+  if not !enabled then
+    Deferred.unit
+  else
+    seek_and_io fd bytes ~off ~pos ~len `Write
 
 let read fd bytes ~off ~pos ~len =
   seek_and_io fd bytes ~off ~pos ~len `Read

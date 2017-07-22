@@ -13,9 +13,7 @@ type t = {
   mutable num_requested : int;
 }
 
-let create t file pers = 
-  let peer_id = G.peer_id in
-  { file; peers = []; num_requested = 0; pers }
+let create t file pers = { file; peers = []; num_requested = 0; pers }
 
 (* TODO make sure this invariant is maintained, maybe move this 
    somewhere else *)
@@ -130,14 +128,25 @@ let stats t =
   let f p = Peer.stats p in
   List.iter t.peers f
 
+
 let add_peer t p =
-  t.peers <- p :: t.peers;
-  if (File.num_owned_pieces t.file) > 0 then (
-    P.send_message p (M.Bitfield (File.bitfield t.file))
-  );
-  P.send_message p M.Interested;
-  debug "start message handler loop";
-  Deferred.repeat_until_finished () (fun () -> wait_and_process_message t p)
+  (* we ignore all peers already conneccted, and ourselves *)
+  let ignored_peers = G.peer_id :: List.map t.peers ~f:Peer.peer_id in
+
+  if List.mem ignored_peers (Peer.peer_id p) (=) then (
+    info "ignoring this peer %s (ourselves or already connected)" 
+      (Peer.to_string p);
+    Deferred.unit
+  ) else 
+    begin
+      t.peers <- p :: t.peers;
+      if (File.num_owned_pieces t.file) > 0 then (
+        P.send_message p (M.Bitfield (File.bitfield t.file))
+      );
+      P.send_message p M.Interested;
+      debug "start message handler loop";
+      Deferred.repeat_until_finished () (fun () -> wait_and_process_message t p)
+    end
 
 let start t =  
   Clock.every (sec 10.0) (fun () -> stats t); 

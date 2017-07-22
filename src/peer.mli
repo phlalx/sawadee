@@ -32,8 +32,10 @@ val create : Socket.Address.Inet.t -> Reader.t -> Writer.t ->
     now, but we could be serving more than one torrent *)
 val init_size_owned_pieces : t -> int -> unit
 
-(** Used to identify peers in log "IP/PORT" - but could be peer_id *)
+(** Used to identify peers in log *)
 val to_string : t -> string
+
+val peer_id : t -> Peer_id.t 
 
 (** Communication functions *)
 

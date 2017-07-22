@@ -12,6 +12,7 @@ let process
     (port : int option) (* TODO ajouter le port dans la query *)
     (path : string option) = 
 
+  info "This peer-id:%s" (Peer_id.to_readable_string G.peer_id);
   (match path with
    | None -> ()
    | Some p -> G.set_path p);
@@ -19,6 +20,8 @@ let process
    | None -> ()
    | Some p -> G.set_port p);
 
+
+  Io.disable_write ();
   don't_wait_for (Start.process torrent_name)
 
 let spec =

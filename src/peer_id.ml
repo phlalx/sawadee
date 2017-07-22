@@ -6,6 +6,8 @@ let length = 20
 
 let peer_id_length = 20
 
+let _ = Random.self_init ()
+
 let random () = 
   String.init peer_id_length ~f:(fun _ -> char_of_int (Random.int 256))
 
