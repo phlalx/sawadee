@@ -55,21 +55,26 @@ let process f =
   let t = try 
       Torrent.from_file f
     with
-      | Sys_error _ -> failwith (Em.wrong_file f)
-      | Failure s -> failwith (Em.not_bencode f)
-      | Bencode_utils.Bencode_error -> failwith (Em.wrong_bencode f)
-      | ex -> raise ex
+    | Sys_error _ -> failwith (Em.wrong_file f)
+    | Failure s -> failwith (Em.not_bencode f)
+    | Bencode_utils.Bencode_error -> failwith (Em.wrong_bencode f)
+    | ex -> raise ex
   in 
-  Tracker_client.init t;
 
-  debug "try connecting to tracker";
-  match%bind Tracker_client.query () with
-  | Ok peer_addrs -> 
-    let num_of_peers = List.length peer_addrs in 
-    info "tracker replies with list of %d peers" num_of_peers;
-    start_pwp t peer_addrs
+  let%bind peer_addrs = match%bind Tracker_client.query t with
+    | Some peer_addrs -> return peer_addrs 
+    | None -> failwith (Em.tracker_error ())
+  in
+ 
+  let num_of_peers = List.length peer_addrs in 
+  info "tracker replies with list of %d peers" num_of_peers;
+  start_pwp t peer_addrs
 
-  | Error err -> 
-    info "can't connect to tracker";
-    flushed () >>= fun () ->
-    exit 1
+
+
+
+
+
+
+
+

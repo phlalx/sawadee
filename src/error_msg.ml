@@ -8,3 +8,5 @@ let not_bencode f =
 let wrong_bencode f = 
   sprintf "Can't decode file %s. Some keys are missing or don't have expected content." 
   f
+
+let tracker_error () = "Can't connect to tracker" 
