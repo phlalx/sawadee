@@ -46,7 +46,7 @@ let to_bencode r =
 
 let from_bencode s =
   let bc = B.decode (`String s) in 
-  debug "Tracker reply = %s" (B.pretty_print bc);
+  debug "tracker reply = %s" (B.pretty_print bc);
   let open Bencode_utils in
   let complete = get ((B.as_int (get (B.dict_get bc "complete")))) in
   let incomplete = get ((B.as_int (get (B.dict_get bc "incomplete")))) in

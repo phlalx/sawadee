@@ -68,5 +68,11 @@ let from_file f =
   in 
   let num_files = List.length files_info in 
   let total_length = List.fold files_info ~init:0 ~f:(fun acc (_,l) -> l + acc)  in
+
+  info "torrent: %s" torrent_name;
+  info "torrent: %d files" num_files;
+  info "torrent: %d pieces" num_pieces;
+  info "torrent: piece length = %d" piece_length;
+
   { announce; info_hash; piece_length; pieces_hash; announce_list; 
     files_info; torrent_name; total_length; num_pieces; num_files }

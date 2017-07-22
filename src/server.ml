@@ -3,7 +3,7 @@ open Async
 open Log.Global 
 
 let start handler ~port = 
-  info "waiting for connexion on port %d" port;
+  info "listening on port %d" port;
   let host_and_port =
     Tcp.Server.create
       ~on_handler_error:`Raise

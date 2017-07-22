@@ -5,7 +5,8 @@ module G = Global
 
 let wait_for_incoming_peers pwp =
   let handler pwp addr r w =
-    info "Received connection on server";
+    info "incoming connection on server from peer %s"
+    (Socket.Address.Inet.to_string addr);
     let p = Peer.create addr r w `Peer_initiating  in
     Pwp.add_peer pwp p
   in 
@@ -51,20 +52,10 @@ let start_pwp t peer_addrs =
 let process torrent_name =
   let t = Torrent.from_file torrent_name in
   let open Torrent in
-  let {
-    num_files;
-    num_pieces;
-    piece_length;
-  } = t in
-
-  info "Torrent: %s:" torrent_name;
-  info "Torrent: %d files" num_files;
-  info "Torrent: %d pieces" num_pieces;
-  info "Torrent: piece length = %d" piece_length;
 
   Tracker_client.init t;
 
-  debug "trying to connect to tracker";
+  debug "try connecting to tracker";
   match%bind Tracker_client.query () with
   | Ok peer_addrs -> 
     let num_of_peers = List.length peer_addrs in 

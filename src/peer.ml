@@ -73,13 +73,12 @@ let validate_handshake received info_hash =
   | false -> None
 
 let initiate_handshake t hash pid =
-  info "initiate handshake with %s" (to_string t);
+  debug "handshake (initiate) with %s" (to_string t);
   let hash = Bt_hash.to_string hash in
   let pid = Peer_id.to_string pid in
   let hs = hs hash pid in
 
   Writer.write t.writer hs ~len:hs_len; 
-  info "wrote %S (%d) bytes" hs hs_len;
 
   let buf = String.create hs_len in
   Reader.really_read t.reader ~len:hs_len buf
@@ -87,17 +86,19 @@ let initiate_handshake t hash pid =
   | `Ok -> ( 
       match validate_handshake buf hash with
       | None -> Error Hash_error
-      | Some p -> t.id <- Peer_id.of_string p; Ok ()
+      | Some p -> t.id <- Peer_id.of_string p;
+       info "handshake ok with %s" (to_string t);
+       Ok ()
     ) 
   | `Eof i -> Error (Handshake_error i)
 
 let wait_for_handshake t hash pid =
-  info "wait for handshake from %s" (to_string t);
+  debug "handshake (wait) from %s" (to_string t);
   let hash = Bt_hash.to_string hash in
   let pid = Peer_id.to_string pid in
   let hs = hs hash pid in
   let buf = String.create hs_len in
-  info "trying to read %d bytes" hs_len;
+  debug "trying to read %d bytes" hs_len;
   Reader.really_read t.reader buf ~len:hs_len 
   >>| function
   | `Ok -> ( 
@@ -106,6 +107,7 @@ let wait_for_handshake t hash pid =
       | Some p -> 
         t.id <- Peer_id.of_string p;
         Writer.write t.writer ~len:hs_len hs;
+       info "handshake ok with %s" (to_string t);
         Ok ()
     )
   | `Eof i -> Error (Handshake_error i)
@@ -159,7 +161,7 @@ let owned_pieces t = t.have
 let set_owned_piece t i = Bitset.insert t.have i
 
 let set_owned_pieces t s = Bitset.insert_from_bitfield t.have s;
-  info "Peer %s has %d pieces" (to_string t) (Bitset.card t.have) 
+  info "peer %s has %d pieces" (to_string t) (Bitset.card t.have) 
 
 let time_since_last_received_message t = t.time_since_last_reception
 
@@ -198,7 +200,7 @@ let iter_pending t ~f = Int.Set.iter t.pending ~f
 let validate t c = assert c
 
 let stats t = 
-  info "peer %s: idle/choking/interested %B %B %B" 
+  info "** peer %s: idle/choking/interested %B %B %B" 
     (to_string t) t.idle t.peer_choking t.peer_interested 
 
 let tick t =

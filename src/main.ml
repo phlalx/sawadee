@@ -34,7 +34,7 @@ let command =
     (fun path port verbose filename () -> process filename port path)
 
 let () = 
-  set_level `Debug;
+  set_level `Info;
   Command.run command;
   never_returns (Scheduler.go ())
 

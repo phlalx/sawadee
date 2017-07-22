@@ -25,8 +25,8 @@ let create t =
   let%bind bitfield = Pers.read_bitfield pers in
   let file = File.create pieces_hash ~piece_length ~total_length bitfield in
   let peer_id = G.peer_id in
-  info "read from file: %d pieces" (File.num_owned_pieces file);
-  info "read from file: %s" (File.pieces_to_string file);
+  info "read from files: %d pieces" (File.num_owned_pieces file);
+  debug "read from files: %s" (File.pieces_to_string file);
   let read_piece p : unit Deferred.t =
     let i = Piece.get_index p in
     if File.has_piece file i then ( 
@@ -69,16 +69,16 @@ let tick_peers t =
         Piece.set_status (File.get_piece t.file i) `Not_requested in
       let s = List.to_string ~f:string_of_int l in
       if not (List.is_empty l) then
-        info "Cancelling requests from %s: %s" (Peer.to_string p) s;
+        info "cancelling requests from %s: %s" (Peer.to_string p) s;
       List.iter l ~f
     | `Keep_alive -> 
-      info "Sending keep alive to peer %s" (Peer.to_string p);
+      info "sending keep alive to peer %s" (Peer.to_string p);
       Peer.send_message p Message.KeepAlive 
   in
   for_all_peers t ~f
 
 let request_all_blocks_from_piece t (p:P.t) (piece:Piece.t) : unit =
-  info "Requesting piece %s from peer %s" (Piece.to_string piece) 
+  debug "requesting piece %s from peer %s" (Piece.to_string piece) 
     (P.to_string p);
   incr_requested t;
   Piece.set_status piece `Requested;
@@ -106,9 +106,9 @@ let process_message t (p:P.t) (m:M.t) : unit =
     | `Hash_error -> 
       decr_requested t;
       Piece.set_status piece `Not_requested;
-      debug "hash error for piece %d" index
+      info "hash error piece %d from %s" index (P.to_string p)
     | `Downloaded ->
-      info "downloaded piece %d" index;
+      info "got piece %d from %s " index (P.to_string p);
       P.remove_pending p index;
       Piece.set_status piece `Downloaded;
       decr_requested t;
@@ -146,9 +146,10 @@ let rec wait_and_process_message t (p:P.t) =
   | `Eof -> `Finished ()
 
 let stats t =
-  info "**** downloaded %d/%d ****" (File.num_owned_pieces t.file) 
+  info "** stats:";
+  info "** downloaded %d/%d" (File.num_owned_pieces t.file) 
     (File.num_pieces t.file);
-  info "pending requests %d" t.num_requested;
+  info "** pending requests %d" t.num_requested;
   let f p = Peer.stats p in
   List.iter t.peers f
 
@@ -164,7 +165,7 @@ let add_peer t p =
       P.send_message p (M.Bitfield (File.bitfield t.file))
     );
     P.send_message p M.Interested;
-    debug "Start message handler loop";
+    debug "start message handler loop";
     Deferred.repeat_until_finished () (fun () -> wait_and_process_message t p)
   | Error err -> 
     let e = Error.of_exn err in
@@ -175,8 +176,8 @@ let add_peer t p =
 
 let stop t = 
   let stop_aux t =
-    info "written to file: %d pieces" (File.num_owned_pieces t.file);
-    info "written to file: %s" (File.pieces_to_string t.file);
+    info "written to files: %d pieces" (File.num_owned_pieces t.file);
+    debug "written to files: %s" (File.pieces_to_string t.file);
     Pers.write_bitfield t.pers (File.bitfield t.file) >>= fun () ->
     Pers.close_all_files t.pers >>= fun () ->
     exit 0
@@ -184,8 +185,9 @@ let stop t =
   don't_wait_for (stop_aux t)
 
 let start t =  
+  Clock.every (sec 10.0) (fun () -> stats t); 
   Clock.every G.tick (fun () -> tick_peers t); 
-  Clock.every (sec 0.01) (fun () -> request_piece t)
+  Clock.every (sec 0.1) (fun () -> request_piece t)
 
 
 

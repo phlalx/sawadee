@@ -1,9 +1,10 @@
 (** This is a rudimentary tracker for testing locally.
 
     It doesn't check the query and always returns the same set of peers.
-    127.0.0.1:6000
     127.0.0.1:6001
     127.0.0.1:6002
+    127.0.0.1:6003
+    127.0.0.1:6004
 
   TODO: add a simple memory! *)
 
@@ -24,7 +25,7 @@ let reply = Tracker_reply.{
 }
 
 let callback ~body addr request = 
-  info "Tracker is processing request";
+  info "tracker is processing request";
   Tracker_reply.to_bencode reply |>
   Server.respond_string ~flush:true
 
