@@ -51,7 +51,6 @@ let start_pwp t peer_addrs =
 
 let process torrent_name =
   let t = Torrent.from_file torrent_name in
-  let open Torrent in
 
   Tracker_client.init t;
 

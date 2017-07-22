@@ -7,9 +7,9 @@ let length = 20
 let peer_id_length = 20
 
 let random () = 
-  String.init peer_id_length ~f:(fun _ -> char_of_int (Random.int 255))
+  String.init peer_id_length ~f:(fun _ -> char_of_int (65 + (Random.int 26)))
 
-let dummy = String.create peer_id_length
+let dummy = "unkown-peer-id------"
 
 let to_string x = x
 

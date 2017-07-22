@@ -44,7 +44,9 @@ let create peer_addr r w kind =
     kind;
   }
 
-let to_string t = Socket.Address.Inet.to_string t.peer_addr
+let to_string t = 
+  sprintf("%S:%d") (Peer_id.to_string t.id)
+    (Socket.Address.Inet.port t.peer_addr)
 
 exception Handshake_error of int
 exception Hash_error
@@ -87,8 +89,8 @@ let initiate_handshake t hash pid =
       match validate_handshake buf hash with
       | None -> Error Hash_error
       | Some p -> t.id <- Peer_id.of_string p;
-       info "handshake ok with %s" (to_string t);
-       Ok ()
+        info "handshake ok with %s" (to_string t);
+        Ok ()
     ) 
   | `Eof i -> Error (Handshake_error i)
 
@@ -107,13 +109,13 @@ let wait_for_handshake t hash pid =
       | Some p -> 
         t.id <- Peer_id.of_string p;
         Writer.write t.writer ~len:hs_len hs;
-       info "handshake ok with %s" (to_string t);
+        info "handshake ok with %s" (to_string t);
         Ok ()
     )
   | `Eof i -> Error (Handshake_error i)
 
 (* TODO: see if handshake is asynchronous, we may need only one function,
-  otherwise factorize the common part *)
+   otherwise factorize the common part *)
 let handshake t hash pid =
   if t.kind = `Am_initiating then
     initiate_handshake t hash pid 
