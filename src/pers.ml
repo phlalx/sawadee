@@ -17,8 +17,6 @@ let segment_to_string t = sprintf "name = %s off = %d len = %d off_f = %d"
 
 type t = {
   fds : Unix.Fd.t list;
-  bitfield_fd : Unix.Fd.t;
-  bitfield_len : int;
   segments_of_piece : segment list Array.t;
   piece_length : int;
   wr : Piece.t Pipe.Writer.t;
@@ -107,9 +105,7 @@ let make_segments fds info_files =
   let f (name, len, off) fd = { name; fd; len; off; off_in_file = 0 } in
   List.map2_exn files_with_offset fds ~f
 
-
-let create bf_name bf_len info_files num_pieces piece_length = 
-  let%bind bitfield_fd = open_file bf_name bf_len in
+let create info_files num_pieces piece_length = 
   let f (name, len) = open_file name ~len in
   let%bind fds = Deferred.List.map ~how:`Sequential info_files ~f in
   let rd, wr = Pipe.create () in
@@ -122,16 +118,7 @@ let create bf_name bf_len info_files num_pieces piece_length =
     print_list_segments ls
   in
   Array.iteri segments_of_piece ~f;
-  let t = 
-    {
-      fds;
-      bitfield_fd;
-      bitfield_len = bf_len;
-      segments_of_piece;
-      wr;
-      rd;
-      piece_length;
-    }
+  let t = { fds; segments_of_piece; wr; rd; piece_length; }
   in 
   don't_wait_for (read_from_pipe t);  
   return t
@@ -140,16 +127,23 @@ let write_piece t p =
   debug "piece %d is pushed to the I/O pipe" (Piece.get_index p);
   Pipe.write_without_pushback t.wr p 
 
-let read_bitfield t = 
-  debug "reading bitfield";
-  let bs = Bigstring.create t.bitfield_len in
-  Io.read t.bitfield_fd bs ~off:0 ~pos:0 ~len:t.bitfield_len >>= fun () ->
-  return (Bitfield.of_string (Bigstring.to_string bs))
-
-let write_bitfield t bf = 
-  let bs = Bigstring.of_string (Bitfield.to_string bf) in
-  Io.write t.bitfield_fd bs ~off:0 ~pos:0 ~len:t.bitfield_len 
-
 let close_all_files t = 
   info "closing all files";
-  Deferred.List.iter (t.bitfield_fd :: t.fds) ~f:Fd.close
+  Deferred.List.iter t.fds ~f:Fd.close
+
+let read_bitfield f ~len = 
+  info "reading bitfield from file %s" f;
+  let s =
+  try 
+       In_channel.read_all f 
+  with _ -> String.make len '\000'  
+  in Bitfield.of_string s
+
+let write_bitfield f bf = 
+  info "writing bitfield to file %s" f;
+  Out_channel.write_all f ~data:(Bitfield.to_string bf)
+
+
+
+
+

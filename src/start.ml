@@ -5,15 +5,15 @@ module G = Global
 module P = Peer
 module Em = Error_msg
 
-let stop file pers = 
-  let stop_aux file pers =
+let stop bf_name file pers = 
+  let stop_aux () =
     info "written to files: %d pieces" (File.num_owned_pieces file);
     debug "written to files: %s" (File.pieces_to_string file);
-    Pers.write_bitfield pers (File.bitfield file) >>= fun () ->
+    Pers.write_bitfield bf_name (File.bitfield file);
     Pers.close_all_files pers >>= fun () ->
     exit 0
   in 
-  don't_wait_for (stop_aux file pers)
+  don't_wait_for (stop_aux ())
 
 
 (* Creates a server that wait for connection from peers.
@@ -118,14 +118,14 @@ let process f =
   let { files_info; num_pieces; piece_length; torrent_name; total_length; 
         info_hash; pieces_hash } = t in
 
-  let bf_name = (Filename.basename torrent_name) ^ G.bitset_ext in
+  let bf_name = (G.path ()) ^ (Filename.basename torrent_name) ^ G.bitset_ext in
   let bf_len = Bitset.bitfield_length_from_size num_pieces in 
 
-  let%bind pers = Pers.create bf_name bf_len files_info num_pieces piece_length  in
+  let%bind pers = Pers.create files_info num_pieces piece_length  in
 
   (**** read bitfield *****)
 
-  let%bind bitfield = Pers.read_bitfield pers in
+  let bitfield = Pers.read_bitfield bf_name bf_len in
 
   (****** initialize File.t and retrive persistent data *******)
 
@@ -152,7 +152,7 @@ let process f =
   let pwp = Pwp.create t file pers in
 
   wait_for_incoming_peers pwp t;
-  Signal.handle Signal.terminating ~f:(fun _ -> stop file pers);
+  Signal.handle Signal.terminating ~f:(fun _ -> stop bf_name file pers);
   Pwp.start pwp;
   add_peers_from_tracker pwp t addrs
 

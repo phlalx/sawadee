@@ -21,7 +21,6 @@ let process
    | Some p -> G.set_port p);
 
 
-  Io.disable_write ();
   don't_wait_for (Start.process torrent_name)
 
 let spec =

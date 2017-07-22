@@ -21,24 +21,24 @@ open Async
 
 type t
 
-(** [create torrent_name torrent_len files_info num_pieces piece_length ]) 
-    open (create if needed) all the files with the expected size. *)
+(** [create files_info num_pieces piece_length] 
+    opens (creates if needed) all the files with the expected size. *)
+
 val create : 
-  string -> int -> 
   (string * int) list ->
-  int ->
-  int ->
+  int (* num_pieces *) ->
+  int (* piece length *) ->
   t Deferred.t
 
 val close_all_files : t -> unit Deferred.t
-
-val read_bitfield : t -> Bitfield.t Deferred.t
-
-val write_bitfield : t -> Bitfield.t -> unit Deferred.t
 
 val write_piece : t -> Piece.t -> unit
 
 val read_piece : t -> Piece.t -> unit Deferred.t
 
+(* fill with 0 is not of the right size *)
+val read_bitfield : string -> len:int -> Bitfield.t 
+
+val write_bitfield : string -> Bitfield.t -> unit 
 
 
