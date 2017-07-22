@@ -2,11 +2,12 @@ open Core
 open Async
 open Log.Global
 module G = Global
+module Em = Error_msg
 
 let wait_for_incoming_peers pwp =
   let handler pwp addr r w =
     info "incoming connection on server from peer %s"
-    (Socket.Address.Inet.to_string addr);
+      (Socket.Address.Inet.to_string addr);
     let p = Peer.create addr r w `Peer_initiating  in
     Pwp.add_peer pwp p
   in 
@@ -27,18 +28,18 @@ let add_peers_from_tracker pwp peer_addrs =
     >>| function
     | Ok (_, r, w) -> Ok (Peer.create peer_addr r w `Am_initiating)
     | Error err -> Error err
-in
+  in
 
-let add_peer pwp peer_addr = 
-  peer_create peer_addr
-  >>= function 
-  | Ok peer -> Pwp.add_peer pwp peer
-  | Error err -> 
-    Socket.Address.Inet.to_string peer_addr
-    |> info "can't connect to peer %s";
-    Deferred.unit
-in
-Deferred.List.iter ~how:`Parallel peer_addrs ~f:(add_peer pwp)
+  let add_peer pwp peer_addr = 
+    peer_create peer_addr
+    >>= function 
+    | Ok peer -> Pwp.add_peer pwp peer
+    | Error err -> 
+      Socket.Address.Inet.to_string peer_addr
+      |> info "can't connect to peer %s";
+      Deferred.unit
+  in
+  Deferred.List.iter ~how:`Parallel peer_addrs ~f:(add_peer pwp)
 
 let start_pwp t peer_addrs =
   match%bind Pwp.create t with 
@@ -49,9 +50,16 @@ let start_pwp t peer_addrs =
     add_peers_from_tracker pwp peer_addrs
   | Error err -> assert false 
 
-let process torrent_name =
-  let t = Torrent.from_file torrent_name in
+let process f =
 
+  let t = try 
+      Torrent.from_file f
+    with
+      | Sys_error _ -> failwith (Em.wrong_file f)
+      | Failure s -> failwith (Em.not_bencode f)
+      | Bencode_utils.Bencode_error -> failwith (Em.wrong_bencode f)
+      | ex -> raise ex
+  in 
   Tracker_client.init t;
 
   debug "try connecting to tracker";

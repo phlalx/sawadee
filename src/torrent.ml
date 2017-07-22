@@ -17,9 +17,10 @@ type t = {
   num_files : int;
 }
 
-let from_file f =
+exception Foobar
+
+let do_file torrent_name chan =
   let open Bencode_utils in
-  let chan = In_channel.create f in 
   let bc = B.decode (`Channel chan) in 
   debug "torrent file = %s" (B.pretty_print bc);
   let announce_bc = get (B.dict_get bc "announce") in
@@ -45,7 +46,6 @@ let from_file f =
   let info_hash = Bt_hash.of_string (Sha1.to_bin (Sha1.string info_str)) in
   let pieces_hash = Array.map (split pieces Bt_hash.length) ~f:Bt_hash.of_string in 
   let num_pieces = Array.length pieces_hash in
-  let torrent_name = f in
   let files_info = (
     match B.dict_get info_dict_bc "length" with
     | Some length_bc ->
@@ -76,3 +76,7 @@ let from_file f =
 
   { announce; info_hash; piece_length; pieces_hash; announce_list; 
     files_info; torrent_name; total_length; num_pieces; num_files }
+
+
+let from_file file_name =
+  In_channel.with_file file_name ~f:(do_file file_name)

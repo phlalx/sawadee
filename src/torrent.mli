@@ -17,4 +17,10 @@ type t = {
   num_files : int;
 }
 
+(** [from_file f] try to open file [f] and decode it
+
+  Raises: 
+    - Bencode_utils.Bencode_error
+    - Sys_error
+    - Failure  *)
 val from_file : string -> t
