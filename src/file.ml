@@ -72,11 +72,3 @@ let get_piece_status t i =
 
 
 
-
-
-
-
-
-
-
-

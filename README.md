@@ -46,37 +46,23 @@ Besides, requests that have been pending for n seconds are canceled. To check th
 
 ### TODO 
 
-What I'd like to complete in the near future. In priority:
+What I'd like to complete in the near future. 
 
-* document, review, and clean up the code
 * deal correctly with requests from peers (for some reasons, I don't get any request, although the code is there)
 * more consistent error management 
   * now there are a lot of asserts, unguarded possible exceptions and so on.
   * detect incorrect behavior from peers. 
-
-Then:
-
 * resource management
   * better handling (closing) of socket connections 
   * better usage of buffer. Buffers keep getting allocated with no efficiency concern.
-* Rework the module interfaces
-  * There are invariant that span several modules that could be encapsulated
-  * encapsulation could be better overall
-* Set up some testing scripts
-
-And possibly:
-* Dealing with DHT and magnet 
-
-### Limitations
-
-There are a lot of things to do to make this better. Most require presumably little change.
-
-* Re-query the tracker to find more peers 
 * Improve requesting strategy based on various indicators
 * Replace polling by event-based functions
 * Use more efficient datastructures
+* Dealing with DHT and magnet 
 * Automatic testing / benchmarking
 * Read parameters from json files
+* Re-query the tracker to find more peers 
+* download several files concurrently
 
 ### Resources and libs
 

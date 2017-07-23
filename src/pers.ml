@@ -129,13 +129,8 @@ let close_all_files t =
   Deferred.List.iter t.fds ~f:Fd.close
 
 let read_bitfield f ~len = 
-  info "reading bitfield from file %s" f;
-  let s =
-  try 
-       In_channel.read_all f 
-  with _ -> String.make len '\000'  
-  in Bitfield.of_string s
-
+      Bitfield.of_string (In_channel.read_all f)
+      
 let write_bitfield f bf = 
   info "writing bitfield to file %s" f;
   Out_channel.write_all f ~data:(Bitfield.to_string bf)

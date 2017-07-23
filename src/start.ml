@@ -9,12 +9,14 @@ let stop bf_name file pers =
   let stop_aux () =
     info "written to files: %d pieces" (File.num_owned_pieces file);
     debug "written to files: %s" (File.pieces_to_string file);
-    Pers.write_bitfield bf_name (File.bitfield file);
+    (try
+       Pers.write_bitfield bf_name (File.bitfield file)
+     with 
+       _  -> failwith (Em.can't_open bf_name));
     Pers.close_all_files pers >>= fun () ->
     exit 0
   in 
   don't_wait_for (stop_aux ())
-
 
 (* Creates a server that wait for connection from peers.
 
@@ -90,8 +92,6 @@ let add_peers_from_tracker pwp torrent addrs =
 
   Deferred.List.iter ~how:`Parallel addrs ~f:add_peer_ignore_error
 
-exception Wrong_piece of int
-
 let process f =
 
   (***** read torrent file *****)
@@ -105,15 +105,6 @@ let process f =
     | ex -> raise ex
   in 
 
-  (***** get list of peers ****)
-
-  let%bind addrs = match%bind Tracker_client.query t with
-    | Some addrs -> return addrs 
-    | None -> failwith (Em.tracker_error ())
-  in
-  let num_of_peers = List.length addrs in 
-  info "tracker replies with list of %d peers" num_of_peers;
-
   (***** open all files (files to download + bitset) **********)
 
   let open Torrent in
@@ -123,35 +114,51 @@ let process f =
   let bf_name = (G.path ()) ^ (Filename.basename torrent_name) ^ G.bitset_ext in
   let bf_len = Bitset.bitfield_length_from_size num_pieces in 
 
-  let%bind pers = Pers.create files_info num_pieces piece_length  in
 
   (**** read bitfield *****)
 
-  let bitfield = Pers.read_bitfield bf_name bf_len in
+  let bitfield = 
+    try
+      Pers.read_bitfield bf_name bf_len 
+    with _ -> 
+      info "can't read bitfield %s. Using empty bitfield" bf_name;
+      Bitfield.empty bf_len
+  in
+  info "read bitfield %s" bf_name;
+  let bitset = Bitset.from_bitfield bitfield num_pieces in
 
-  (****** initialize File.t and retrive persistent data *******)
+  (**** open files *****)
+
+  let%bind pers = Pers.create files_info num_pieces piece_length  in
+
+  (****** initialize File.t and retrieve pieces from disk *******)
 
   let file = File.create pieces_hash ~piece_length ~total_length in
 
-  info "read from files: %d pieces" (File.num_owned_pieces file);
-  debug "read from files: %s" (File.pieces_to_string file);
-
   let read_piece i : unit Deferred.t =
-      let p = File.get_piece file i in
-      Pers.read_piece pers p 
-      >>= fun () -> 
-      if Piece.is_hash_ok p then 
-        return (File.set_piece_status file i `Downloaded)
-      else 
-        raise (Wrong_piece i)
+    let p = File.get_piece file i in
+    Pers.read_piece pers p 
+    >>= fun () -> 
+    return (if Piece.is_hash_ok p then File.set_piece_status file i `Downloaded
+            else info "can't read piece %d from disk" i)
   in
 
-  let bitset = Bitset.from_bitfield bitfield num_pieces in
-  let l = Bitset.to_list bitset in
-
-  Deferred.List.iter l ~f:read_piece 
+  Deferred.List.iter (Bitset.to_list bitset) ~f:read_piece 
 
   >>= fun () ->
+
+  info "read from files: %d pieces" (File.num_owned_pieces file);
+  debug "written to files: %s" (File.pieces_to_string file);
+
+
+  (***** get list of peers ****)
+
+  let%bind addrs = match%bind Tracker_client.query t with
+    | Some addrs -> return addrs 
+    | None -> failwith (Em.tracker_error ())
+  in
+  let num_of_peers = List.length addrs in 
+  info "tracker replies with list of %d peers" num_of_peers;
 
   (******* create Pwp.t *************)
 

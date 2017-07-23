@@ -10,3 +10,7 @@ let wrong_bencode f =
   f
 
 let tracker_error () = "Can't connect to tracker" 
+
+let tracker_error () = "Can't connect to tracker" 
+
+let can't_open p = Printf.sprintf "Can't open %s" p
