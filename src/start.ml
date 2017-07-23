@@ -90,6 +90,8 @@ let add_peers_from_tracker pwp torrent addrs =
 
   Deferred.List.iter ~how:`Parallel addrs ~f:add_peer_ignore_error
 
+exception Wrong_piece of int
+
 let process f =
 
   (***** read torrent file *****)
@@ -129,23 +131,27 @@ let process f =
 
   (****** initialize File.t and retrive persistent data *******)
 
-  let file = File.create pieces_hash ~piece_length ~total_length bitfield in
+  let file = File.create pieces_hash ~piece_length ~total_length in
 
   info "read from files: %d pieces" (File.num_owned_pieces file);
   debug "read from files: %s" (File.pieces_to_string file);
 
-  let read_piece p : unit Deferred.t =
-    let i = Piece.get_index p in
-    if File.has_piece file i then ( 
-      Piece.set_status p `On_disk;
-      File.set_owned_piece file (Piece.get_index p);
-      Pers.read_piece pers p
-    ) else (
-      return ()
-    )
+  let read_piece i : unit Deferred.t =
+      let p = File.get_piece file i in
+      Pers.read_piece pers p 
+      >>= fun () -> 
+      if Piece.is_hash_ok p then 
+        return (File.set_piece_status file i `Downloaded)
+      else 
+        raise (Wrong_piece i)
   in
 
-  File.deferred_iter_piece file ~f:read_piece >>= fun () ->
+  let bitset = Bitset.from_bitfield bitfield num_pieces in
+  let l = Bitset.to_list bitset in
+
+  Deferred.List.iter l ~f:read_piece 
+
+  >>= fun () ->
 
   (******* create Pwp.t *************)
 

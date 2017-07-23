@@ -5,7 +5,6 @@ module G = Global
 
 type t = {
   index : int;
-  mutable status : [ `Requested | `Downloaded | `Not_requested | `On_disk ];
   hash : Bt_hash.t;
   length : int;
   (* TODO content could be a substring of the whole network file? *)
@@ -15,7 +14,7 @@ type t = {
 
 let create ~index hash ~len = 
   let num_blocks = (len + G.block_size - 1) / G.block_size in
-  { index; status = `Not_requested; length = len; hash; 
+  { index; length = len; hash; 
     content = Bigstring.create len; 
     blocks = Bitset.empty num_blocks }
 
@@ -23,24 +22,9 @@ let get_content t ~off ~len = Bigstring.to_string ~pos:off ~len t.content
 
 let get_bigstring_content t = t.content
 
-let get_status t = t.status
-
-let set_status t st = t.status <- st
-
 let length t = t.length
 
 let get_index t = t.index
-
-let to_be_downloaded t = t.status = `Not_requested
-
-let set_requested t = 
-  assert (t.status = `Not_requested);
-  t.status <- `Requested
-
-let set_not_requested t = 
-  (* assert (t.status = `Requested); *)
-  if not (t.status = `Downloaded) then
-    t.status <- `Not_requested
 
 let num_blocks t = (t.length + G.block_size - 1) / G.block_size
 
@@ -78,7 +62,5 @@ let update t ~off (block:string) =
   ) else ( 
     `Ok 
   )
-
-let is_downloaded t = t.status = `Downloaded
 
 let to_string t = sprintf "(i = %d len = %d)" t.index t.length 

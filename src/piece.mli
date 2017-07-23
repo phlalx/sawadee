@@ -50,11 +50,6 @@ val iter : t -> f:(index:int -> off:int -> len:int -> unit) -> unit
       right format... *)
 val update : t -> off:int -> string -> [ `Downloaded | `Ok | `Hash_error ]
 
-val get_status : t -> [`Requested | `Downloaded | `Not_requested | `On_disk]
-
-val set_status : t -> [`Requested | `Downloaded | `Not_requested | `On_disk] 
-  -> unit
-
 val is_hash_ok : t -> bool
 
 (** for logging purpose *)

@@ -41,7 +41,7 @@ let tick_peers t =
     | `Idle l -> 
       let f i = 
         decr_requested t;
-        Piece.set_status (File.get_piece t.file i) `Not_requested in
+        File.set_piece_status t.file i `Not_requested in
       let s = List.to_string ~f:string_of_int l in
       if not (List.is_empty l) then
         info "cancelling requests from %s: %s" (Peer.to_string p) s;
@@ -56,7 +56,7 @@ let request_all_blocks_from_piece t (p:P.t) (piece:Piece.t) : unit =
   debug "requesting piece %s from peer %s" (Piece.to_string piece) 
     (P.to_string p);
   incr_requested t;
-  Piece.set_status piece `Requested;
+  File.set_piece_status t.file (Piece.get_index piece) `Requested; (* TODO *)
   P.add_pending p (Piece.get_index piece);
   let f ~index ~off ~len =
     let m = M.Request(index, off, len) in
@@ -80,16 +80,14 @@ let process_message t (p:P.t) (m:M.t) : unit =
     | `Ok -> debug "got block - piece %d offset = %d" index bgn
     | `Hash_error -> 
       decr_requested t;
-      Piece.set_status piece `Not_requested;
+      File.set_piece_status t.file index `Not_requested;
       info "hash error piece %d from %s" index (P.to_string p)
     | `Downloaded ->
       info "got piece %d from %s " index (P.to_string p);
       P.remove_pending p index;
-      Piece.set_status piece `Downloaded;
+      File.set_piece_status t.file index `Downloaded;
       decr_requested t;
-      (* Piece.set_status piece `On_disk;  TODO needed? *)
       Pers.write_piece t.pers piece;
-      File.set_owned_piece t.file index; 
       send_have_messages t index 
   in
   let process_request index bgn length =
