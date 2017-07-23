@@ -1,3 +1,3 @@
 S src
 B _build 
-PKG core uri cohttp async bencode sha ounit
+PKG core uri cohttp async bencode sha ounit ppx_jane

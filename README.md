@@ -48,18 +48,20 @@ Besides, requests that have been pending for n seconds are canceled. To check th
 
 What I'd like to complete in the near future. 
 
-* deal correctly with requests from peers (for some reasons, I don't get any request, although the code is there)
-* more consistent error management 
-  * now there are a lot of asserts, unguarded possible exceptions and so on.
-  * detect incorrect behavior from peers. 
+* Improve the implementation of the protocol
+* improve the code
+  * more consistent error management 
+  * module decomposition can be improved
+  * review possible race conditions and async issues 
 * resource management
-  * better handling (closing) of socket connections 
-  * better usage of buffer. Buffers keep getting allocated with no efficiency concern.
-* Improve requesting strategy based on various indicators
-* Replace polling by event-based functions
-* Use more efficient datastructures
+  * better handling of socket connections (freeing of fd)
+  * be more careful with buffer allocation
 * Dealing with DHT and magnet 
-* Automatic testing / benchmarking
+* Automatic testing 
+
+Less urgent.
+
+* Use more efficient datastructures in requesting
 * Read parameters from json files
 * Re-query the tracker to find more peers 
 * download several files concurrently

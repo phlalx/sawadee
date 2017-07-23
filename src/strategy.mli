@@ -12,4 +12,5 @@
 
 open Core
 
-val next_request : File.t -> Peer.t list -> (Piece.t * Peer.t) Option.t 
+(* returns list of piece_index and peer *)
+val next_requests : File.t -> Peer.t list -> int -> (int * Peer.t) list

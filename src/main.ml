@@ -10,9 +10,9 @@ module Em = Error_msg
 
 let check_path () = 
   let p = G.path () in
-    match%bind Sys.is_directory p with 
-    | `Yes -> return ()
-    | `No | `Unknown -> failwith (Em.can't_open p)
+  match%bind Sys.is_directory p with 
+  | `Yes -> return ()
+  | `No | `Unknown -> failwith (Em.can't_open p)
 
 let process 
     (torrent_name : string)
@@ -29,6 +29,7 @@ let process
 
   Start.process torrent_name
 
+
 let spec =
   let open Command.Spec in
   empty +> 
@@ -40,7 +41,7 @@ let spec =
 let command =
   Command.basic ~summary:"Download torrent file" spec
     (fun path port verbose filename () -> 
-      don't_wait_for (process filename port path))
+       don't_wait_for (process filename port path))
 
 let () = 
   set_level `Info;

@@ -29,7 +29,7 @@ let set_path p = path_ := p ^ "/"
 
 let is_server () = Option.is_some !port_
 
-let max_pending_request = 5 
+let max_pending_request = 10 
 
 let max_non_choking_peers = 4
 

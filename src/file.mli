@@ -8,13 +8,8 @@ open Async
 
 type t
 
-(** [create ph ~piece_length total_length bf] creates a [File.t]. 
-    - [h] is the info hash
-    - [ph] is the array of pieces hashs
-    - [bf] is the bitfield of pieces already downloaded. 
-
-    TODO: check why is bitfield need here *)
-
+(** [create ph ~piece_length total_length] creates a [File.t]. 
+    - [ph] is the array of pieces hash *)
 val create : 
   (Bt_hash.t Array.t) -> 
   piece_length:int -> 

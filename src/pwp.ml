@@ -52,26 +52,23 @@ let tick_peers t =
   in
   for_all_peers t ~f
 
-let request_all_blocks_from_piece t (p:P.t) (piece:Piece.t) : unit =
-  debug "requesting piece %s from peer %s" (Piece.to_string piece) 
-    (P.to_string p);
+let request_all_blocks_from_piece t (p:P.t) (piece_i:int) : unit =
+  debug "requesting piece %d from peer %s" piece_i (P.to_string p);
   incr_requested t;
-  File.set_piece_status t.file (Piece.get_index piece) `Requested; (* TODO *)
-  P.add_pending p (Piece.get_index piece);
+  File.set_piece_status t.file piece_i `Requested; 
+  P.add_pending p piece_i;
   let f ~index ~off ~len =
     let m = M.Request(index, off, len) in
     sexp ~level:`Debug (M.sexp_of_t m); 
     P.send_message p m in
-  Piece.iter piece ~f
+  Piece.iter (File.get_piece t.file piece_i) ~f
 
-(** this function is polled regularly to see if there's new stuff to download.
-    We could instead have an event-loop that wakes up when the pending queue
-    is small and new pieces are availables TODO *)
-let request_piece t =
-  if t.num_requested < G.max_pending_request then
-    match Strategy.next_request t.file t.peers with
-    | None -> ()
-    | Some (piece, peer) -> request_all_blocks_from_piece t peer piece  
+let try_request_piece t =
+  let n = G.max_pending_request - t.num_requested in
+  if n > 0 then 
+    let l = Strategy.next_requests t.file t.peers n in
+    let f (piece_i, peer) = request_all_blocks_from_piece t peer piece_i in
+    List.iter l ~f
 
 let process_message t (p:P.t) (m:M.t) : unit =
   let process_piece index bgn block =
@@ -106,18 +103,28 @@ let process_message t (p:P.t) (m:M.t) : unit =
   match m with
   | M.KeepAlive -> ()
   | M.Choke -> P.set_peer_choking p true;
-  | M.Unchoke -> P.set_peer_choking p false;
+  | M.Unchoke -> 
+    P.set_peer_choking p false; 
+    (* we try to request new pieces after any new event that can trigger
+       availability of new pieces *)
+    try_request_piece t
   | M.Interested -> 
     P.set_peer_interested p true; 
     if not (P.am_choking p) then P.send_message p Message.Unchoke
-  | M.Not_interested -> P.set_peer_interested p false;
-  | M.Have index -> P.set_owned_piece p index 
+  | M.Not_interested -> 
+    P.set_peer_interested p false;
+  | M.Have index -> 
+    P.set_owned_piece p index; 
+    try_request_piece t 
   | M.Bitfield bits -> 
-     (* TODO validate bitfield *)
-     P.set_owned_pieces p bits 
+    (* TODO validate bitfield *)
+    P.set_owned_pieces p bits; 
+    try_request_piece t 
   | M.Request (index, bgn, length) -> 
     if not (Peer.am_choking p) then process_request index bgn length
-  | M.Piece (index, bgn, block) -> process_piece index bgn block 
+  | M.Piece (index, bgn, block) -> 
+    process_piece index bgn block; 
+    try_request_piece t
   | M.Cancel (index, bgn, length) -> info "ignore cancel msg - Not yet implemented"
 
 let rec wait_and_process_message t (p:P.t) =
@@ -157,15 +164,14 @@ let add_peer t p =
         info "sending my bitfield to %s" (Peer.to_string p);
         P.send_message p (M.Bitfield (File.bitfield t.file))
       );
-      (* P.send_message p M.Interested; *)
+      P.send_message p M.Interested;
       debug "start message handler loop";
       Deferred.repeat_until_finished () (fun () -> wait_and_process_message t p)
     end
 
 let start t =  
   Clock.every (sec 10.0) (fun () -> stats t); 
-  Clock.every G.tick (fun () -> tick_peers t); 
-  Clock.every (sec 0.1) (fun () -> request_piece t)
+  Clock.every G.tick (fun () -> tick_peers t)
 
 
 
