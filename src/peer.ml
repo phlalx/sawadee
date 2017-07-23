@@ -70,7 +70,6 @@ let hs_len = (String.length hs_prefix) + Bt_hash.length + Bt_hash.length (* 68 *
 let validate_handshake received info_hash =
   let hash_pos = String.length hs_prefix  in
   let peer_pos = hash_pos + Bt_hash.length in
-  assert ((String.length received) = hs_len);
   let info_hash_rep = String.sub received ~pos:hash_pos ~len:Bt_hash.length in
   let remote_peer_id = String.sub received ~pos:peer_pos ~len:Peer_id.length in
   match info_hash_rep = info_hash with
@@ -214,7 +213,10 @@ let add_pending t i = t.pending <- Int.Set.add t.pending i
 
 let iter_pending t ~f = Int.Set.iter t.pending ~f
 
-let validate t c = assert c
+exception Incorrect_behavior
+
+let validate t b = 
+  if not b then raise Incorrect_behavior
 
 let stats t = 
   info "** peer %s: idle/choking/interested %B %B %B" 

@@ -74,8 +74,11 @@ let request_piece t =
     | Some (piece, peer) -> request_all_blocks_from_piece t peer piece  
 
 let process_message t (p:P.t) (m:M.t) : unit =
-  let process_piece_message index bgn block =
+  let process_piece index bgn block =
     let piece = File.get_piece t.file index in
+    let len = String.length block in
+    Peer.validate p (File.is_valid_piece_index t.file index);
+    Peer.validate p (Piece.is_valid_block piece bgn len);
     match Piece.update piece bgn block with 
     | `Ok -> debug "got block - piece %d offset = %d" index bgn
     | `Hash_error -> 
@@ -91,6 +94,9 @@ let process_message t (p:P.t) (m:M.t) : unit =
       send_have_messages t index 
   in
   let process_request index bgn length =
+    let piece = File.get_piece t.file index in
+    Peer.validate p (File.is_valid_piece_index t.file index);
+    Peer.validate p (Piece.is_valid_block_request piece bgn length);
     Peer.validate p (File.has_piece t.file index);
     if not (Peer.am_choking p) then (
       let piece = File.get_piece t.file index in
@@ -106,10 +112,12 @@ let process_message t (p:P.t) (m:M.t) : unit =
     if not (P.am_choking p) then P.send_message p Message.Unchoke
   | M.Not_interested -> P.set_peer_interested p false;
   | M.Have index -> P.set_owned_piece p index 
-  | M.Bitfield bits -> P.set_owned_pieces p bits 
+  | M.Bitfield bits -> 
+     (* TODO validate bitfield *)
+     P.set_owned_pieces p bits 
   | M.Request (index, bgn, length) -> 
     if not (Peer.am_choking p) then process_request index bgn length
-  | M.Piece (index, bgn, block) -> process_piece_message index bgn block 
+  | M.Piece (index, bgn, block) -> process_piece index bgn block 
   | M.Cancel (index, bgn, length) -> info "ignore cancel msg - Not yet implemented"
 
 let rec wait_and_process_message t (p:P.t) =
@@ -146,6 +154,7 @@ let add_peer t p =
     begin
       t.peers <- p :: t.peers;
       if (File.num_owned_pieces t.file) > 0 then (
+        info "sending my bitfield to %s" (Peer.to_string p);
         P.send_message p (M.Bitfield (File.bitfield t.file))
       );
       (* P.send_message p M.Interested; *)

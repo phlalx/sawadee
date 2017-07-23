@@ -24,6 +24,13 @@ val get_index : t -> int
 (* use for messages *)
 val get_content : t -> off:int -> len:int  -> string 
 
+(* a received block should match an off/len that this client has requested *)
+val is_valid_block : t -> off:int -> len:int -> bool
+
+(* peer may not have the same block size, but requests should be in the range
+   of the piece *)
+val is_valid_block_request : t -> off:int -> len:int -> bool
+
 (* use for serialization R/W *)
 val get_bigstring_content : t -> Bigstring.t
 

@@ -11,7 +11,8 @@ let next_request file peers : (Piece.t * P.t) Option.t =
   let pieces_not_requested = File.pieces_not_requested file in
 
   let f peer = 
-    if (P.is_idle peer) || (P.is_peer_choking peer) then
+    if (P.is_idle peer) || (P.is_peer_choking peer)  then
+    (* || (P.am_choking peer) || not (P.am_interested peer) then *)
       None
     else 
       let pieces_owned_by_peer = Peer.owned_pieces peer in
@@ -20,7 +21,7 @@ let next_request file peers : (Piece.t * P.t) Option.t =
       | None -> None 
       | Some i -> Some (File.get_piece file i, peer)
   in
-    let l = List.map peers ~f in
-    match List.find l ~f:is_some with
-    | None -> None
-    | Some x -> x
+  let l = List.map peers ~f in
+  match List.find l ~f:is_some with
+  | None -> None
+  | Some x -> x

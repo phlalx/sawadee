@@ -67,6 +67,8 @@ let get_piece_status t i =
    | `Downloaded -> assert((has_piece t i))
   ); s
 
+let is_valid_piece_index t i =
+  i >=0 && i < t.num_pieces
 
 
 

@@ -28,8 +28,15 @@ let get_index t = t.index
 
 let num_blocks t = (t.length + G.block_size - 1) / G.block_size
 
-(* the last block can have a differeny size *)
-let block_length t off = min (t.length - off) G.block_size 
+(* the last block can have a different size *)
+let block_length t ~off = min (t.length - off) G.block_size 
+
+(* TODO straighten these conditions off >=0 ...*)
+let is_valid_block t ~off ~len =
+    (off % G.block_size = 0) && (len = block_length t off)
+
+let is_valid_block_request t ~off ~len =
+    off + len <= block_length t off
 
 let iter t ~f = 
   for i = 0 to (num_blocks t) - 1 do 
@@ -44,11 +51,8 @@ let is_hash_ok t =
   hash_piece = Bt_hash.to_string t.hash
 
 let update t ~off (block:string) = 
-  let index = 
-    assert (off % G.block_size = 0);  (* TODO other error for that *)
-    off / G.block_size in
+  let index = off / G.block_size in
   let len = String.length block in
-  assert (len = block_length t off);
   Bitset.insert t.blocks index;
   Bigstring.From_string.blit ~src:block ~src_pos:0 ~dst:t.content ~dst_pos:off ~len;
   if Bitset.is_full t.blocks then ( 

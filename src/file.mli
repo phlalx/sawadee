@@ -31,6 +31,8 @@ val length : t -> int
 
 val get_piece : t -> int -> Piece.t
 
+val is_valid_piece_index : t -> int -> bool
+
 (* val deferred_iter_piece : t -> f:(Piece.t -> unit Deferred.t) -> unit Deferred.t *)
 
 val num_pieces : t -> int
