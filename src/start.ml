@@ -79,7 +79,6 @@ let add_peers_from_tracker pwp torrent addrs =
     Deferred.ok (Pwp.add_peer pwp peer) 
   in
 
-  (* TODO check if there is an API function for this step *)
   let add_peer_ignore_error addr =
     add_peer addr 
     >>| function 
@@ -114,7 +113,6 @@ let process f =
   let bf_name = (G.path ()) ^ (Filename.basename torrent_name) ^ G.bitset_ext in
   let bf_len = Bitset.bitfield_length_from_size num_pieces in 
 
-
   (**** read bitfield *****)
 
   let bitfield = 
@@ -125,7 +123,7 @@ let process f =
       Bitfield.empty bf_len
   in
   info "read bitfield %s" bf_name;
-  let bitset = Bitset.from_bitfield bitfield num_pieces in
+  let bitset = Bitset.of_bitfield bitfield num_pieces in
 
   (**** open files *****)
 
@@ -149,7 +147,6 @@ let process f =
 
   info "read from files: %d pieces" (File.num_owned_pieces file);
   debug "written to files: %s" (File.pieces_to_string file);
-
 
   (***** get list of peers ****)
 

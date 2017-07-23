@@ -45,10 +45,10 @@ let query_tracker t uri : sl Deferred.Option.t =
     let open Deferred.Or_error.Monad_infix in
     Deferred.Or_error.try_with (fun () -> Cohttp_async.Client.get uri)
      >>= fun (_, body) -> 
-     (* TODO checke response *)
+     (* TODO check response *)
      Deferred.ok (Cohttp_async.Body.to_string body)
      >>= fun s ->
-     return (Or_error.try_with (fun () -> Tracker_reply.from_bencode s))
+     return (Or_error.try_with (fun () -> Tracker_reply.of_bencode s))
      >>= fun t ->
      return (Ok t.Tracker_reply.peers)  
   in

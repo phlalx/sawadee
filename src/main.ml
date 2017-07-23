@@ -16,7 +16,7 @@ let check_path () =
 
 let process 
     (torrent_name : string)
-    (port : int option) (* TODO ajouter le port dans la query *)
+    (port : int option) 
     (path : string option) = 
 
   info "This peer-id:%s" (Peer_id.to_readable_string G.peer_id);

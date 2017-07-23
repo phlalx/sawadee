@@ -73,11 +73,6 @@ let insert_from_bitfield t bf =
     if t.bits.(i) then t.num_set <- t.num_set + 1
   done
 
-let from_bitfield bf num =
-  let t = empty num in
-  insert_from_bitfield t bf;
-  t
-
 let inter t1 t2 = 
   let bits : bool Array.t = Array.map2_exn t1.bits t2.bits ~f:(&&) in
   let num_set = count_bits bits in
@@ -110,3 +105,8 @@ let to_bitfield t =
     if belongs t i then set_bit res i
   done;
   Bitfield.of_string res
+
+let of_bitfield bf num =
+  let t = empty num in
+  insert_from_bitfield t bf;
+  t

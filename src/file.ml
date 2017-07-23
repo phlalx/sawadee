@@ -22,8 +22,6 @@ let piece_init pieces_hash piece_length total_len owned_pieces i =
 let create pieces_hash ~piece_length ~total_length =
 
   let num_pieces = Array.length pieces_hash in
-  (* TODO: move that to a validation function of the torrent file *)
-  assert (num_pieces = (total_length + piece_length - 1) / piece_length);
 
   let owned_pieces = Bitset.empty ~size:num_pieces in
   let f = piece_init pieces_hash piece_length total_length owned_pieces in

@@ -44,7 +44,7 @@ let to_bencode r =
     ("peers", String peers_str)
   ] |> Bencode.encode_to_string
 
-let from_bencode s =
+let of_bencode s =
   let bc = B.decode (`String s) in 
   debug "tracker reply = %s" (B.pretty_print bc);
   let open Bencode_utils in

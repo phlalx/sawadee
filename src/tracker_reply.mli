@@ -13,7 +13,7 @@ type t = {
   peers : Socket.Address.Inet.t list
 }
 
-val from_bencode : string -> t
+val of_bencode : string -> t
 
 val to_bencode : t -> string
  

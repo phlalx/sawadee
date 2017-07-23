@@ -69,6 +69,9 @@ let do_file torrent_name chan =
   let num_files = List.length files_info in 
   let total_length = List.fold files_info ~init:0 ~f:(fun acc (_,l) -> l + acc)  in
 
+  if not (num_pieces = (total_length + piece_length - 1) / piece_length) then
+    raise Bencode_utils.Bencode_error;
+
   info "torrent: %s" torrent_name;
   info "torrent: %d files" num_files;
   info "torrent: %d pieces" num_pieces;
