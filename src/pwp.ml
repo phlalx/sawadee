@@ -118,7 +118,15 @@ let rec wait_and_process_message t (p:P.t) =
   P.get_message p 
   >>| function
   | `Ok m -> process_message t p m; `Repeat ()
-  | `Eof -> `Finished ()
+  | `Eof -> 
+    info "peer %s has left - remove it from peers" (Peer.to_string p); 
+    t.peers <- List.filter t.peers ~f:(fun x -> not ((Peer.peer_id x) = (Peer.peer_id p)));
+    (* kick_out_peer t p; *)
+    `Finished ()
+(* 
+let kick_out_peer t p =
+    t.peers <- List.filter t.peers ~f:(fun x -> not ((Peer.peer_id x) = (Peer.peer_id p)));
+ *)
 
 let stats t =
   info "** stats:";

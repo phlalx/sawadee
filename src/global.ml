@@ -9,9 +9,9 @@ let tick = sec 1.0
 type tick = int
 
 (** Time before a host is considered idle *)
-let idle = 15
+let idle = 100
 
-let keep_alive = 180
+let keep_alive = 20 
 
 let default_path = "download/"
 

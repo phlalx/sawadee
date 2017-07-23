@@ -23,12 +23,15 @@ type t = {
   mutable time_since_last_reception : int;
   mutable time_since_last_send : int;
   mutable idle : bool;
-  kind : [`Am_initiating | `Peer_initiating ]
+  kind : [`Am_initiating | `Peer_initiating ];
+  buffer : Bigstring.t;
+  (* sbuffer : Bigstring.t; TODO NOT WORKING *) 
 }
 
 let peer_id t = t.id 
 
 let create peer_addr r w kind =
+  Writer.set_raise_when_consumer_leaves w false;
   {
     peer_addr; 
     have = Bitset.empty 0; (* to be set by [init_size_owned_pieces] *)
@@ -44,6 +47,8 @@ let create peer_addr r w kind =
     time_since_last_send = 0; 
     idle = false;
     kind;
+    buffer = Bin_prot.Common.create_buf 40000;
+    (* sbuffer = Bin_prot.Common.create_buf 40000; *)
   }
 
 let to_string t = 
@@ -124,7 +129,7 @@ let handshake t hash pid =
 let get_message t =
   (* this should be big enough to contain [Piece.block_size]
      and the message header TODO *)
-  let buf = Bin_prot.Common.create_buf 40000 in  
+  let buf = t.buffer in 
   (* we need to get the prefix length first to know how many bytes to
      read *)
   let prefix_len_substr = Bigsubstring.create buf ~pos:0 ~len:4 in 
@@ -150,6 +155,7 @@ let send_message t (m:Message.t) =
   let len = 4 + Message.size m in (* prefix length + message *)
   debug "sending message %s %s" (Message.to_string m) (to_string t);
   let buf = Bin_prot.Common.create_buf len in
+  (* let buf = t.sbuffer in *)
   let pos = Message.bin_write_t buf 0 m in
   assert(pos = len); 
   t.time_since_last_send <- 0;
