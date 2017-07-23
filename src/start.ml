@@ -129,6 +129,8 @@ let process f =
 
   let%bind pers = Pers.create files_info num_pieces piece_length  in
 
+  Pers.start_write_daemon pers;
+
   (****** initialize File.t and retrieve pieces from disk *******)
 
   let file = File.create pieces_hash ~piece_length ~total_length in

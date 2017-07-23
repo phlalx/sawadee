@@ -14,7 +14,16 @@
    Files are opened to the right size using [create].
 
    All pieces write are channeled through a pipe to be processed sequencially 
-   TODO: improve this and make sure close happen after all writes *)
+   TODO: improve this and make sure close happen after all writes
+
+  TODO: Make this module application independent. 
+  - Make segment type public 
+  - Keep mapping from piece to segments in File.t
+  - open/close files in start 
+  - process in this module requests of the form write bigstring to list of segments
+
+  PROS: this makes this module self-contained
+  CONS: add complexity in File.t and Start *)
 
 open Core
 open Async
@@ -36,9 +45,10 @@ val write_piece : t -> Piece.t -> unit
 
 val read_piece : t -> Piece.t -> unit Deferred.t
 
-(* fill with 0 is not of the right size *)
 val read_bitfield : string -> len:int -> Bitfield.t 
 
 val write_bitfield : string -> Bitfield.t -> unit 
+
+val start_write_daemon : t -> unit
 
 

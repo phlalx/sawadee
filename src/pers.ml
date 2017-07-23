@@ -102,23 +102,26 @@ let make_segments fds info_files =
   let f (name, len, off) fd = { name; fd; len; off; off_in_file = 0 } in
   List.map2_exn files_with_offset fds ~f
 
-let create info_files num_pieces piece_length = 
-  let f (name, len) = open_file name ~len in
-  let%bind fds = Deferred.List.map ~how:`Sequential info_files ~f in
-  let rd, wr = Pipe.create () in
-  let segments = make_segments fds info_files in
-  let segments_of_piece = split_along_piece_length segments piece_length num_pieces in
+let display_segments segments_of_piece =
   let print_list_segments segments = 
     List.iter segments ~f:(fun s -> debug "%s" (segment_to_string s)) in
   let f i ls = 
     debug "piece %d" i;
     print_list_segments ls
   in
-  Array.iteri segments_of_piece ~f;
-  let t = { fds; segments_of_piece; wr; rd; piece_length; }
-  in 
-  don't_wait_for (read_from_pipe t);  
-  return t
+  Array.iteri segments_of_piece ~f
+
+let create info_files num_pieces piece_length = 
+  let f (name, len) = open_file name ~len in
+  let%bind fds = Deferred.List.map ~how:`Sequential info_files ~f in
+  let rd, wr = Pipe.create () in
+  let segments = make_segments fds info_files in
+  let segments_of_piece = split_along_piece_length segments piece_length num_pieces in
+  display_segments segments_of_piece; 
+  return { fds; segments_of_piece; wr; rd; piece_length; }
+
+let start_write_daemon t =    
+  don't_wait_for (read_from_pipe t)
 
 let write_piece t p = 
   debug "piece %d is pushed to the I/O pipe" (Piece.get_index p);
@@ -130,7 +133,7 @@ let close_all_files t =
 
 let read_bitfield f ~len = 
       Bitfield.of_string (In_channel.read_all f)
-      
+
 let write_bitfield f bf = 
   info "writing bitfield to file %s" f;
   Out_channel.write_all f ~data:(Bitfield.to_string bf)
