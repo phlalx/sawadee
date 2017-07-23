@@ -2,16 +2,10 @@ open Core
 
 let block_size = 16384 
 
-(** 1.0s, unit of time used everywhere. E.g. to compute compute transmission 
-    speeds or idleness *) 
-let tick = sec 1.0
-
-type tick = int
-
 (** Time before a host is considered idle *)
-let idle = 100
+let idle = sec 100.
 
-let keep_alive = 20 
+let keep_alive = sec 180. 
 
 let default_path = "download/"
 

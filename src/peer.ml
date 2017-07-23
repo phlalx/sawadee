@@ -3,11 +3,11 @@ open Async
 open Log.Global
 
 (** TODO see how to make a better use of buffers. We allocate a
-    buffer for each send/get. Can we have one per-peer buffer? 
+    buffer for each send 
 
     A better solution for send_message/get_message would be to use
-    the bin_prot_read and bin_prot_write but the current version
-    of the library uses a fixed 8-bytes length (4 bytes in bittorrent) *) 
+    the bin_prot_read and bin_prot_write but unfortunately the current version
+    of the library uses a fixed 8-bytes length (4 bytes in bittorrent). *) 
 
 type t = {
   mutable peer_choking : bool; 
@@ -20,8 +20,6 @@ type t = {
   writer : Writer.t;
   mutable have : Bitset.t;
   mutable pending : Int.Set.t;
-  mutable time_since_last_reception : int;
-  mutable time_since_last_send : int;
   mutable idle : bool;
   kind : [`Am_initiating | `Peer_initiating ];
   buffer : Bigstring.t;
@@ -43,16 +41,15 @@ let create peer_addr r w kind =
     reader = r; 
     writer = w; 
     pending = Int.Set.empty;
-    time_since_last_reception = 0; 
-    time_since_last_send = 0; 
     idle = false;
     kind;
+    (* this should be big enough to contain [Piece.block_size]
+     and the message header TODO *)
     buffer = Bin_prot.Common.create_buf 40000;
     (* sbuffer = Bin_prot.Common.create_buf 40000; *)
   }
 
-let to_string t = 
-   Printf.sprintf "%s" (Peer_id.to_readable_string t.id)
+let to_string t = sprintf "%s" (Peer_id.to_readable_string t.id)
 
 let hs_prefix = "\019BitTorrent protocol\000\000\000\000\000\000\000\000"  
 
@@ -92,7 +89,7 @@ let initiate_handshake t hash pid =
       | None -> Error (Error.of_string "hash error")
       | Some p -> t.id <- Peer_id.of_string p;
         info "handshake ok with %s = %s" (to_string t)
-         (Socket.Address.Inet.to_string t.peer_addr);
+          (Socket.Address.Inet.to_string t.peer_addr);
         Ok ()
     ) 
   | `Eof _ -> Error (Error.of_string "handshake error")
@@ -126,8 +123,6 @@ let handshake t hash pid =
     wait_for_handshake t hash pid
 
 let get_message t =
-  (* this should be big enough to contain [Piece.block_size]
-     and the message header TODO *)
   let buf = t.buffer in 
   (* we need to get the prefix length first to know how many bytes to
      read *)
@@ -144,7 +139,6 @@ let get_message t =
         info "Didn't get message - peer %s closed connection" (to_string t);
         `Eof 
       | `Ok -> 
-        t.time_since_last_reception <- 0;
         pos_ref := 0;
         let msg = Message.bin_read_t buf ~pos_ref in
         debug "got message %s from %s" (Message.to_string msg) (to_string t);
@@ -157,7 +151,6 @@ let send_message t (m:Message.t) =
   (* let buf = t.sbuffer in *)
   let pos = Message.bin_write_t buf 0 m in
   assert(pos = len); 
-  t.time_since_last_send <- 0;
   Writer.write_bigstring t.writer buf
 
 let has_piece t i = Bitset.belongs t.have i
@@ -168,8 +161,6 @@ let set_owned_piece t i = Bitset.insert t.have i
 
 let set_owned_pieces t s = Bitset.insert_from_bitfield t.have s;
   info "peer %s has %d pieces" (to_string t) (Bitset.card t.have) 
-
-let time_since_last_received_message t = t.time_since_last_reception
 
 let is_idle t = t.idle
 
@@ -222,33 +213,7 @@ let stats t =
   info "** peer %s: idle/choking/interested %B %B %B" 
     (to_string t) t.idle t.peer_choking t.peer_interested 
 
-let tick t =
-  t.time_since_last_send <- t.time_since_last_send + 1;
-  t.time_since_last_reception <- t.time_since_last_reception + 1;
-  let is_ka = t.time_since_last_send >= Global.keep_alive in 
-  let is_id = t.time_since_last_reception >= Global.idle in 
-  match (is_ka, is_id) with 
-  | (_, true) -> 
-    let l = Int.Set.to_list t.pending in 
-    set_idle t true;
-    clear_pending t;
-    `Idle l 
-  | (true, _) -> `Keep_alive
-  | (false, false) -> 
-    set_idle t false;
-    `Ok
+let get_pending t = Int.Set.to_list t.pending
 
 (* must be call right after handshake *)
 let init_size_owned_pieces t num_piece = t.have <- Bitset.empty num_piece
-
-
-
-
-
-
-
-
-
-
-
-

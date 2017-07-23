@@ -8,18 +8,9 @@ open Async
 (** 16KB, we ignore other requests *)
 val block_size : int
 
-(** 1.0s, unit of time used everywhere. E.g. to compute compute transmission 
-    speeds or idleness *) 
-val tick : Time.Span.t  
+val idle : Time.Span.t  
 
-type tick = int
-
-(** Time before a host is considered idle
-    TODO is this needed *)
-val idle : tick 
-
-(** Time before sending a keep-alive *)
-val keep_alive : tick
+val keep_alive : Time.Span.t
 
 val is_server : unit -> bool 
 

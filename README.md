@@ -40,9 +40,8 @@ Persistence is dealt with in module `Pers`.
 We map each piece of the network file to a list of `Pers.segment` (file descriptor, offset, length). This has to be done carefully, especially for multiple files where a piece can be mapped to several files. Moreover, `Pers` sets up a writing "master thread" that processes sequentially the writing requests sent asynchronously through a pipe. 
 
  * There is a message loop that wait and process peer messages
- * Another one requests for random pieces by polling the number of pending requests and the availability of new pieces. 
 
-Besides, requests that have been pending for n seconds are canceled. To check these requests, we poll the peers regularly to see if they are idle. In that case, we ignore theem and mark the pieces as non-requested. They will be re-requested to other peers.
+Besides, requests that have been pending for n seconds are canceled.
 
 ### TODO 
 

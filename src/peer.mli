@@ -68,19 +68,6 @@ val set_owned_pieces : t -> Bitfield.t -> unit
 
 val set_owned_piece : t -> int -> unit
 
-(** to be called at every [Global.tick]. Inform `Pwp` about this peer 
-    responsivness.
-
-    If [`Idle l], peer is set to idle. Pending requets are erased.
-    `Pwp` will re-request them (to a non-idle peer).
-
-    If [`Keep_alive], a keep alive message has to be sent by `Pwp`. Should
-    be every 180s.
-
-    TODO: this would probably be better to use a time-out, but it's pretty 
-    simple this way *)
-val tick : t -> [ `Idle of int list | `Ok | `Keep_alive ]
-
 (** The following functions are getter/setters for the boolean states 
     defined by the spec *)
 
@@ -103,12 +90,16 @@ val set_am_choking : t -> bool -> unit
 (** unresponsive peers become idle, we don't request them anymore pieces. *)
 val is_idle : t -> bool
 
+val set_idle : t -> bool -> unit
+
 (** [t] maintains a set of pending (index of) piece requests. This has to be
     done in order to re-request them if a peer becomes unresponsive. *)
 
 val add_pending: t -> int -> unit
 
 val remove_pending: t -> int -> unit
+
+val get_pending : t -> int list 
 
 (** assert a condition dependent on values received by a peer. For instance,
     if peer doesn't behave according to the protocol. raises if false 

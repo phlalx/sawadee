@@ -17,11 +17,9 @@ let create t file pers = { file; peers = []; num_requested = 0; pers }
 
 (* TODO make sure this invariant is maintained, maybe move this 
    somewhere else *)
-let incr_requested t =
-  t.num_requested <- t.num_requested + 1 
+let incr_requested t = t.num_requested <- t.num_requested + 1 
 
-let decr_requested t =
-  t.num_requested <- t.num_requested - 1
+let decr_requested t = t.num_requested <- t.num_requested - 1
 
 let for_all_peers t ~f = List.iter t.peers ~f
 
@@ -33,24 +31,6 @@ let send_have_messages t i =
       P.send_message p (M.Have i)
     ) in
   for_all_peers t ~f:(notify_if_doesn't_have i)
-
-let tick_peers t = 
-  let f p = 
-    match P.tick p with
-    | `Ok -> ()
-    | `Idle l -> 
-      let f i = 
-        decr_requested t;
-        File.set_piece_status t.file i `Not_requested in
-      let s = List.to_string ~f:string_of_int l in
-      if not (List.is_empty l) then
-        info "cancelling requests from %s: %s" (Peer.to_string p) s;
-      List.iter l ~f
-    | `Keep_alive -> 
-      info "sending keep alive to peer %s" (Peer.to_string p);
-      Peer.send_message p Message.KeepAlive 
-  in
-  for_all_peers t ~f
 
 let request_all_blocks_from_piece t (p:P.t) (piece_i:int) : unit =
   debug "requesting piece %d from peer %s" piece_i (P.to_string p);
@@ -127,19 +107,41 @@ let process_message t (p:P.t) (m:M.t) : unit =
     try_request_piece t
   | M.Cancel (index, bgn, length) -> info "ignore cancel msg - Not yet implemented"
 
+let cancel_requests t p = 
+  let f i = 
+    decr_requested t;
+    Peer.remove_pending p i;
+    File.set_piece_status t.file i `Not_requested 
+  in
+
+  let l = Peer.get_pending p in 
+  if not (List.is_empty l) then (
+    let s = List.to_string ~f:string_of_int l in 
+    info "cancelling requests from %s: %s" (Peer.to_string p) s
+  );
+  List.iter l ~f
+
+let kick_out_peer t p = 
+   t.peers <- List.filter t.peers ~f:(fun x -> not ((Peer.peer_id x) = (Peer.peer_id p)))
+
 let rec wait_and_process_message t (p:P.t) =
-  P.get_message p 
+  Clock.with_timeout (sec 10.0) (P.get_message p)  
   >>| function
-  | `Ok m -> process_message t p m; `Repeat ()
-  | `Eof -> 
-    info "peer %s has left - remove it from peers" (Peer.to_string p); 
-    t.peers <- List.filter t.peers ~f:(fun x -> not ((Peer.peer_id x) = (Peer.peer_id p)));
-    (* kick_out_peer t p; *)
+  | `Timeout ->
+    (* TODO decide what to do with these idle peers - keep using them but
+       mark them as bad and give priority to other peers? now we just ignore
+       them. *)
+    info "peer %s is slow - set idle" (Peer.to_string p); 
+    cancel_requests t p;
+    Peer.set_idle p true;
     `Finished ()
-(* 
-let kick_out_peer t p =
-    t.peers <- List.filter t.peers ~f:(fun x -> not ((Peer.peer_id x) = (Peer.peer_id p)));
- *)
+  | `Result r -> match r with  
+    | `Ok m -> process_message t p m; `Repeat ()
+    | `Eof -> 
+      info "peer %s has left - remove it from peers" (Peer.to_string p); 
+      cancel_requests t p;
+      kick_out_peer t p;
+      `Finished ()
 
 let stats t =
   info "** stats:";
@@ -169,9 +171,7 @@ let add_peer t p =
       Deferred.repeat_until_finished () (fun () -> wait_and_process_message t p)
     end
 
-let start t =  
-  Clock.every (sec 10.0) (fun () -> stats t); 
-  Clock.every G.tick (fun () -> tick_peers t)
+let start t =  Clock.every (sec 10.0) (fun () -> stats t)
 
 
 
