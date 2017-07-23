@@ -5,18 +5,6 @@ module G = Global
 module P = Peer
 module Em = Error_msg
 
-let stop bf_name file pers = 
-  let stop_aux () =
-    info "written to files: %d pieces" (File.num_owned_pieces file);
-    debug "written to files: %s" (File.pieces_to_string file);
-    (try
-       Pers.write_bitfield bf_name (File.bitfield file)
-     with 
-       _  -> failwith (Em.can't_open bf_name));
-    Pers.close_all_files pers >>= fun () ->
-    exit 0
-  in 
-  don't_wait_for (stop_aux ())
 
 (* Creates a server that wait for connection from peers.
 
@@ -129,8 +117,6 @@ let process f =
 
   let%bind pers = Pers.create files_info num_pieces piece_length  in
 
-  Pers.start_write_daemon pers;
-
   (****** initialize File.t and retrieve pieces from disk *******)
 
   let file = File.create pieces_hash ~piece_length ~total_length in
@@ -150,6 +136,21 @@ let process f =
   info "read from files: %d pieces" (File.num_owned_pieces file);
   debug "written to files: %s" (File.pieces_to_string file);
 
+  (***** set up Pers writing daemon *****)
+
+  let finally () =
+    info "written to files: %d pieces" (File.num_owned_pieces file);
+    debug "written to files: %s" (File.pieces_to_string file);
+    (try
+       Pers.write_bitfield bf_name (File.bitfield file)
+     with 
+       _  -> failwith (Em.can't_open bf_name));
+    Pers.close_all_files pers >>= fun () ->
+    exit 0
+  in 
+
+  don't_wait_for (Pers.start_write_daemon pers ~finally);
+
   (***** get list of peers ****)
 
   let%bind addrs = match%bind Tracker_client.query t with
@@ -164,7 +165,7 @@ let process f =
   let pwp = Pwp.create t file pers in
 
   wait_for_incoming_peers pwp t;
-  Signal.handle Signal.terminating ~f:(fun _ -> stop bf_name file pers);
+  Signal.handle Signal.terminating ~f:(fun _ -> Pers.close_pipe pers);
   Pwp.start pwp;
   add_peers_from_tracker pwp t addrs
 

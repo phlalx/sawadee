@@ -49,6 +49,12 @@ val read_bitfield : string -> len:int -> Bitfield.t
 
 val write_bitfield : string -> Bitfield.t -> unit 
 
-val start_write_daemon : t -> unit
+(** process write_piece requests, when close_pipe is closed, 
+drain the pipe and execute finally.
 
+TODO: can write_piece request be scheduled after the pipe is closed * *)
+
+val start_write_daemon : t -> finally:(unit -> unit Deferred.t) -> unit Deferred.t
+
+val close_pipe : t -> unit
 

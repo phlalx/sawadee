@@ -120,11 +120,14 @@ let create info_files num_pieces piece_length =
   display_segments segments_of_piece; 
   return { fds; segments_of_piece; wr; rd; piece_length; }
 
-let start_write_daemon t =    
-  don't_wait_for (read_from_pipe t)
+let start_write_daemon t ~finally =    
+  read_from_pipe t 
+  >>= fun _ ->
+  finally ()
 
 let write_piece t p = 
   debug "piece %d is pushed to the I/O pipe" (Piece.get_index p);
+  if not (Pipe.is_closed t.wr) then
   Pipe.write_without_pushback t.wr p 
 
 let close_all_files t = 
@@ -138,6 +141,8 @@ let write_bitfield f bf =
   info "writing bitfield to file %s" f;
   Out_channel.write_all f ~data:(Bitfield.to_string bf)
 
+let close_pipe t = 
+  Pipe.close t.wr
 
 
 

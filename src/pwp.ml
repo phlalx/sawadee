@@ -99,12 +99,12 @@ let process_message t (p:P.t) (m:M.t) : unit =
   in
   match m with
   | M.KeepAlive -> ()
-  | M.Choke -> P.set_peer_choking p true
-  | M.Unchoke -> P.set_peer_choking p false
+  | M.Choke -> P.set_peer_choking p true;
+  | M.Unchoke -> P.set_peer_choking p false;
   | M.Interested -> 
     P.set_peer_interested p true; 
     if not (P.am_choking p) then P.send_message p Message.Unchoke
-  | M.Not_interested -> P.set_peer_interested p false
+  | M.Not_interested -> P.set_peer_interested p false;
   | M.Have index -> P.set_owned_piece p index 
   | M.Bitfield bits -> P.set_owned_pieces p bits 
   | M.Request (index, bgn, length) -> 
@@ -134,7 +134,6 @@ let stats t =
   let f p = Peer.stats p in
   List.iter t.peers f
 
-
 let add_peer t p =
   (* we ignore all peers already conneccted, and ourselves *)
   let ignored_peers = G.peer_id :: List.map t.peers ~f:Peer.peer_id in
@@ -149,7 +148,7 @@ let add_peer t p =
       if (File.num_owned_pieces t.file) > 0 then (
         P.send_message p (M.Bitfield (File.bitfield t.file))
       );
-      P.send_message p M.Interested;
+      (* P.send_message p M.Interested; *)
       debug "start message handler loop";
       Deferred.repeat_until_finished () (fun () -> wait_and_process_message t p)
     end

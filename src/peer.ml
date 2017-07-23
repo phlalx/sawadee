@@ -38,8 +38,8 @@ let create peer_addr r w kind =
     id = Peer_id.dummy;
     peer_interested = false; 
     peer_choking = true; 
-    am_interested = true;
-    am_choking = false; (* TODO should start as choking and not interested *) 
+    am_interested = false;
+    am_choking = true; 
     reader = r; 
     writer = w; 
     pending = Int.Set.empty;
@@ -52,8 +52,7 @@ let create peer_addr r w kind =
   }
 
 let to_string t = 
-  sprintf("%S:%d") (Peer_id.to_readable_string t.id)
-    (Socket.Address.Inet.port t.peer_addr)
+   Printf.sprintf "%s" (Peer_id.to_readable_string t.id)
 
 let hs_prefix = "\019BitTorrent protocol\000\000\000\000\000\000\000\000"  
 
@@ -93,7 +92,8 @@ let initiate_handshake t hash pid =
       match validate_handshake buf hash with
       | None -> Error (Error.of_string "hash error")
       | Some p -> t.id <- Peer_id.of_string p;
-        info "handshake ok with %s" (to_string t);
+        info "handshake ok with %s = %s" (to_string t)
+         (Socket.Address.Inet.to_string t.peer_addr);
         Ok ()
     ) 
   | `Eof _ -> Error (Error.of_string "handshake error")
@@ -174,13 +174,23 @@ let time_since_last_received_message t = t.time_since_last_reception
 
 let is_idle t = t.idle
 
-let set_peer_interested t b = t.peer_interested <- b
+let is_or_not b = if b then "" else "not"
 
-let set_peer_choking t b = t.peer_choking <- b
+let set_peer_interested t b = 
+  info "%s is %s interested" (to_string t) (is_or_not b);
+  t.peer_interested <- b
 
-let set_am_interested t b = t.am_interested <- b
+let set_peer_choking t b = 
+  info "%s is %s choking" (to_string t) (is_or_not b);
+  t.peer_choking <- b
 
-let set_am_choking t b = t.am_choking <- b
+let set_am_interested t b = 
+  info "I am %s interested in %s" (is_or_not b) (to_string t);
+  t.am_interested <- b
+
+let set_am_choking t b = 
+  info "I am %s choking %s" (is_or_not b) (to_string t);
+  t.am_choking <- b
 
 let is_peer_choking t = t.peer_choking
 
