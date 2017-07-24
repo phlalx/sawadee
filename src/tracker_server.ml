@@ -1,12 +1,5 @@
-(** This is a rudimentary tracker for testing locally.
-
-    It doesn't check the query and always returns the same set of peers.
-    127.0.0.1:6001
-    127.0.0.1:6002
-    127.0.0.1:6003
-    127.0.0.1:6004
-
-  TODO: add a simple memory! *)
+(** This is a rudimentary tracker for testing locally. It remembers the ports and inet
+    addresses of clients, and serves them to new clients. *)
 
 open Core
 open Async
@@ -14,18 +7,36 @@ open Log.Global
 open Cohttp
 open Cohttp_async
 
-let from_port p = 
-  Socket.Address.Inet.create (Unix.Inet_addr.of_string "127.0.0.1") p 
-
-let reply = Tracker_reply.{
-  complete = 0;
-  incomplete = 0;
-  interval = 0;
-  peers = List.map [6000; 6001; 6002] ~f:from_port
+type t = {
+  mutable peers : Socket.Address.Inet.t list
 }
 
-let callback ~body addr request = 
+let state = {
+  peers = [];
+}
+
+let callback ~body (addr : Socket.Address.Inet.t) request = 
   info "tracker is processing request";
+  let `Inet (inet_addr, _) = addr in
+
+  let uri = Request.uri request in
+  let port = Uri.get_query_param uri "port"  in
+
+  let reply = 
+    Tracker_reply.{
+      complete = 0;
+      incomplete = 0;
+      interval = 0;
+      peers = state.peers; 
+    } 
+  in
+  let set_port p =
+    let port = int_of_string p in
+    let peer_addr = Socket.Address.Inet.create inet_addr ~port in
+    info "added peer %s" (Socket.Address.Inet.to_string peer_addr);
+    state.peers <- List.dedup (peer_addr :: state.peers)
+  in
+  Option.value_map port ~default:() ~f:set_port;
   Tracker_reply.to_bencode reply |>
   Server.respond_string ~flush:true
 

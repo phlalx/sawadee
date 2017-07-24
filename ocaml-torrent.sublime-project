@@ -10,16 +10,26 @@
 	],
    "build_systems":
     [
+{
+            "name": "make server",
+            "shell_cmd": "make server",
+            "file_regex": "^[ ]*File \"(...*?)\", line ([0-9]*)",
+            "selector": "source.ocaml",
+            "working_dir": "${project_path}",
+          },
+
         {
-            "name": "My Make",
+            "name": "make",
             "shell_cmd": "make",
             "file_regex": "^[ ]*File \"(...*?)\", line ([0-9]*)",
             "selector": "source.ocaml",
             "working_dir": "${project_path}",
           },
         {
-            "name": "My Doc",
+            "name": "make doc",
             "shell_cmd": "make doc",
+            "working_dir": "${project_path}",
+            "selector": "source.ocaml",
             "working_dir": "${project_path}",
         }
     ]

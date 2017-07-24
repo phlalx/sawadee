@@ -117,12 +117,12 @@ let create info_files num_pieces piece_length =
   let rd, wr = Pipe.create () in
   let segments = make_segments fds info_files in
   let segments_of_piece = split_along_piece_length segments piece_length num_pieces in
-  display_segments segments_of_piece; 
+  (* display_segments segments_of_piece;  *)
   return { fds; segments_of_piece; wr; rd; piece_length; }
 
 let start_write_daemon t ~finally =    
   read_from_pipe t 
-  >>= fun _ ->
+  >>= fun () ->
   finally ()
 
 let write_piece t p = 
@@ -134,15 +134,13 @@ let close_all_files t =
   info "closing all files";
   Deferred.List.iter t.fds ~f:Fd.close
 
-let read_bitfield f ~len = 
-      Bitfield.of_string (In_channel.read_all f)
+let read_bitfield f ~len = Bitfield.of_string (In_channel.read_all f)
 
 let write_bitfield f bf = 
   info "writing bitfield to file %s" f;
   Out_channel.write_all f ~data:(Bitfield.to_string bf)
 
-let close_pipe t = 
-  Pipe.close t.wr
+let close_pipe t = Pipe.close t.wr
 
 
 

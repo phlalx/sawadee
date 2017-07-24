@@ -76,6 +76,10 @@ let do_file torrent_name chan =
   info "torrent: %d files" num_files;
   info "torrent: %d pieces" num_pieces;
   info "torrent: piece length = %d" piece_length;
+  info "torrent: announce %s" announce;
+
+ let al : string list = List.concat announce_list in  
+  List.iter al ~f:(info "torrent: announce %s");
 
   { announce; info_hash; piece_length; pieces_hash; announce_list; 
     files_info; torrent_name; total_length; num_pieces; num_files }

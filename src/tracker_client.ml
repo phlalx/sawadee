@@ -41,11 +41,13 @@ type sl = Socket.Address.Inet.t list
     - error while decoding the reply *)
 let query_tracker t uri : sl Deferred.Option.t = 
   let uri = create_uri_with_parameters t uri in
+  info "trying uri %s" (Uri.to_string uri);
   let reply_or_error : sl Deferred.Or_error.t =
     let open Deferred.Or_error.Monad_infix in
     Deferred.Or_error.try_with (fun () -> Cohttp_async.Client.get uri)
-     >>= fun (_, body) -> 
-     (* TODO check response *)
+     >>= fun (response, body) -> 
+     (* let http_code = Cohttp.Response.status response in *)
+     (* TODO check response.status = `OK; *)
      Deferred.ok (Cohttp_async.Body.to_string body)
      >>= fun s ->
      return (Or_error.try_with (fun () -> Tracker_reply.of_bencode s))
@@ -57,6 +59,7 @@ let query_tracker t uri : sl Deferred.Option.t =
   | Error l -> return None
 
 let query_all_trackers t uris =
+  let uris = List.take uris 1 in 
   match%bind Deferred.List.filter_map uris ~how:`Parallel ~f:(query_tracker t) with 
   | res :: _ -> return (Some res)
   | [] -> return None
