@@ -7,19 +7,17 @@ let idle = sec 100.
 
 let keep_alive = sec 180. 
 
-let default_path = "download/"
-
-let path_ = ref default_path
+let path_ = ref None
 
 let port_ = ref None
 
 let port_exn () = Option.value_exn !port_
 
-let path () = !path_
+let path () = Option.value_exn !path_
 
 let set_port p = port_ := Some p 
 
-let set_path p = path_ := p ^ "/" 
+let set_path p = path_ := Some p
 
 let is_server () = Option.is_some !port_
 

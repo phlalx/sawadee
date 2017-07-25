@@ -70,5 +70,15 @@ let get_piece_status t i =
 let is_valid_piece_index t i =
   i >=0 && i < t.num_pieces
 
+let percent t = (100 * (num_owned_pieces t)) / t.num_pieces
+
+
+
+
+
+
+
+
+
 
 

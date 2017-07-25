@@ -1,4 +1,5 @@
 open Core
+open Async
 
 let wrong_file f = sprintf "Can't access file %s" f
 
@@ -14,3 +15,8 @@ let tracker_error () = "Can't connect to tracker"
 let tracker_error () = "Can't connect to tracker" 
 
 let can't_open p = sprintf "Can't open %s" p
+
+let terminate s =
+  Core.Printf.printf "%s\n" s;
+  Pervasives.flush_all ();
+  Pervasives.exit 0

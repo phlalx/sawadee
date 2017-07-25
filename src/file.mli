@@ -44,3 +44,6 @@ val pieces_to_string : t -> string
 (** This is the [Bitfield.t] decribing the list of pieces we have *)
 val bitfield : t -> Bitfield.t
 
+(** return percentage of file on disk *)
+val percent : t -> int
+

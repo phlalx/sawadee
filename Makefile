@@ -3,8 +3,10 @@
 OCB_FLAGS = -tag bin_annot -use-ocamlfind # -cflag -safe-string 
 OCB =	ocamlbuild $(OCB_FLAGS) -I src
 
-TEST_REMOTE = tests/torrents/ubuntu-17.04-desktop-amd64.iso.torrent
-#TEST_REMOTE = tests/torrents/NuTyX_x86_64-20170625.torrent
+# set the torrent file you want to download
+TEST_REMOTE = tests/torrents/NuTyX_x86_64-20170625.torrent
+# VERBOSE = -v 2 # set to see execution trace in test
+DOWNLOAD_PATH = -p download/
 
 all: byte tracker_server.byte
 
@@ -15,7 +17,7 @@ server:
 	$(OCB) tracker_server.byte
 
 test: byte
-	./main.byte $(TEST_REMOTE)
+	./main.byte $(TEST_REMOTE) $(DOWNLOAD_PATH) $(VERBOSE)
 	
 doc:
 	$(OCB) .docdir/index.html

@@ -11,9 +11,11 @@ type t = {
   mutable peers : P.t list;
   pers : Pers.t;
   mutable num_requested : int;
+  mutable torrent : Torrent.t;
 }
 
-let create t file pers = { file; peers = []; num_requested = 0; pers }
+let create torrent file pers = { file; peers = []; num_requested = 0; pers;
+torrent }
 
 (* TODO make sure this invariant is maintained, maybe move this 
    somewhere else *)
@@ -64,10 +66,16 @@ let process_message t (p:P.t) (m:M.t) : unit =
       info "hash error piece %d from %s" index (P.to_string p)
     | `Downloaded ->
       info "got piece %d from %s " index (P.to_string p);
+      Peer.set_downloading p;
       P.remove_pending p index;
       File.set_piece_status t.file index `Downloaded;
       decr_requested t;
       Pers.write_piece t.pers piece;
+
+      let one_percent = t.torrent.Torrent.num_pieces / 100 in
+      if (File.num_owned_pieces t.file % one_percent) = 0 then
+        Print.printf "downloaded %d%%\n" (File.percent t.file);
+
       send_have_messages t index 
   in
   let process_request index bgn length =
@@ -76,6 +84,7 @@ let process_message t (p:P.t) (m:M.t) : unit =
     Peer.validate p (Piece.is_valid_block_request piece bgn length);
     Peer.validate p (File.has_piece t.file index);
     if not (Peer.am_choking p) then (
+      Peer.set_uploading p;
       let piece = File.get_piece t.file index in
       let block = Piece.get_content piece ~off:bgn ~len:length in
       Peer.send_message p (Message.Piece (index, bgn, block)))
@@ -144,8 +153,7 @@ let rec wait_and_process_message t (p:P.t) =
       `Finished ()
 
 let stats t =
-  info "** stats:";
-  info "** downloaded %d/%d" (File.num_owned_pieces t.file) 
+  info "** stats %d/%d" (File.num_owned_pieces t.file) 
     (File.num_pieces t.file);
   info "** pending requests %d" t.num_requested;
   let f p = Peer.stats p in

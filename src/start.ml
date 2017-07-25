@@ -5,9 +5,7 @@ module G = Global
 module P = Peer
 module Em = Error_msg
 
-
-(* Creates a server that wait for connection from peers.
-
+(* Creates a server that waits for connection from peers.
    After handshake, peer is initialized and added to Pwp. *)
 let wait_for_incoming_peers pwp torrent =
 
@@ -15,12 +13,13 @@ let wait_for_incoming_peers pwp torrent =
   let { info_hash; num_pieces } = torrent in
 
   let handler addr r w =
-    info "incoming connection on server from peer %s"
+    info "incoming connection on server from peer %s" 
       (Socket.Address.Inet.to_string addr);
     let open Deferred.Or_error.Monad_infix in 
     let peer = Peer.create addr r w `Peer_initiating  in
     Peer.handshake peer info_hash G.peer_id
     >>= fun () ->
+    Print.printf "handshake with (server) peer %s\n" (Peer.addr_to_string peer);
     Peer.init_size_owned_pieces peer num_pieces;
     Deferred.ok (Pwp.add_peer pwp peer) 
   in 
@@ -54,6 +53,7 @@ let add_peers_from_tracker pwp torrent addrs =
      propagated with an Or_error monad *) 
 
   let add_peer addr = 
+    let addr_string = Socket.Address.Inet.to_string addr in
     let open Deferred.Or_error.Monad_infix in 
     let wtc = Tcp.to_inet_address addr in
     debug "try connecting to peer %s" (Socket.Address.Inet.to_string addr);
@@ -63,6 +63,7 @@ let add_peers_from_tracker pwp torrent addrs =
     >>= fun peer ->
     Peer.handshake peer info_hash G.peer_id
     >>= fun () ->
+    Print.printf "hanshake with (tracker) peer %s\n" addr_string;
     Peer.init_size_owned_pieces peer num_pieces;
     Deferred.ok (Pwp.add_peer pwp peer) 
   in
@@ -72,8 +73,6 @@ let add_peers_from_tracker pwp torrent addrs =
     >>| function 
     | Ok () -> ()
     | Error err -> 
-      info "Error connecting with peer %s" 
-        (Socket.Address.Inet.to_string addr);
       debug "Error connecting %s" (Sexp.to_string (Error.sexp_of_t err))
   in
 
@@ -86,9 +85,9 @@ let process f =
   let t = try 
       Torrent.from_file f
     with
-    | Sys_error _ -> failwith (Em.wrong_file f)
-    | Failure s -> failwith (Em.not_bencode f)
-    | Bencode_utils.Bencode_error -> failwith (Em.wrong_bencode f)
+    | Sys_error _ -> Em.terminate (Em.wrong_file f)
+    | Failure s -> Em.terminate (Em.not_bencode f)
+    | Bencode_utils.Bencode_error -> Em.terminate (Em.wrong_bencode f)
     | ex -> raise ex
   in 
 
@@ -96,9 +95,11 @@ let process f =
 
   let open Torrent in
   let { files_info; num_pieces; piece_length; torrent_name; total_length; 
-        info_hash; pieces_hash } = t in
+        info_hash; pieces_hash; num_files } = t in
 
-  let bf_name = (G.path ()) ^ (Filename.basename torrent_name) ^ G.bitset_ext in
+
+  let bf_name = sprintf "%s/%s%s" (G.path ()) (Filename.basename torrent_name) 
+      G.bitset_ext in
   let bf_len = Bitset.bitfield_length_from_size num_pieces in 
 
   (**** read bitfield *****)
@@ -133,19 +134,21 @@ let process f =
 
   >>= fun () ->
 
-  info "read from files: %d pieces" (File.num_owned_pieces file);
-  debug "written to files: %s" (File.pieces_to_string file);
+  Print.printf "read %d%% from disk.\n" (File.percent file);
+  info "read %d/%d pieces" (File.num_owned_pieces file) num_pieces;
+  debug "read from files: %s" (File.pieces_to_string file);
 
   (***** set up Pers writing daemon *****)
 
   let finally () =
-    info "written to files: %d pieces" (File.num_owned_pieces file);
-    debug "written to files: %s" (File.pieces_to_string file);
     (try
        Pers.write_bitfield bf_name (File.bitfield file)
      with 
-       _  -> failwith (Em.can't_open bf_name));
+       _  -> Em.terminate (Em.can't_open bf_name));
     Pers.close_all_files pers >>= fun () ->
+    Print.printf "written %d%% to disk\n" (File.percent file);
+    info "written %d/%d pieces" (File.num_owned_pieces file) num_pieces;
+    debug "written to files: %s" (File.pieces_to_string file);
     exit 0
   in 
 
@@ -155,9 +158,10 @@ let process f =
 
   let%bind addrs = match%bind Tracker_client.query t with
     | Some addrs -> return addrs 
-    | None -> failwith (Em.tracker_error ())
+    | None -> Em.terminate (Em.tracker_error ())
   in
   let num_of_peers = List.length addrs in 
+  Print.printf "tracker returned %d peers\n" num_of_peers;
   info "tracker replies with list of %d peers" num_of_peers;
 
   (******* create Pwp.t *************)
@@ -168,8 +172,6 @@ let process f =
   Signal.handle Signal.terminating ~f:(fun _ -> Pers.close_pipe pers);
   Pwp.start pwp;
   add_peers_from_tracker pwp t addrs
-
-
 
 
 

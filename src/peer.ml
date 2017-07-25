@@ -24,6 +24,8 @@ type t = {
   kind : [`Am_initiating | `Peer_initiating ];
   buffer : Bigstring.t;
   (* sbuffer : Bigstring.t; TODO NOT WORKING *) 
+  mutable downloading : bool;
+  mutable uploading : bool;
 }
 
 let peer_id t = t.id 
@@ -44,9 +46,11 @@ let create peer_addr r w kind =
     idle = false;
     kind;
     (* this should be big enough to contain [Piece.block_size]
-     and the message header TODO *)
+       and the message header TODO *)
     buffer = Bin_prot.Common.create_buf 40000;
     (* sbuffer = Bin_prot.Common.create_buf 40000; *)
+    downloading = false;
+    uploading = false;
   }
 
 let to_string t = sprintf "%s" (Peer_id.to_readable_string t.id)
@@ -217,3 +221,21 @@ let get_pending t = Int.Set.to_list t.pending
 
 (* must be call right after handshake *)
 let init_size_owned_pieces t num_piece = t.have <- Bitset.empty num_piece
+
+let addr_to_string t = Socket.Address.Inet.to_string t.peer_addr
+
+let set_downloading t = 
+  if not t.downloading then (
+    Print.printf  "downloading from peer %s\n" (addr_to_string t);
+    t.downloading <- true;
+  )
+
+let set_uploading t = 
+  if not t.uploading then (
+    Print.printf  "uploading to peer %s\n" (addr_to_string t);
+    t.uploading <- true;
+  )
+
+
+
+
