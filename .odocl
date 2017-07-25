@@ -1,3 +1,3 @@
 Bencode_utils Pwp Bitfield Bitset Bt_hash File Global Io Main Message Peer
 Peer_id Pers Piece Server Start Strategy Test_bitset Torrent Tracker_client
-Tracker_reply Tracker_server
+Tracker_reply Tracker_server Error_msg
