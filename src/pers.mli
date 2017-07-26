@@ -54,7 +54,7 @@ drain the pipe and execute finally.
 
 TODO: can write_piece request be scheduled after the pipe is closed * *)
 
-val start_write_daemon : t -> finally:(unit -> unit Deferred.t) -> unit Deferred.t
+val init_write_pipe : t -> finally:(unit -> unit Deferred.t) -> unit Deferred.t
 
 val close_pipe : t -> unit
 

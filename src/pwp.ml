@@ -15,17 +15,16 @@ type t = {
 }
 
 let create torrent file pers = { file; peers = []; num_requested = 0; pers;
-torrent }
+                                 torrent }
 
-(* TODO make sure this invariant is maintained, maybe move this 
-   somewhere else *)
+(* This has to be called whenever a request is sent *)
 let incr_requested t = t.num_requested <- t.num_requested + 1 
 
+(* This has to be called whenever a request has been granted or cancelled *)
 let decr_requested t = t.num_requested <- t.num_requested - 1
 
 let for_all_peers t ~f = List.iter t.peers ~f
 
-(* notify peers that we have a pieces they don't have *)
 let send_have_messages t i =
   let notify_if_doesn't_have i p =
     if not (P.has_piece p i) then (
@@ -34,6 +33,8 @@ let send_have_messages t i =
     ) in
   for_all_peers t ~f:(notify_if_doesn't_have i)
 
+(* we always request all blocks from a piece to the same peer at the 
+   same time *)
 let request_all_blocks_from_piece t (p:P.t) (piece_i:int) : unit =
   debug "requesting piece %d from peer %s" piece_i (P.to_string p);
   incr_requested t;
@@ -45,7 +46,9 @@ let request_all_blocks_from_piece t (p:P.t) (piece_i:int) : unit =
     P.send_message p m in
   Piece.iter (File.get_piece t.file piece_i) ~f
 
-let try_request_piece t =
+(* try to request as many pieces as we can - there should be no more than
+   G.max_pending_request *)
+let try_request_pieces t =
   let n = G.max_pending_request - t.num_requested in
   if n > 0 then 
     let l = Strategy.next_requests t.file t.peers n in
@@ -53,7 +56,8 @@ let try_request_piece t =
     List.iter l ~f
 
 let process_message t (p:P.t) (m:M.t) : unit =
-  let process_piece index bgn block =
+
+  let process_block index bgn block =
     let piece = File.get_piece t.file index in
     let len = String.length block in
     Peer.validate p (File.is_valid_piece_index t.file index);
@@ -72,12 +76,15 @@ let process_message t (p:P.t) (m:M.t) : unit =
       decr_requested t;
       Pers.write_piece t.pers piece;
 
-      let one_percent = t.torrent.Torrent.num_pieces / 100 in
-      if (File.num_owned_pieces t.file % one_percent) = 0 then
+      let one_percent = max (t.torrent.Torrent.num_pieces / 100) 1 in
+      if (File.num_downloaded_pieces t.file % one_percent) = 0 then
         Print.printf "downloaded %d%%\n" (File.percent t.file);
 
+      (* notify peers that we have a piece they don't have. 
+         TODO: we should do it too if we receive a bitfield *)
       send_have_messages t index 
   in
+
   let process_request index bgn length =
     let piece = File.get_piece t.file index in
     Peer.validate p (File.is_valid_piece_index t.file index);
@@ -96,7 +103,7 @@ let process_message t (p:P.t) (m:M.t) : unit =
     P.set_peer_choking p false; 
     (* we try to request new pieces after any new event that can trigger
        availability of new pieces *)
-    try_request_piece t
+    try_request_pieces t
   | M.Interested -> 
     P.set_peer_interested p true; 
     if not (P.am_choking p) then P.send_message p Message.Unchoke
@@ -104,17 +111,20 @@ let process_message t (p:P.t) (m:M.t) : unit =
     P.set_peer_interested p false;
   | M.Have index -> 
     P.set_owned_piece p index; 
-    try_request_piece t 
+    try_request_pieces t 
   | M.Bitfield bits -> 
-    (* TODO validate bitfield *)
+    (* TODO validate bitfield. Not a big deal, but extra bits of the bitfield
+       should be set to 0 *)
     P.set_owned_pieces p bits; 
-    try_request_piece t 
+    try_request_pieces t 
   | M.Request (index, bgn, length) -> 
     if not (Peer.am_choking p) then process_request index bgn length
   | M.Piece (index, bgn, block) -> 
-    process_piece index bgn block; 
-    try_request_piece t
-  | M.Cancel (index, bgn, length) -> info "ignore cancel msg - Not yet implemented"
+    (* the spec calls this message a piece when it really is a block of a piece *) 
+    process_block index bgn block; 
+    try_request_pieces t
+  | M.Cancel (index, bgn, length) ->
+    info "ignore cancel msg - Not yet implemented"
 
 let cancel_requests t p = 
   let f i = 
@@ -122,7 +132,6 @@ let cancel_requests t p =
     Peer.remove_pending p i;
     File.set_piece_status t.file i `Not_requested 
   in
-
   let l = Peer.get_pending p in 
   if not (List.is_empty l) then (
     let s = List.to_string ~f:string_of_int l in 
@@ -130,11 +139,15 @@ let cancel_requests t p =
   );
   List.iter l ~f
 
-let kick_out_peer t p = 
-   t.peers <- List.filter t.peers ~f:(fun x -> not ((Peer.peer_id x) = (Peer.peer_id p)))
+let remove_peer t p = 
+  (* we can safely remove it, as we knows the connection has been cut. 
+     TODO: is the fd properly disposed of? *)
+  t.peers <- List.filter t.peers ~f:(Peer.equals p)
 
+(* This is the main message processing loop. We consider two types of events.
+   Timeout (idle peer), and message reception. *)
 let rec wait_and_process_message t (p:P.t) =
-  Clock.with_timeout (sec 10.0) (P.get_message p)  
+  Clock.with_timeout G.idle (P.get_message p)  
   >>| function
   | `Timeout ->
     (* TODO decide what to do with these idle peers - keep using them but
@@ -146,41 +159,48 @@ let rec wait_and_process_message t (p:P.t) =
     `Finished ()
   | `Result r -> match r with  
     | `Ok m -> process_message t p m; `Repeat ()
-    | `Eof -> 
+    | `Eof ->  (* signal the deconnection of the peer *)
       info "peer %s has left - remove it from peers" (Peer.to_string p); 
       cancel_requests t p;
-      kick_out_peer t p;
+      remove_peer t p;
       `Finished ()
 
+(* display stats, to be schedule regularly. Not called and not really useful 
+   in this form. Keeping it around nonetheless. *)
 let stats t =
-  info "** stats %d/%d" (File.num_owned_pieces t.file) 
+  info "** stats %d/%d" (File.num_downloaded_pieces t.file) 
     (File.num_pieces t.file);
   info "** pending requests %d" t.num_requested;
   let f p = Peer.stats p in
   List.iter t.peers f
 
+let really_add_peer t p : unit Deferred.t =
+  t.peers <- p :: t.peers;
+
+  (* we send this optional message if we own pieces of the file *)
+  if (File.num_downloaded_pieces t.file) > 0 then (
+    info "sending my bitfield to %s" (Peer.to_string p);
+    P.send_message p (M.Bitfield (File.bitfield t.file))
+  );
+  (* this should only be sent to peers we're interested in. To simplify, 
+     we suppose we're intersted in all peers, but it should be changed TODO *)
+  P.send_message p M.Interested;
+
+  debug "start message handler loop";
+  Deferred.repeat_until_finished () (fun () -> wait_and_process_message t p)
+
 let add_peer t p =
-  (* we ignore all peers already conneccted, and ourselves *)
+  (* we ignore all peers already connected, and ourselves. It may be the case
+     that the calling layers try to add twice the same peer. For instance,
+     the tracker can return our own address and we may try to connect to 
+     ourselves  *)
+
   let ignored_peers = G.peer_id :: List.map t.peers ~f:Peer.peer_id in
-
-  if List.mem ignored_peers (Peer.peer_id p) (=) then (
-    info "ignoring this peer %s (ourselves or already connected)" 
-      (Peer.to_string p);
-    Deferred.unit
-  ) else 
-    begin
-      t.peers <- p :: t.peers;
-      if (File.num_owned_pieces t.file) > 0 then (
-        info "sending my bitfield to %s" (Peer.to_string p);
-        P.send_message p (M.Bitfield (File.bitfield t.file))
-      );
-      P.send_message p M.Interested;
-      debug "start message handler loop";
-      Deferred.repeat_until_finished () (fun () -> wait_and_process_message t p)
-    end
-
-let start t =  Clock.every (sec 10.0) (fun () -> stats t)
-
+  match List.mem ignored_peers (Peer.peer_id p) (=) with
+  | true -> 
+     return (Error (Error.of_string "ignore peers (already added or ourselves)")) 
+  | false -> 
+    really_add_peer t p |> Deferred.ok
 
 
 

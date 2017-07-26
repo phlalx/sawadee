@@ -8,7 +8,7 @@ TEST_REMOTE = tests/torrents/NuTyX_x86_64-20170625.torrent
 # VERBOSE = -v 2 # set to see execution trace in test
 DOWNLOAD_PATH = -p download/
 
-all: byte tracker_server.byte
+all: byte server
 
 byte:
 	$(OCB) main.byte

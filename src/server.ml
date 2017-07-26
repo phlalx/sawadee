@@ -10,4 +10,4 @@ let start handler ~port =
       (Tcp.on_port port)
       handler
   in
-  Deferred.don't_wait_for (Deferred.ignore host_and_port)
+  Deferred.ignore host_and_port

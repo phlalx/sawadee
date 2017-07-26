@@ -1,13 +1,30 @@
 open Core
 open Async
 open Log.Global
+
 module G = Global
 module P = Peer
 module Em = Error_msg
 
+let ignore_error addr : unit Or_error.t -> unit =
+  function 
+  | Ok () -> () 
+  | Error err -> 
+    info "Error connecting with peer %s" (Socket.Address.Inet.to_string addr);
+    debug "Error connecting %s" (Sexp.to_string (Error.sexp_of_t err))
+
+let add_connected_peer pwp kind info_hash num_pieces addr r w  =
+  let open Deferred.Or_error.Monad_infix in 
+  let peer = P.create addr r w kind in
+  P.handshake peer info_hash G.peer_id
+  >>= fun () ->
+  Print.printf "handshake with (server) peer %s\n" (P.addr_to_string peer);
+  P.init_size_owned_pieces peer num_pieces;
+  Pwp.add_peer pwp peer
+
 (* Creates a server that waits for connection from peers.
    After handshake, peer is initialized and added to Pwp. *)
-let wait_for_incoming_peers pwp torrent =
+let create_server_and_add_peers pwp torrent : unit Deferred.t =
 
   let open Torrent in
   let { info_hash; num_pieces } = torrent in
@@ -15,73 +32,32 @@ let wait_for_incoming_peers pwp torrent =
   let handler addr r w =
     info "incoming connection on server from peer %s" 
       (Socket.Address.Inet.to_string addr);
-    let open Deferred.Or_error.Monad_infix in 
-    let peer = Peer.create addr r w `Peer_initiating  in
-    Peer.handshake peer info_hash G.peer_id
-    >>= fun () ->
-    Print.printf "handshake with (server) peer %s\n" (Peer.addr_to_string peer);
-    Peer.init_size_owned_pieces peer num_pieces;
-    Deferred.ok (Pwp.add_peer pwp peer) 
+    add_connected_peer pwp `Peer_initiating info_hash num_pieces addr r w 
+    >>| ignore_error addr 
   in 
 
-  let handler_ignore_error addr r w =
-    handler addr r w 
-    >>| function
-    | Ok () -> () 
-    | Error err -> 
-      info "Error connecting with peer %s" (Socket.Address.Inet.to_string addr);
-      debug "Error connecting %s" (Sexp.to_string (Error.sexp_of_t err))
-  in
+  Server.start handler ~port:(G.port_exn ())
 
-  if G.is_server () then  (
-    let port = G.port_exn () in
-    Server.start handler_ignore_error ~port
-  ) 
-
-let add_peers_from_tracker pwp torrent addrs =
+let add_peers_from_tracker pwp torrent addrs : unit Deferred.t =
 
   let open Torrent in 
   let { info_hash; num_pieces } = torrent in
 
-  (* Add a peer for this torrent. The steps are:
-      - connecting
-      - creating the peer data structure
-      - handshake
-      - adding the peer
-
-     Some of these steps can fail. Errors are eventually ignored, but 
-     propagated with an Or_error monad *) 
-
   let add_peer addr = 
-    let addr_string = Socket.Address.Inet.to_string addr in
     let open Deferred.Or_error.Monad_infix in 
     let wtc = Tcp.to_inet_address addr in
     debug "try connecting to peer %s" (Socket.Address.Inet.to_string addr);
     Deferred.Or_error.try_with (function () -> Tcp.connect wtc)
     >>= fun (_, r, w) ->
-    Deferred.ok (return (Peer.create addr r w `Am_initiating))
-    >>= fun peer ->
-    Peer.handshake peer info_hash G.peer_id
-    >>= fun () ->
-    Print.printf "hanshake with (tracker) peer %s\n" addr_string;
-    Peer.init_size_owned_pieces peer num_pieces;
-    Deferred.ok (Pwp.add_peer pwp peer) 
+    add_connected_peer pwp `Am_initiating info_hash num_pieces addr r w 
   in
 
-  let add_peer_ignore_error addr =
-    add_peer addr 
-    >>| function 
-    | Ok () -> ()
-    | Error err -> 
-      debug "Error connecting %s" (Sexp.to_string (Error.sexp_of_t err))
-  in
-
-  Deferred.List.iter ~how:`Parallel addrs ~f:add_peer_ignore_error
+  let f addr = add_peer addr >>| ignore_error addr in
+  Deferred.List.iter ~how:`Parallel addrs ~f
 
 let process f =
 
   (***** read torrent file *****)
-
   let t = try 
       Torrent.from_file f
     with
@@ -91,18 +67,21 @@ let process f =
     | ex -> raise ex
   in 
 
-  (***** open all files (files to download + bitset) **********)
-
   let open Torrent in
   let { files_info; num_pieces; piece_length; torrent_name; total_length; 
         info_hash; pieces_hash; num_files } = t in
 
+  (***** open all files  **********)
+
+  (* TODO catch errors *)
+  let%bind pers = Pers.create files_info num_pieces piece_length  in
+
+  (**** read bitfield *************) 
 
   let bf_name = sprintf "%s/%s%s" (G.path ()) (Filename.basename torrent_name) 
       G.bitset_ext in
-  let bf_len = Bitset.bitfield_length_from_size num_pieces in 
 
-  (**** read bitfield *****)
+  let bf_len = Bitset.bitfield_length_from_size num_pieces in 
 
   let bitfield = 
     try
@@ -114,10 +93,6 @@ let process f =
   info "read bitfield %s" bf_name;
   let bitset = Bitset.of_bitfield bitfield num_pieces in
 
-  (**** open files *****)
-
-  let%bind pers = Pers.create files_info num_pieces piece_length  in
-
   (****** initialize File.t and retrieve pieces from disk *******)
 
   let file = File.create pieces_hash ~piece_length ~total_length in
@@ -125,21 +100,22 @@ let process f =
   let read_piece i : unit Deferred.t =
     let p = File.get_piece file i in
     Pers.read_piece pers p 
-    >>= fun () -> 
-    return (if Piece.is_hash_ok p then File.set_piece_status file i `Downloaded
-            else info "can't read piece %d from disk" i)
+    >>| fun () -> 
+    if Piece.is_hash_ok p then File.set_piece_status file i `Downloaded
+            else info "can't read piece %d from disk" i
   in
 
   Deferred.List.iter (Bitset.to_list bitset) ~f:read_piece 
 
   >>= fun () ->
 
-  Print.printf "read %d%% from disk.\n" (File.percent file);
-  info "read %d/%d pieces" (File.num_owned_pieces file) num_pieces;
+  Print.printf "read %d%% from disk\n" (File.percent file);
+  info "read %d/%d pieces" (File.num_downloaded_pieces file) num_pieces;
   debug "read from files: %s" (File.pieces_to_string file);
 
-  (***** set up Pers writing daemon *****)
+  (***** set up Pers (pipe for writing pieces) *****)
 
+  (* this will be called when pipe is closed *)
   let finally () =
     (try
        Pers.write_bitfield bf_name (File.bitfield file)
@@ -147,12 +123,14 @@ let process f =
        _  -> Em.terminate (Em.can't_open bf_name));
     Pers.close_all_files pers >>= fun () ->
     Print.printf "written %d%% to disk\n" (File.percent file);
-    info "written %d/%d pieces" (File.num_owned_pieces file) num_pieces;
+    info "written %d/%d pieces" (File.num_downloaded_pieces file) num_pieces;
     debug "written to files: %s" (File.pieces_to_string file);
     exit 0
   in 
 
-  don't_wait_for (Pers.start_write_daemon pers ~finally);
+  don't_wait_for (Pers.init_write_pipe pers ~finally);
+
+  Signal.handle Signal.terminating ~f:(fun _ -> Pers.close_pipe pers);
 
   (***** get list of peers ****)
 
@@ -164,14 +142,25 @@ let process f =
   Print.printf "tracker returned %d peers\n" num_of_peers;
   info "tracker replies with list of %d peers" num_of_peers;
 
-  (******* create Pwp.t *************)
+  (******* create pwp and add peers ****)
+
+  (* There are two types of peers. 
+     - those that we contact  (got their addresses from the tracker
+     - those that contact us (via the server) *)
 
   let pwp = Pwp.create t file pers in
 
-  wait_for_incoming_peers pwp t;
-  Signal.handle Signal.terminating ~f:(fun _ -> Pers.close_pipe pers);
-  Pwp.start pwp;
-  add_peers_from_tracker pwp t addrs
+  let server = if G.is_server () then 
+      create_server_and_add_peers pwp t >>= never
+    else 
+      Deferred.unit
+  in
+  let peers = add_peers_from_tracker pwp t addrs in 
+
+  (* this should not be determined, unless all peers and the server fail.
+     We may as well use [never] *)
+  Deferred.all_unit [server; peers]
+
 
 
 

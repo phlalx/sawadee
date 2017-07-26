@@ -1,7 +1,8 @@
 (* Simple generic server *)
 
 open Core
+open Async
 
 (** register a handler that is called on an incoming connexion *)
 val start :  (Async.Socket.Address.Inet.t -> Async.Reader.t -> Async.Writer.t -> 
-              unit Async_kernel__Deferred.t) -> port:int -> unit
+              unit Async_kernel__Deferred.t) -> port:int -> unit Deferred.t

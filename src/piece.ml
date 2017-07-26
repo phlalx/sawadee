@@ -7,15 +7,13 @@ type t = {
   index : int;
   hash : Bt_hash.t;
   length : int;
-  (* TODO content could be a substring of the whole network file? *)
   content : Bigstring.t; 
   blocks : Bitset.t;
 } 
 
 let create ~index hash ~len = 
   let num_blocks = (len + G.block_size - 1) / G.block_size in
-  { index; length = len; hash; 
-    content = Bigstring.create len; 
+  { index; length = len; hash; content = Bigstring.create len; 
     blocks = Bitset.empty num_blocks }
 
 let get_content t ~off ~len = Bigstring.to_string ~pos:off ~len t.content
@@ -33,10 +31,9 @@ let block_length t ~off = min (t.length - off) G.block_size
 
 (* TODO straighten these conditions off >=0 ...*)
 let is_valid_block t ~off ~len =
-    (off % G.block_size = 0) && (len = block_length t off)
+  (off % G.block_size = 0) && (len = block_length t off)
 
-let is_valid_block_request t ~off ~len =
-    off + len <= block_length t off
+let is_valid_block_request t ~off ~len = off + len <= block_length t off
 
 let iter t ~f = 
   for i = 0 to (num_blocks t) - 1 do 
@@ -54,7 +51,8 @@ let update t ~off (block:string) =
   let index = off / G.block_size in
   let len = String.length block in
   Bitset.insert t.blocks index;
-  Bigstring.From_string.blit ~src:block ~src_pos:0 ~dst:t.content ~dst_pos:off ~len;
+  Bigstring.From_string.blit ~src:block ~src_pos:0 ~dst:t.content ~dst_pos:off 
+    ~len;
   if Bitset.is_full t.blocks then ( 
     if is_hash_ok t then 
       `Downloaded 

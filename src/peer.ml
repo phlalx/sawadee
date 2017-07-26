@@ -26,7 +26,9 @@ type t = {
   (* sbuffer : Bigstring.t; TODO NOT WORKING *) 
   mutable downloading : bool;
   mutable uploading : bool;
-}
+} 
+
+let equals t1 t2 = t1.id = t2.id
 
 let peer_id t = t.id 
 

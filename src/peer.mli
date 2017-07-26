@@ -6,13 +6,15 @@
 
     The state consists notably:
       - protocol defined booleans (interested/choking)
-      - the pieces owned by the peer
-      - the pending requests emitted to a peer and not yet acknowledged *)
+      - the set of pieces owned by the peer
+      - the pending requests emitted to a peer *)
 
 open Core
 open Async
 
 type t 
+
+val equals : t -> t -> bool
 
 (** We suppose that the connection is already established and we have a reader
     and a writer to communicate with the peer. The address is only used to 
@@ -28,8 +30,8 @@ val create : Socket.Address.Inet.t -> Reader.t -> Writer.t ->
 (** maximal number of owned pieces, should be called right after handshake 
 
     Note that this isn't necessarily known at creation time. In server mode, 
-    we don't know what torrent the peer is going to request. This is not the case
-    now, but we could be serving more than one torrent *)
+    we don't know what torrent the peer is going to request. This is not the 
+    case now, but we could be serving more than one torrent *)
 val init_size_owned_pieces : t -> int -> unit
 
 (** Used to identify peers in log (readable peer_id) *)
@@ -97,7 +99,6 @@ val set_idle : t -> bool -> unit
 
 (** [t] maintains a set of pending (index of) piece requests. This has to be
     done in order to re-request them if a peer becomes unresponsive. *)
-
 val add_pending: t -> int -> unit
 
 val remove_pending: t -> int -> unit
@@ -113,8 +114,6 @@ val validate : t -> bool -> unit
 val set_downloading : t -> unit
 
 val set_uploading : t -> unit
-
-
 
 (** display stats for debugging *)
 val stats : t -> unit

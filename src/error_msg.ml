@@ -14,8 +14,12 @@ let tracker_error () = "Can't connect to tracker"
 
 let tracker_error () = "Can't connect to tracker" 
 
+let verbose_error () = "Verbose level should be 1 or 2" 
+
 let can't_open p = sprintf "Can't open %s" p
 
+(* This should be only called in Main or Start. Once we reached the end of 
+   Start.process, no error should be fatal. *)
 let terminate s =
   Core.Printf.printf "%s\n" s;
   Pervasives.flush_all ();
