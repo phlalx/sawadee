@@ -42,36 +42,37 @@ Example of interaction:
 
 The program starts with reloading the previous state of the downloaded files. `Ctrl^C` terminates the program and finish writing all downloaded data to file.
 
-This can be run with `make test`. `NuTyX_x86_64-20170625.torrent` is a legal linux distribution torrent. Several other torrents are on the repository testing purpose but they may become obsolete in the future.
+This caommand can be run with `make test` (`NuTyX_x86_64-20170625.torrent` is a legal linux distribution torrent). Several other torrents are on the repository for testing purpose but they may become obsolete in the future.
 
 ### How does bittorrent work?
 
-You should read the bittorrent specification (see references below) but in a nutshell, this is how it works. It starts with a meta-information file (the *torrent file*) that contains information on the data to be downloaded as well as the url(s) of the *tracker(s)*. A tracker is an http-server that provides the addresses of the peers willing to share *pieces* of some data. We refer to this  data as the *network file*. It is a contiguous sequence of bytes made of the concatenation of the individual files the user wishes to download. Once the peers are known, communication is established with some of them in order to request the precious pieces. At the same time, peers can query the client to request pieces they don't have. Peers can either contact the client directly if it has made its adress public via the tracker, or simply on the same connection the client has established with them
+You should read the bittorrent specification (see references below) but in a nutshell, this is how it works. It starts with a meta-information file (the *torrent file*) that contains information on the data to be downloaded as well as the url(s) of the *tracker(s)*. A tracker is an http-server that provides the addresses of the peers willing to share *pieces* of a *network file*. It is a contiguous sequence of bytes made of the concatenation of the individual files the user wishes to download. Once the peers are known, communication is established with some of them in order to request the precious pieces. At the same time, peers can query the client to request pieces they don't have. Peers can either contact the client directly if it has made its adress public via the tracker, or simply on the same connection the client has established with them
 
 ### Implementation
 
-This is a high-level description. The ocamldoc is more precise and up-to-date. Run `make doc` and open `.docdir/index.html`. 
+This is a high-level description. See ocamldoc for more details. Run `make doc` and open `.docdir/index.html`. 
 
-Module `Main` decodes and checks the command-lines arguments and call `Start.process file` that runs the main steps of the program.
+Module `Main` decodes and checks the command-lines arguments and call `Start.process file`. This function runs the main steps of the program.
 
-The first step is to decode the torrent file. It is binary encoded as [bencode](https://en.wikipedia.org/wiki/Bencode) format. We use the `bencode` library to decode it, this is done in module `Torrent`. Both single-file and multiple-file torrent format are implemented. 
+The first step is to decode the torrent file. It is binary encoded as [bencode](https://en.wikipedia.org/wiki/Bencode). We use the `bencode` library to decode it in module `Torrent`. Both single-file and multiple-file torrent format are implemented. 
 
 The torrent gives various information, notably: 
 * the tracker url
 * the list of files and their length.
 * a list of peers (via the `announce` and `announces-list` keys)
 
-We compute from the torrent the *info hash* (SHA1 of the *`info` section*). It is a 20-bytes string that uniquely identifies the torrent. It is used to identify the torrent when querying the tracker, and for handshaking with the peers. The bencode may contain one (`announce` key) or several trackers (`announce-list`) urls. In the case of serveral trackers, we pick any responding tracker from the list (not quite what the spec requires).
+We compute from the torrent the *info hash* (SHA1 of the `info` section). It is a 20-bytes string that uniquely identifies the torrent. It is used to identify the torrent when querying the tracker, and for handshaking with the peers. The bencode may contain one (`announce` key) or several trackers (`announce-list`) urls. In the case of serveral trackers, we pick any responding tracker from the list.
 
-The next step is to initialize the `File.t` datastructure (to store the network file). A `File.t` is essentially an array of `Piece.t`, plus 
+The next step is to initialize the `File.t` data structure which store the network file. A `File.t` is essentially an array of `Piece.t`, plus 
 the information needed to know the status of each pieces (e.g. downloaded or requested). From `File.t`, we can generate the serialized form of the list of pieces already downloaded, call the *bitfield* (see *Bitfield.t* and *Bitset.t*).
 
  Each `Piece.t` is furthermore divided into blocks (a `Bitset.t` field of `Piece.t` describes the blocks of a piece already downloaded). Note that the unit of ownership (advertised to other peers) is a piece (torrent-defined), and the unit of transmission is a block (client specific, commonly 16KB or 32KB).
 
-The next step is to retrieve the data saved to disk in previous execution of the program. Two types of objects are saved to disk.
+The next step is to retrieve the data saved to disk in previous executions of the program. Two types of objects are saved to disk.
 * the set of pieces already downloaded (we call it the *bitfield*) 
 * the actual data  
-This is saved in the directory given by path. The files are created with their initial size at the first execution and content is updated as the application runs, except for the bitfield that is saved upon termination.
+
+This is saved in the directory given by path. The files are created with their final size at the first execution and content is updated as the application runs, except for the bitfield that is saved upon termination.
 
 Reading/writing of pieces is done in module `Pers`. Each piece of the network file is mapped to a list of `Pers.segment` (file descriptor, offset, length). This has to be done carefully, especially for multiple files where a piece can be mapped to several files. Moreover, `Pers` sets up a writing "master thread" that processes sequentially the writing requests sent asynchronously through a pipe and make sure that closing happens only once all scheduled pieces write have been processed. 
 
@@ -85,32 +86,31 @@ Once we get the list of peers (`Peer.t`), we initiate the *peer wire protocol* w
  * an initial handshake (one round-trip message exchange)
  * then (binary asynchronous) messages to get parts of the file.
 
-Messages are defined by type `Message.t` and serialized using `Bin_prot` core module. The module `Pwp` implements the peer wire protocol.
+Messages are implemented with type `Message.t` and serialized using `Bin_prot` module. The module `Pwp` implements the peer wire protocol.
 
-The strategy to download/upload piece is simple and has to be improved. We consider that we are not choking any peer, and are interested in all peers. This means we respond to any incoming piece request. We ask pieces ordered by rarity to any peers (except the very slow ones that we discared). 
+The strategy to download/upload piece is simple and has to be improved. We consider that we are not choking any peer, and are interested in all peers. This means we respond to any incoming piece request. We ask pieces ordered by rarity to any peers (except the very slow ones that we discard). 
 
 ### Limitations
 
-A lot remains to be done in order for this to be usable. It has only been tested successfully on a few torrents but it has reached the stage where it can be tested more extensively. 
+A lot remains to be done in order for this to be usable. It works on simple torrents but should be tested more extensively. However, the core elements are there and it should be easy to build upon them. 
 
-In term of features, what is missing is:
+Basic features are missing:
 * Re-query the tracker to find more peers 
 * Read parameters from json files
-* download several files concurrently
+* Download several files concurrently
+* A decent user interface
 * Udp trackers
 * Downloading of magnets via DHT
 
-Except for the last two items, everything should very simple to implement. At that stage, I'd like to consolidate the current implementation before adding new features. Unfortunately, it'd be easier for testing to supports magnets and udp
-trackers as many torrents use them.
+The last two items should be the most useful ones, if only for testing, as it's easier to download torrents that depend on them.
 
-Regarding the implementation, the first thing on the list is the implementation of the protocol. Right now, it is very basic and it is not straighforward to see what downloading/uploading strategy to put in place. It requires some experimentation to find the right heuristic. Besides that, what needs improvement is:
+Regarding the implementation: 
 
-* the code. After several iterations, I think it's decent but as always it can be improved, particulary:
-  * Error management should be more consistent and possibly more idiomatic (e.g. mixing error and deferred monads is rather ugly in some parts). Some exception may be unguarded.
-  * modules decomposition / encapsulation can be improved 
-  * review possible race conditions
-* Automatic testing / continuous integration with travis 
+* Implementation of the protocol. 
+  * Still very basic and straighforward to see what downloading/uploading strategy to put in place. It requires some experimentation to find the right heuristic. 
+* Lot of TODOs in the code, but mainly minor improvements
 * Use more efficient datastructures for requesting strategy
+* Automatic testing / continuous integration with travis 
 
 ### Resources and libs
 
