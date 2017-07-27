@@ -2,6 +2,8 @@ open Core
 
 let block_size = 16384 
 
+let max_block_size = 131072
+
 (** Time before a host is considered idle *)
 let idle = sec 100.
 

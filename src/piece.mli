@@ -17,15 +17,15 @@ val create : index:int -> Bt_hash.t -> len:int -> t
 
 val get_index : t -> int
 
-(* Copy content to a string, to be used to create a [Piece] message *)
-val get_content : t -> off:int -> len:int  -> string 
-
 (* a received block should match an off/len that this client has requested *)
 val is_valid_block : t -> off:int -> len:int -> bool
 
-(* peer may not have the same block size, but requested blocks should belong to
-   the piece *)
+(* blocks requested by peers must fit in a piece, and have a size smaller or
+   equal than G.max_block_size *)
 val is_valid_block_request : t -> off:int -> len:int -> bool
+
+(* Copy content to a string, to be used to create a [Piece] message. *)
+val get_content : t -> off:int -> len:int  -> string 
 
 (* use for R/W. Doesn't allocate a new bigstring *)
 val get_bigstring_content : t -> Bigstring.t

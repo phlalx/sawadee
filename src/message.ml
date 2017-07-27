@@ -16,6 +16,8 @@ type t =
   | Cancel of int * int * int
 [@@deriving sexp]
 
+let max_size = Global.max_block_size + 13
+
 (* 1 byte for type, and rest for payload *)
 let size = function 
   | KeepAlive -> 0

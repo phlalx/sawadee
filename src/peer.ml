@@ -2,11 +2,8 @@ open Core
 open Async
 open Log.Global
 
-(** TODO see how to make a better use of buffers. We allocate a
-    buffer for each send 
-
-    A better solution for send_message/get_message would be to use
-    the bin_prot_read and bin_prot_write but unfortunately the current version
+(** A better solution for send_message/get_message would be to use
+    bin_prot_read and bin_prot_write but unfortunately the current version
     of the library uses a fixed 8-bytes length (4 bytes in bittorrent). *) 
 
 type t = {
@@ -22,20 +19,21 @@ type t = {
   mutable pending : Int.Set.t;
   mutable idle : bool;
   kind : [`Am_initiating | `Peer_initiating ];
-  buffer : Bigstring.t;
-  (* sbuffer : Bigstring.t; TODO NOT WORKING *) 
+  receive_buffer : Bigstring.t;
+  send_buffer : Bigstring.t;  
   mutable downloading : bool;
   mutable uploading : bool;
 } 
+
+let buffer_size = Message.max_size
 
 let equals t1 t2 = t1.id = t2.id
 
 let peer_id t = t.id 
 
 let create peer_addr r w kind =
-  (* we don't want an exception to be raised when a write is run 
-     on a close connection. Closed connection is detected 
-     on read `Eof, but some writes can be scheduled already *)
+  (* this needs to be done so as we don't get errors when remote peers
+     closes his connection *)
   Writer.set_raise_when_consumer_leaves w false;
   {
     peer_addr; 
@@ -52,8 +50,8 @@ let create peer_addr r w kind =
     kind;
     (* this should be big enough to contain [Piece.block_size]
        and the message header TODO *)
-    buffer = Bin_prot.Common.create_buf 40000;
-    (* sbuffer = Bin_prot.Common.create_buf 40000; *)
+    receive_buffer = Bin_prot.Common.create_buf 40000;
+    send_buffer = Bin_prot.Common.create_buf 40000;
     downloading = false;
     uploading = false;
   }
@@ -132,7 +130,7 @@ let handshake t hash pid =
     wait_for_handshake t hash pid
 
 let get_message t =
-  let buf = t.buffer in 
+  let buf = t.receive_buffer in 
   (* we need to get the prefix length first to know how many bytes to
      read *)
   let prefix_len_substr = Bigsubstring.create buf ~pos:0 ~len:4 in 
@@ -156,11 +154,10 @@ let get_message t =
 let send_message t (m:Message.t) =
   let len = 4 + Message.size m in (* prefix length + message *)
   debug "sending message %s %s" (Message.to_string m) (to_string t);
-  let buf = Bin_prot.Common.create_buf len in
-  (* let buf = t.sbuffer in *)
+  let buf = t.send_buffer in
   let pos = Message.bin_write_t buf 0 m in
   assert(pos = len); 
-  Writer.write_bigstring t.writer buf
+  Writer.write_bigstring t.writer buf ~len
 
 let has_piece t i = Bitset.belongs t.have i
 

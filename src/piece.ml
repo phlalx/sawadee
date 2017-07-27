@@ -33,7 +33,8 @@ let block_length t ~off = min (t.length - off) G.block_size
 let is_valid_block t ~off ~len =
   (off % G.block_size = 0) && (len = block_length t off)
 
-let is_valid_block_request t ~off ~len = off + len <= block_length t off
+let is_valid_block_request t ~off ~len = 
+  off + len <= t.length && len <= G.max_block_size
 
 let iter t ~f = 
   for i = 0 to (num_blocks t) - 1 do 

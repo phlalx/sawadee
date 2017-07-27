@@ -93,6 +93,8 @@ let process_message t (p:P.t) (m:M.t) : unit =
     if not (Peer.am_choking p) then (
       Peer.set_uploading p;
       let piece = File.get_piece t.file index in
+      (* TODO: we could avoid a string allocation by using a substring 
+         for the block in M.Piece *)
       let block = Piece.get_content piece ~off:bgn ~len:length in
       Peer.send_message p (Message.Piece (index, bgn, block)))
   in
@@ -193,7 +195,7 @@ let really_add_peer t p : unit Deferred.t =
      we suppose we're intersted in all peers, but it should be changed TODO *)
   P.send_message p M.Interested;
 
-  debug "start message handler loop";
+  info "start message handler loop";
   Deferred.repeat_until_finished () (fun () -> wait_and_process_message t p)
 
 let add_peer t p =

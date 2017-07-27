@@ -94,13 +94,14 @@ The strategy to download/upload piece is simple and has to be improved. We consi
 A lot remains to be done in order for this to be usable. It has only been tested successfully on a few torrents but it has reached the stage where it can be tested more extensively. 
 
 In term of features, what is missing is:
-* Udp trackers
 * Re-query the tracker to find more peers 
 * Read parameters from json files
 * download several files concurrently
+* Udp trackers
 * Downloading of magnets via DHT
 
-Except for the last item, everything should very simple to implement. At that stage, I'd like to consolidate the current implementation before adding new features
+Except for the last two items, everything should very simple to implement. At that stage, I'd like to consolidate the current implementation before adding new features. Unfortunately, it'd be easier for testing to supports magnets and udp
+trackers as many torrents use them.
 
 Regarding the implementation, the first thing on the list is the implementation of the protocol. Right now, it is very basic and it is not straighforward to see what downloading/uploading strategy to put in place. It requires some experimentation to find the right heuristic. Besides that, what needs improvement is:
 
@@ -108,11 +109,7 @@ Regarding the implementation, the first thing on the list is the implementation 
   * Error management should be more consistent and possibly more idiomatic (e.g. mixing error and deferred monads is rather ugly in some parts). Some exception may be unguarded.
   * modules decomposition / encapsulation can be improved 
   * review possible race conditions
-* resource management
-  * better handling of socket connections (interaction with errors)
-  * be more careful with buffer allocation
-* Automatic testing 
-  * A bit tedious to do properly
+* Automatic testing / continuous integration with travis 
 * Use more efficient datastructures for requesting strategy
 
 ### Resources and libs

@@ -27,6 +27,8 @@ type t =
   | Cancel of int * int * int (** index, begin, length *)
 [@@deriving sexp]
 
+val max_size : int
+
 (** size of message *not* including 4-byte {i prefix length}. *)
 val size : t -> int
 

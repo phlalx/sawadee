@@ -27,12 +27,12 @@ let process
   = 
   set_level `Error;
 
-  info "This peer-id:%s" (Peer_id.to_readable_string G.peer_id);
 
   Option.value_map port ~default:() ~f:G.set_port;
   G.set_path path;
   Option.value_map verbose ~default:() ~f:set_verbose;
-  check_path () 
+  info "This peer-id:%s" (Peer_id.to_readable_string G.peer_id);
+  check_path ()
   >>= fun () ->
   Start.process torrent_name
 

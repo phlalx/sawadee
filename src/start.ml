@@ -6,11 +6,6 @@ module G = Global
 module P = Peer
 module Em = Error_msg
 
-(* close connection after a peer returns *)
-let close_connection_to_peer (r: Reader.t) (x : unit Deferred.Or_error.t)  
-  : unit Deferred.Or_error.t =
-  Reader.close r >>= fun () -> x
-
 let ignore_error addr : unit Or_error.t -> unit =
   function 
   | Ok () -> () 
@@ -26,7 +21,12 @@ let add_connected_peer pwp kind info_hash num_pieces addr r w  =
   Print.printf "handshake with (server) peer %s\n" (P.addr_to_string peer);
   P.init_size_owned_pieces peer num_pieces;
   Pwp.add_peer pwp peer
-  |> close_connection_to_peer r
+
+(* TODO must be a more elegant way of combining these monads *)
+let add_connected_peer_and_close pwp kind info_hash num_pieces addr r w =
+  let close x = Writer.close w >>= fun () -> Reader.close r >>| fun () -> x in
+  add_connected_peer pwp kind info_hash num_pieces addr r w 
+  >>= close
 
 (* Creates a server that waits for connection from peers.
    After handshake, peer is initialized and added to Pwp. *)
@@ -38,7 +38,7 @@ let create_server_and_add_peers pwp torrent : unit Deferred.t =
   let handler addr r w =
     info "incoming connection on server from peer %s" 
       (Socket.Address.Inet.to_string addr);
-    add_connected_peer pwp `Peer_initiating info_hash num_pieces addr r w 
+    add_connected_peer_and_close pwp `Peer_initiating info_hash num_pieces addr r w 
     >>| ignore_error addr 
   in 
 
@@ -55,8 +55,7 @@ let add_peers_from_tracker pwp torrent addrs : unit Deferred.t =
     debug "try connecting to peer %s" (Socket.Address.Inet.to_string addr);
     Deferred.Or_error.try_with (function () -> Tcp.connect wtc)
     >>= fun (_, r, w) ->
-    add_connected_peer pwp `Am_initiating info_hash num_pieces addr r w 
-    |> close_connection_to_peer r
+    add_connected_peer_and_close pwp `Am_initiating info_hash num_pieces addr r w 
   in
 
   let f addr = add_peer addr >>| ignore_error addr in

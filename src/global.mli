@@ -8,6 +8,9 @@ open Async
 (** 16KB, we ignore other requests *)
 val block_size : int
 
+(** The max block_size with authorize *)
+val max_block_size : int
+
 val idle : Time.Span.t  
 
 val keep_alive : Time.Span.t
