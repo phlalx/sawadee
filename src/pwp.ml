@@ -139,7 +139,7 @@ let cancel_requests t p =
   );
   List.iter l ~f
 
-let remove_peer t p = 
+let remove_peer t p : unit = 
   (* we can safely remove it, as we knows the connection has been cut. 
      TODO: is the fd properly disposed of? *)
   t.peers <- List.filter t.peers ~f:(Peer.equals p)
@@ -147,23 +147,30 @@ let remove_peer t p =
 (* This is the main message processing loop. We consider two types of events.
    Timeout (idle peer), and message reception. *)
 let rec wait_and_process_message t (p:P.t) =
+
+  let result = function
+    | `Ok m -> 
+      process_message t p m; 
+      return (`Repeat ())
+    | `Eof ->  
+      (* signal the deconnection of the peer *)
+      cancel_requests t p;
+      info "peer %s has left - remove it from peers" (Peer.to_string p); 
+      remove_peer t p;
+      return (`Finished ())
+
+  in
   Clock.with_timeout G.idle (P.get_message p)  
-  >>| function
-  | `Timeout ->
+  >>= function
+  | `Timeout -> 
     (* TODO decide what to do with these idle peers - keep using them but
        mark them as bad and give priority to other peers? now we just ignore
        them. *)
     info "peer %s is slow - set idle" (Peer.to_string p); 
     cancel_requests t p;
     Peer.set_idle p true;
-    `Finished ()
-  | `Result r -> match r with  
-    | `Ok m -> process_message t p m; `Repeat ()
-    | `Eof ->  (* signal the deconnection of the peer *)
-      info "peer %s has left - remove it from peers" (Peer.to_string p); 
-      cancel_requests t p;
-      remove_peer t p;
-      `Finished ()
+    return (`Finished ())
+  | `Result r -> result r
 
 (* display stats, to be schedule regularly. Not called and not really useful 
    in this form. Keeping it around nonetheless. *)
@@ -198,7 +205,7 @@ let add_peer t p =
   let ignored_peers = G.peer_id :: List.map t.peers ~f:Peer.peer_id in
   match List.mem ignored_peers (Peer.peer_id p) (=) with
   | true -> 
-     return (Error (Error.of_string "ignore peers (already added or ourselves)")) 
+    return (Error (Error.of_string "ignore peers (already added or ourselves)")) 
   | false -> 
     really_add_peer t p |> Deferred.ok
 

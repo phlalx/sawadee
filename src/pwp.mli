@@ -18,7 +18,7 @@ val create: Torrent.t -> File.t -> Pers.t -> t
 (** Add new peers to communicate with. Connexion and handshake are already 
     established.
 
-    This deferred is determined if peer leaves or faile *)
+    This deferred is determined if peer leaves or fail *)
 val add_peer: t -> Peer.t -> unit Deferred.Or_error.t 
 
 

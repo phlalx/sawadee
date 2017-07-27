@@ -33,6 +33,9 @@ let equals t1 t2 = t1.id = t2.id
 let peer_id t = t.id 
 
 let create peer_addr r w kind =
+  (* we don't want an exception to be raised when a write is run 
+     on a close connection. Closed connection is detected 
+     on read `Eof, but some writes can be scheduled already *)
   Writer.set_raise_when_consumer_leaves w false;
   {
     peer_addr; 

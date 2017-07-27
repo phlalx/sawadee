@@ -6,6 +6,11 @@ module G = Global
 module P = Peer
 module Em = Error_msg
 
+(* close connection after a peer returns *)
+let close_connection_to_peer (r: Reader.t) (x : unit Deferred.Or_error.t)  
+  : unit Deferred.Or_error.t =
+  Reader.close r >>= fun () -> x
+
 let ignore_error addr : unit Or_error.t -> unit =
   function 
   | Ok () -> () 
@@ -21,6 +26,7 @@ let add_connected_peer pwp kind info_hash num_pieces addr r w  =
   Print.printf "handshake with (server) peer %s\n" (P.addr_to_string peer);
   P.init_size_owned_pieces peer num_pieces;
   Pwp.add_peer pwp peer
+  |> close_connection_to_peer r
 
 (* Creates a server that waits for connection from peers.
    After handshake, peer is initialized and added to Pwp. *)
@@ -50,6 +56,7 @@ let add_peers_from_tracker pwp torrent addrs : unit Deferred.t =
     Deferred.Or_error.try_with (function () -> Tcp.connect wtc)
     >>= fun (_, r, w) ->
     add_connected_peer pwp `Am_initiating info_hash num_pieces addr r w 
+    |> close_connection_to_peer r
   in
 
   let f addr = add_peer addr >>| ignore_error addr in
@@ -102,7 +109,7 @@ let process f =
     Pers.read_piece pers p 
     >>| fun () -> 
     if Piece.is_hash_ok p then File.set_piece_status file i `Downloaded
-            else info "can't read piece %d from disk" i
+    else info "can't read piece %d from disk" i
   in
 
   Deferred.List.iter (Bitset.to_list bitset) ~f:read_piece 
