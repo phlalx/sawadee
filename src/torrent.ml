@@ -17,8 +17,6 @@ type t = {
   num_files : int;
 }
 
-exception Foobar
-
 let do_file torrent_name chan =
   let open Bencode_utils in
   let bc = B.decode (`Channel chan) in 

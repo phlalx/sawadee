@@ -5,7 +5,8 @@ OCB =	ocamlbuild $(OCB_FLAGS) -I src
 
 # set the torrent file you want to download
 TEST_REMOTE = tests/torrents/NuTyX_x86_64-20170625.torrent
-# VERBOSE = -v 2 # set to see execution trace in test
+# TEST_REMOTE = tests/torrents/This_Week_@NASA,_July_7,_2017[V004848568].mp4.torrent
+VERBOSE = -v 1 # set to see execution trace in test
 DOWNLOAD_PATH = -p download/
 
 all: byte server

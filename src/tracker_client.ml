@@ -34,9 +34,23 @@ let create_uri_with_parameters t (s:string) =
 type sl = Socket.Address.Inet.t list 
 
 let check_response response =
-    let error = Error.of_string "Status not OK from tracker" in
-    let status = Cohttp.Response.status response in
-    return (Result.ok_if_true (status = `OK) ~error)
+  let error = Error.of_string "Status not OK from tracker" in
+  let status = Cohttp.Response.status response in
+  let is_status_ok = status = `OK in
+  if not is_status_ok then
+    info "http response not ok";
+  return (Result.ok_if_true is_status_ok ~error)
+
+let check_scheme uri =
+  let error = Error.of_string "URI scheme is not http" in
+  let scheme = Uri.scheme uri in
+  let is_scheme_http = match scheme with 
+    | Some s -> s = "http"
+    | None -> false
+  in 
+  if not is_scheme_http then
+    info "uri scheme not http";
+  return (Result.ok_if_true is_scheme_http ~error)
 
 (*  Error can come from
     - failed connecting attempt
@@ -47,6 +61,8 @@ let query_tracker t uri : sl Deferred.Option.t =
   info "trying uri %s" (Uri.to_string uri);
   let reply_or_error : sl Deferred.Or_error.t =
     let open Deferred.Or_error.Monad_infix in
+    check_scheme uri 
+    >>= fun () ->
     Deferred.Or_error.try_with (fun () -> Cohttp_async.Client.get uri)
     >>= fun (response, body) -> 
     check_response response
