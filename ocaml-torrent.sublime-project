@@ -3,8 +3,8 @@
 	[
 		{
 			"follow_symlinks": true,
-			"path": "src",
-      "folder_exclude_patterns": ["_build"],
+			"path": ".", 
+      "folder_exclude_patterns": ["_build", "tests", "download*"],
       "file_exclude_patterns": ["*.native"]
 		}
 	],

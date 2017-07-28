@@ -156,7 +156,9 @@ let process f =
 
   let pwp = Pwp.create t file pers in
 
+  (* TODO move this to main *)
   let server = if G.is_server () then 
+      let _n = Node.create () in
       create_server_and_add_peers pwp t >>= never
     else 
       Deferred.unit

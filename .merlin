@@ -1,3 +1,3 @@
-S src
-B _build/src/ 
+S src src_test
+B _build/src/ _build/src_test/
 PKG core core_extended ppx_jane uri cohttp async cohttp.async bencode sha ounit

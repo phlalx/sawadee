@@ -13,29 +13,15 @@ type t = {
   peers : Socket.Address.Inet.t list
 }
 
-(* TODO rewrite this *)
-let encode_peer peer_addr = 
-  let port = Socket.Address.Inet.port peer_addr in
-  let s = "  " in
-  Binary_packing.pack_signed_16 ~byte_order:`Big_endian ~buf:s ~pos:0 port;
-  "\127\000\000\001" ^ s
-
-(* TODO rewrite this *)
 let rec decode_peers s =
   let peer_addr_length = 6 in
   let ar = Bencode_utils.split s peer_addr_length in
-  let compact_repr (s:string) : Socket.Address.Inet.t =
-    let addr_int32 = Binary_packing.unpack_signed_32 ~byte_order:`Big_endian 
-        ~buf:s ~pos:0 in
-    let port = Binary_packing.unpack_unsigned_16_big_endian ~pos:4 ~buf:s in
-    let addr = Unix.Inet_addr.inet4_addr_of_int32 addr_int32 in
-    Socket.Address.Inet.create addr port
-  in 
-  Array.to_list (Array.map ar ~f:compact_repr)
+  Array.map ar ~f:Bencode_utils.decode_peer
+  |> Array.to_list
 
 let to_bencode r =
   let open Bencode in 
-  let f acc p = acc ^ (encode_peer p) in
+  let f acc p = acc ^ (Bencode_utils.encode_peer p) in
   let peers_str = List.fold r.peers ~init:"" ~f in 
   Dict [
     ("complete", Integer r.complete);

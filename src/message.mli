@@ -25,6 +25,7 @@ type t =
   | Request of int * int  * int (** index, begin, length *)
   | Piece of int * int * string (** index, begin, block *)
   | Cancel of int * int * int (** index, begin, length *)
+  | Port of int 
 [@@deriving sexp]
 
 val max_size : int

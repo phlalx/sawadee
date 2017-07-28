@@ -58,7 +58,8 @@ let create peer_addr r w kind =
 
 let to_string t = sprintf "%s" (Peer_id.to_readable_string t.id)
 
-let hs_prefix = "\019BitTorrent protocol\000\000\000\000\000\000\000\000"  
+(* last bit of sequence set to 1 = DHT support *)
+let hs_prefix = "\019BitTorrent protocol\000\000\000\000\000\000\000\001"  
 
 let hs hash pid = sprintf "%s%s%s" hs_prefix hash pid   
 

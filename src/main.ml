@@ -27,6 +27,7 @@ let process
   = 
   set_level `Error;
 
+  Krpc_packet.link; (* TODO just for linking krpc_packet while testing*)
 
   Option.value_map port ~default:() ~f:G.set_port;
   G.set_path path;
@@ -35,6 +36,7 @@ let process
   check_path ()
   >>= fun () ->
   Start.process torrent_name
+
 
 let () = 
   let spec =

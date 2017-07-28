@@ -127,6 +127,8 @@ let process_message t (p:P.t) (m:M.t) : unit =
     try_request_pieces t
   | M.Cancel (index, bgn, length) ->
     info "ignore cancel msg - Not yet implemented"
+  | M.Port port ->
+    info "ignore port msg from %s- not yet implemented" (Peer.to_string p)
 
 let cancel_requests t p = 
   let f i = 

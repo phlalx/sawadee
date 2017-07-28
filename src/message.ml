@@ -14,6 +14,7 @@ type t =
   | Request of int * int  * int
   | Piece of int * int * string
   | Cancel of int * int * int
+  | Port of int
 [@@deriving sexp]
 
 let max_size = Global.max_block_size + 13
@@ -30,6 +31,7 @@ let size = function
   | Request _ -> 13
   | Piece (_,_,s) -> 9 + (String.length s)
   | Cancel _ -> 13 
+  | Port _ -> 3
 
 exception Unkown_message of int 
 
@@ -64,6 +66,10 @@ let bin_read_payload buf ~pos_ref length =
     let begn = Read.bin_read_network32_int buf pos_ref in
     let len = Read.bin_read_network32_int buf pos_ref in
     Cancel (index, begn, len)
+  | 9 -> 
+    let port = Read.bin_read_network16_int buf pos_ref in
+    assert (port >= 0);
+    Port port
   | i -> raise (Unkown_message i)
 
 let bin_read_t buf ~pos_ref = 
@@ -117,6 +123,10 @@ let bin_write_t (buf:Common.buf) ~(pos:Common.pos) (x:t) =
     let pos = Write.bin_write_network32_int buf pos index in
     let pos = Write.bin_write_network32_int buf pos begn in
     Write.bin_write_network32_int buf pos len
+  | Port port ->
+    let pos = Write.bin_write_network32_int buf pos 3 in
+    let pos = Write.bin_write_char buf pos (char_of_int 9) in
+    Write.bin_write_network16_int buf pos port 
 
 let to_string m =
   match m with 
@@ -130,14 +140,7 @@ let to_string m =
   | Request (i,b,l) -> sprintf "Request i = %d" i
   | Piece (i,off,_) -> sprintf "Piece i = %d, off = %d "  i off
   | Cancel _ -> "Cancel"
-
-
-
-
-
-
-
-
+  | Port i -> sprintf "port %d" i
 
 
 
