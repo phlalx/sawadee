@@ -31,11 +31,3 @@ clean:
 README.html: README.md
 	pandoc -c style.css -f markdown_github < README.md > README.html
 
-# set the torrent file you want to download
-TEST_REMOTE = tests/torrents/NuTyX_x86_64-20170625.torrent
-# TEST_REMOTE = tests/torrents/This_Week_@NASA,_July_7,_2017[V004848568].mp4.torrent
-VERBOSE = -v 1 # set to see execution trace in test
-DOWNLOAD_PATH = -p download/
-
-test: tracker_server main 
-	./main.byte $(TEST_REMOTE) $(DOWNLOAD_PATH) $(VERBOSE)

@@ -20,7 +20,7 @@ let set_verbose i =
   | _ -> Em.terminate (Em.verbose_error ()) 
 
 let process 
-    (torrent_name : string)
+    (uri : string)
     (port : int option) 
     (path : string) 
     (verbose : int option)
@@ -33,7 +33,7 @@ let process
   info "This peer-id:%s" (Peer_id.to_readable_string G.peer_id);
   check_path ()
   >>= fun () ->
-  Start.process torrent_name
+  Start.process uri
 
 
 let () = 
@@ -43,7 +43,7 @@ let () =
     flag "-p" (required string) ~doc:" set download path" +> 
     flag "-l" (optional int) ~doc:" set server mode with port" +> 
     flag "-v" (optional int) ~doc:" verbose (level = 1 or 2)" +> 
-    anon ("FILE" %: string) 
+    anon ("URI/FILE" %: string) 
   in
   let command =
     Command.async ~summary:"Download torrent file" spec

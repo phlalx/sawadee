@@ -61,7 +61,42 @@ let add_peers_from_tracker pwp torrent addrs : unit Deferred.t =
   let f addr = add_peer addr >>| ignore_error addr in
   Deferred.List.iter ~how:`Parallel addrs ~f
 
-let process f =
+(* TODO try to use option monad *)
+let parse_uri f =
+
+  let uri = Uri.of_string f in
+
+  (* st should be of the form "urn:btih:hex_info_hash" *)
+  let decode_xt st = 
+    if not (String.length st = 49) then
+      `Invalid_magnet
+    else
+      let hex_string = `Hex (String.sub st ~pos:9 ~len:40) in
+      let info_hash = Hex.to_string hex_string |> Bt_hash.of_string in
+      `Magnet info_hash
+  in
+
+  let extract_param uri = 
+    match Uri.get_query_param uri "xt" with
+    | Some xt -> decode_xt xt 
+    | None -> `Invalid_magnet
+  in
+
+  match Uri.scheme uri with
+  | Some "magnet" -> extract_param uri 
+  | Some "file" -> `File (Uri.path uri)
+  | None -> `File f
+  | _ -> `Other
+
+let process uri =
+
+  let f = 
+    match parse_uri uri with
+    | `File f -> f 
+    | `Magnet info_hash -> failwith "magnet not implemented yet"
+    | `Other -> failwith "scheme error"
+    | `Invalid_magnet -> failwith "invalid magnet"
+  in
 
   (***** read torrent file *****)
   let t = try 
@@ -105,12 +140,12 @@ let process f =
   let routing_table_name = sprintf "%s/%s" (G.path ()) G.routing_table_name in 
   let routing_table = 
     try
-        In_channel.read_all routing_table_name
+      In_channel.read_all routing_table_name
     with _ -> 
       info "can't read routing table %s. Using empty table" routing_table_name;
       ""
   in
-  let decoded_table = 
+  let _decoded_table = 
     try
       Krpc.table_of_string routing_table 
     with _ -> 
@@ -147,10 +182,10 @@ let process f =
      with 
        _  -> Print.printf "%s\n" (Em.can't_open bf_name));
     (try 
-      info "writing routing table to file %s" routing_table_name;
-      let table = Krpc.table () in
-      Out_channel.write_all routing_table_name ~data:(Krpc.table_to_string table)
-    with
+       info "writing routing table to file %s" routing_table_name;
+       let table = Krpc.table () in
+       Out_channel.write_all routing_table_name ~data:(Krpc.table_to_string table)
+     with
        _  -> Print.printf "%s\n" (Em.can't_open routing_table_name)
     );
 

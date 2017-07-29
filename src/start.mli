@@ -2,7 +2,11 @@ open Core
 open Async
 
 (** [process f] launches the whole process of downloading files from
-    a torrent called [f]. This includes:
+    uri [u]. 
+
+    u can be a file (no scheme) or a magnet (scheme = magnet)
+
+  This includes:
   - retrieving persistent data (bitfield and pieces of files already downloaded)
   - connecting with the tracker to get peers do share data with
   - launching server if server mode is enabled
