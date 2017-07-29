@@ -1,30 +1,18 @@
-OPAM_DEPENDS="ocamlfind oUnit core core_extended ppx_jane uri cohttp async \
-              bencode sha hex"
+OPAM_DEPENDS="ocamlfind oUnit core core_extended ppx_jane uri cohttp async 
+              cohttp-async bencode sha hex"
 
-case "$OCAML_VERSION,$OPAM_VERSION" in
-   4.05,1.2.2)
-        OCAML_VERSION=4.02; OPAM_SWITCH="4.05.0"
-        ppa=avsm/ocaml42+opam12 ;;
-        *) echo Unknown $OCAML_VERSION,$OPAM_VERSION
-           exit 1 ;;
-esac
+# async requires ocaml >= 4.03. 
+# we can only get 4.02 from avsm/ppa so we get it from opam
 
-echo "yes" | sudo add-apt-repository ppa:$ppa
-sudo apt-get update -qq
-sudo apt-get install -qq ocaml ocaml-native-compilers camlp4-extra opam time libssl-dev
+sudo add-apt-repository ppa:avsm/ppa
+sudo apt-get update
+sudo apt-get install opam
 
-export OPAMYES=1
-export OPAMVERBOSE=1
-echo OCaml version
-ocaml -version
-echo OPAM versions
-opam --version
-opam --git-version
-
-opam init
+export OPAMYES=true
+opam init --comp=4.04.2
 opam install ${OPAM_DEPENDS}
 
 eval `opam config env`
-# make
-# make unit
-opam list
+
+make
+make unit
