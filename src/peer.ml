@@ -240,5 +240,6 @@ let set_uploading t =
   )
 
 
+let addr t = Socket.Address.Inet.addr t.peer_addr
 
 

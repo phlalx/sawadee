@@ -115,5 +115,7 @@ val set_downloading : t -> unit
 
 val set_uploading : t -> unit
 
+val addr : t -> Unix.Inet_addr.t
+
 (** display stats for debugging *)
 val stats : t -> unit

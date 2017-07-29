@@ -25,6 +25,7 @@ let send_message t m =
   let len = K.bin_write_t t.buffer ~pos:0 m in 
   ()
 
+
 (*
 let send_ping addr =
   let ping = { transaction_id = "ab"; content = Query (Ping Global.node_id) } in
