@@ -4,6 +4,7 @@
     form of the [Bitset.t], such as defined by the protocol. It is used both
     for messages and for disk storage *) 
 open Core
+(* open Sexplib.Std *)
 
 type t
 [@@deriving sexp]

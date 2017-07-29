@@ -1,5 +1,5 @@
-OPAM_DEPENDS="ocamlfind ounit core core_extended ppx_jane uri cohttp async \
-              bencode sha"
+OPAM_DEPENDS="ocamlfind oUnit core core_extended ppx_jane uri cohttp async \
+              bencode sha hex"
 
 case "$OCAML_VERSION,$OPAM_VERSION" in
    4.05,1.2.2)
