@@ -7,9 +7,16 @@ exception Bencode_error
 
 val get : 'a option -> 'a
 
+val split_list : string -> int -> string list
+
 val peer_to_bencode : Socket.Address.Inet.t -> Bencode.t
 
 val peers_to_bencode : Socket.Address.Inet.t list -> Bencode.t
+
+(* TODO be consistent with name of these conversion functions *)
+val peer_to_string :  Socket.Address.Inet.t -> string 
+
+val string_to_peer :  string -> Socket.Address.Inet.t  
 
 val bencode_to_peer : Bencode.t -> Socket.Address.Inet.t 
 

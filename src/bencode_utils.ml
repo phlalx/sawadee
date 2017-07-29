@@ -16,6 +16,9 @@ let split (s:string) split_size =
   let f i = String.sub s (i * split_size) split_size in
   Array.init (n / split_size) ~f
 
+let split_list (s:string) split_size =
+    Array.to_list (split s split_size)
+
 let peer_to_string peer_addr = 
   let port = Socket.Address.Inet.port peer_addr in
   let addr = Socket.Address.Inet.addr peer_addr in

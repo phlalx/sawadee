@@ -33,3 +33,5 @@ let peer_id = Peer_id.random ()
 
 let node_id = Node_id.random ()
 
+let routing_table_name = ".routing"
+

@@ -22,9 +22,10 @@ let create peer_addr id = {
 let get_message t = Deferred.never ()
 
 let send_message t m = 
-  let len = K.bin_write_t t.buffer ~pos:0 m in 
+  let _len = K.bin_write_t t.buffer ~pos:0 m in 
   ()
 
+let addr t = t.peer_addr
 
 (*
 let send_ping addr =

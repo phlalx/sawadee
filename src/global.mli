@@ -37,3 +37,5 @@ val peer_id : Peer_id.t
 
 val node_id : Node_id.t
 
+val routing_table_name : string
+

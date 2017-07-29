@@ -91,13 +91,32 @@ let process f =
 
   let bitfield = 
     try
-      Pers.read_bitfield bf_name bf_len 
+      Pers.read_bitfield bf_name bf_len  (* TODO don't deserve function in Pers *)
     with _ -> 
       info "can't read bitfield %s. Using empty bitfield" bf_name;
       Bitfield.empty bf_len
   in
   info "read bitfield %s" bf_name;
   let bitset = Bitset.of_bitfield bitfield num_pieces in
+
+  (**** read routing table *****)
+  (* TODO put this in main together with server *)
+
+  let routing_table_name = sprintf "%s/%s" (G.path ()) G.routing_table_name in 
+  let routing_table = 
+    try
+        In_channel.read_all routing_table_name
+    with _ -> 
+      info "can't read routing table %s. Using empty table" routing_table_name;
+      ""
+  in
+  let decoded_table = 
+    try
+      Krpc.table_of_string routing_table 
+    with _ -> 
+      info "can't decode routing table %s. Using empty table" routing_table_name;
+      [] 
+  in
 
   (****** initialize File.t and retrieve pieces from disk *******)
 
@@ -126,7 +145,16 @@ let process f =
     (try
        Pers.write_bitfield bf_name (File.bitfield file)
      with 
-       _  -> Em.terminate (Em.can't_open bf_name));
+       _  -> Print.printf "%s\n" (Em.can't_open bf_name));
+    (try 
+      info "writing routing table to file %s" routing_table_name;
+      let table = Krpc.table () in
+      Out_channel.write_all routing_table_name ~data:(Krpc.table_to_string table)
+    with
+       _  -> Print.printf "%s\n" (Em.can't_open routing_table_name)
+    );
+
+
     Pers.close_all_files pers >>= fun () ->
     Print.printf "written %d%% to disk\n" (File.percent file);
     info "written %d/%d pieces" (File.num_downloaded_pieces file) num_pieces;
@@ -162,8 +190,6 @@ let process f =
     else 
       Deferred.unit
   in
-  let _krpc = Krpc.create () in
-
 
   let peers = add_peers_from_tracker pwp t addrs in 
 
