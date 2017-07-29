@@ -27,8 +27,6 @@ let process
   = 
   set_level `Error;
 
-  Krpc_packet.link; (* TODO just for linking krpc_packet while testing*)
-
   Option.value_map port ~default:() ~f:G.set_port;
   G.set_path path;
   Option.value_map verbose ~default:() ~f:set_verbose;

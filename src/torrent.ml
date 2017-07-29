@@ -17,6 +17,12 @@ type t = {
   num_files : int;
 }
 
+let split (s:string) split_size =
+  let n = String.length s in
+  assert (n % split_size = 0);
+  let f i = String.sub s (i * split_size) split_size in
+  Array.init (n / split_size) ~f
+
 let do_file torrent_name chan =
   let open Bencode_utils in
   let bc = B.decode (`Channel chan) in 

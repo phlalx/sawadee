@@ -35,4 +35,5 @@ val bitset_ext : string
 
 val peer_id : Peer_id.t
 
+val node_id : Node_id.t
 

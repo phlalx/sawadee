@@ -158,11 +158,13 @@ let process f =
 
   (* TODO move this to main *)
   let server = if G.is_server () then 
-      let _n = Node.create () in
       create_server_and_add_peers pwp t >>= never
     else 
       Deferred.unit
   in
+  let _krpc = Krpc.create () in
+
+
   let peers = add_peers_from_tracker pwp t addrs in 
 
   (* this should not be determined, unless all peers and the server fail.
