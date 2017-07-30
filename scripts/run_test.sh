@@ -17,9 +17,10 @@ do
     $EXEC_PREFIX/start_client.sh $i &> $LOG & 
     sleep 0.05
 done
-sleep 30.0 
+sleep $WAITING
 pkill -f main.byte 
 pkill -f tracker_server.byte
+grep "written 100%" download*/log
 RES=`grep "written 100%" download*/log | wc -l`
 if [ $RES = $NUM_CLIENTS ]
 then 
