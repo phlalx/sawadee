@@ -12,6 +12,9 @@ let t = {
   routing = []
 }
 
+let equal x y = Node_id.to_string x = Node_id.to_string y
+let find = List.Assoc.find t.routing ~equal 
+
 open Krpc_packet
 
 let try_add addr =
@@ -20,11 +23,15 @@ let try_add addr =
   let n = Node.create addr in
   Node.ping n 
   >>| fun id -> 
-  (* TODO enforce invariant if some(id), status != questionable *)
-  Node.set_id n id; 
-  Node.set_status n `Good;
-  info "########## it worked";
-  t.routing <- (id, n) :: t.routing  (* TODO: use a set/table to avoid duplicate *)
+  if Option.is_none (find id) then (
+    (* TODO do this test before the ping? *)
+    (* TODO enforce invariant if some(id), status != questionable *)
+    Node.set_id n id; 
+    Node.set_status n `Good;
+    info "########## it worked";
+    info "but already in the table";
+    t.routing <- (id, n) :: t.routing  
+  ) 
 
 let table_to_string table =
   let f (id, p) =
