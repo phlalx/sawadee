@@ -13,6 +13,8 @@ val peer_to_bencode : Socket.Address.Inet.t -> B.t
 
 val peers_to_bencode : Socket.Address.Inet.t list -> B.t
 
+val peers_to_bencode_list : Socket.Address.Inet.t list -> B.t
+
 (* TODO be consistent with name of these conversion functions *)
 val peer_to_string :  Socket.Address.Inet.t -> string 
 

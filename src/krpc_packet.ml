@@ -88,7 +88,7 @@ let bencode_of_response =
     ("nodes", (nodes_info_to_bencode nodes) ) :: []
   | R_get_peers_values (id, token, values) -> 
     ("id", node_to_bencode id) :: ("token", B.String token) ::
-    ("values", peers_to_bencode values) :: []
+    ("values", peers_to_bencode_list values) :: []
 
 let bencode_of_query =
   let open Bencode_utils in

@@ -29,6 +29,8 @@ let peer_to_string peer_addr =
 let peer_to_bencode peer_addr = 
   B.String (peer_to_string peer_addr)
 
+
+
 let string_to_peer s : Socket.Address.Inet.t =
   let addr_int32 = Binary_packing.unpack_signed_32 ~byte_order:`Big_endian 
       ~buf:s ~pos:0 in
@@ -52,6 +54,8 @@ let rec bencode_list_to_peers b =
 let peers_to_bencode peers = 
   let f acc p = acc ^ (peer_to_string p) in
   B.String (List.fold peers ~init:"" ~f)
+
+let peers_to_bencode_list peers = List.map peers ~f:peer_to_bencode |> B.List
 
 let node_to_bencode n = B.String (Node_id.to_string n)
 
