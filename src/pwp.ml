@@ -69,7 +69,7 @@ let process_message t (p:P.t) (m:M.t) : unit =
       File.set_piece_status t.file index `Not_requested;
       info "hash error piece %d from %s" index (P.to_string p)
     | `Downloaded ->
-      info "got piece %d from %s " index (P.to_string p);
+      debug "got piece %d from %s " index (P.to_string p);
       Peer.set_downloading p;
       P.remove_pending p index;
       File.set_piece_status t.file index `Downloaded;

@@ -58,7 +58,7 @@ let check_scheme uri =
     - error while decoding the reply *)
 let query_tracker t uri : sl Deferred.Option.t = 
   let uri = create_uri_with_parameters t uri in
-  info "trying uri %s" (Uri.to_string uri);
+  debug "trying uri %s" (Uri.to_string uri);
   let reply_or_error : sl Deferred.Or_error.t =
     let open Deferred.Or_error.Monad_infix in
     check_scheme uri 

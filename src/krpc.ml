@@ -3,6 +3,7 @@ open Async
 open Log.Global
 module BU = Bencode_utils
 module G = Global
+module Em = Error_msg
 
 type t = {
   mutable routing : (Node_id.t * Node.t) list 
@@ -13,24 +14,24 @@ let t = {
 }
 
 let equal x y = Node_id.to_string x = Node_id.to_string y
-let find = List.Assoc.find t.routing ~equal 
+let find () = List.Assoc.find t.routing ~equal 
 
 open Krpc_packet
 
 let try_add addr =
+  debug "try reaching node %s" (Socket.Address.Inet.to_string addr);
   let open Deferred.Or_error.Monad_infix in
-  info "########## trying to add peer %s" (Socket.Address.Inet.to_string addr);
   let n = Node.create addr in
   Node.ping n 
   >>| fun id -> 
-  if Option.is_none (find id) then (
+  if Option.is_none (find () id) then (
     (* TODO do this test before the ping? *)
     (* TODO enforce invariant if some(id), status != questionable *)
     Node.set_id n id; 
     Node.set_status n `Good;
-    info "########## it worked";
-    info "but already in the table";
-    t.routing <- (id, n) :: t.routing  
+    t.routing <- (id, n) :: t.routing;
+    info "added node nodeid(%s) = %s" (Socket.Address.Inet.to_string addr) 
+      (Node.to_string n)
   ) 
 
 let table_to_string table =
@@ -54,12 +55,33 @@ let table_of_string s =
   Bencode_utils.split_list s (Node_id.length + compact_length) 
   |> List.map ~f
 
-let table () = 
-  let f (i, n) = (i, Node.addr n) in List.map t.routing ~f
 
+let read_routing_table () = 
+  let routing_table_name = sprintf "%s/%s" (G.path ()) G.routing_table_name in 
+  let routing_table = 
+    try
+      In_channel.read_all routing_table_name
+    with _ -> 
+      info "can't read routing table %s. Using empty table" routing_table_name;
+      ""
+  in
+  let decoded_table = 
+    try
+      table_of_string routing_table 
+    with _ -> 
+      info "can't decode routing table %s. Using empty table" routing_table_name;
+      [] 
+  in
 
+  let f (_, p) = try_add p |> Deferred.ignore |> don't_wait_for in
+  List.iter decoded_table ~f
 
-
-
-
-
+let write_routing_table () =
+  let routing_table_name = sprintf "%s/%s" (G.path ()) G.routing_table_name in 
+  try 
+    let table  = let f (i, n) = (i, Node.addr n) in List.map t.routing ~f in
+    Out_channel.write_all routing_table_name ~data:(table_to_string table);
+    info "writing routing table to file %s" routing_table_name;
+  with
+  (* TODO print error in debug *)
+    _ -> Print.printf "%s\n" (Em.can't_open routing_table_name)

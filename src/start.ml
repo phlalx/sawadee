@@ -88,12 +88,19 @@ let parse_uri f =
   | None -> `File f
   | _ -> `Other
 
+
+let process_magnet m = 
+
+
+  assert false
+
+
 let process uri =
 
   let f = 
     match parse_uri uri with
     | `File f -> f 
-    | `Magnet info_hash -> failwith "magnet not implemented yet"
+    | `Magnet info_hash -> process_magnet info_hash
     | `Other -> failwith "scheme error"
     | `Invalid_magnet -> failwith "invalid magnet"
   in
@@ -134,28 +141,6 @@ let process uri =
   info "read bitfield %s" bf_name;
   let bitset = Bitset.of_bitfield bitfield num_pieces in
 
-  (**** read routing table *****)
-  (* TODO put this in main together with server *)
-
-  let routing_table_name = sprintf "%s/%s" (G.path ()) G.routing_table_name in 
-  let routing_table = 
-    try
-      In_channel.read_all routing_table_name
-    with _ -> 
-      info "can't read routing table %s. Using empty table" routing_table_name;
-      ""
-  in
-  let decoded_table = 
-    try
-      Krpc.table_of_string routing_table 
-    with _ -> 
-      info "can't decode routing table %s. Using empty table" routing_table_name;
-      [] 
-  in
-
-  let f (_, p) = Krpc.try_add p |> Deferred.ignore |> don't_wait_for in
-  List.iter decoded_table ~f;
-
   (****** initialize File.t and retrieve pieces from disk *******)
 
   let file = File.create pieces_hash ~piece_length ~total_length in
@@ -184,15 +169,8 @@ let process uri =
        Pers.write_bitfield bf_name (File.bitfield file)
      with 
        _  -> Print.printf "%s\n" (Em.can't_open bf_name));
-    (try 
-       let table = Krpc.table () in
-       Out_channel.write_all routing_table_name ~data:(Krpc.table_to_string table);
-       info "writing routing table to file %s" routing_table_name;
-     with
-     (* TODO print error in debug *)
-       _ -> Print.printf "%s\n" (Em.can't_open routing_table_name)
-    );
 
+    Krpc.write_routing_table ();
 
     Pers.close_all_files pers >>= fun () ->
     Print.printf "written %d%% to disk\n" (File.percent file);

@@ -56,7 +56,7 @@ let create peer_addr r w kind =
     uploading = false;
   }
 
-let to_string t = sprintf "%s" (Peer_id.to_readable_string t.id)
+let to_string t = Printf.sprintf "%s" (Peer_id.to_readable_string t.id)
 
 (* last bit of sequence set to 1 = DHT support *)
 let hs_prefix = "\019BitTorrent protocol\000\000\000\000\000\000\000\001"  

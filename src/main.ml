@@ -19,6 +19,9 @@ let set_verbose i =
   | 2 -> set_level `Debug;
   | _ -> Em.terminate (Em.verbose_error ()) 
 
+
+
+
 let process 
     (uri : string)
     (port : int option) 
@@ -31,8 +34,11 @@ let process
   G.set_path path;
   Option.value_map verbose ~default:() ~f:set_verbose;
   info "This peer-id:%s" (Peer_id.to_readable_string G.peer_id);
+  info "This node-id:%s" (Node_id.to_readable_string G.node_id);
   check_path ()
   >>= fun () ->
+
+  Krpc.read_routing_table ();
   Start.process uri
 
 

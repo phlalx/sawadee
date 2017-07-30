@@ -1,4 +1,5 @@
 open Core
+
 open Async
 open Bin_prot
 open Log.Global
@@ -29,7 +30,13 @@ let set_status t s = t.status <- s
 
 let id t = t.id
 
-let set_id t id = t.id <- Some id
+let to_string t = 
+  match t.id with 
+  | Some id -> Node_id.to_readable_string id
+  | None -> "unknown-id"
+
+let set_id t id = 
+  t.id <- Some id
 
 (* why this returns a deferred when Writer.write does not *)
 let send_packet t m = 
@@ -65,30 +72,35 @@ let fresh_tid () = incr counter; !counter |> string_of_int
 
 let packet transaction_id content = K.{ transaction_id; content }
 
-let is_valid_ping_reply tid p =
-  let open K in
-  match p.content with 
- | Response (R_ping_or_get_peers_node id) when tid = p.transaction_id -> Ok id
- | _ -> Error (Error.of_string "unvalid ping reply")
-
-let ping t = 
+(* generate template for rpcs *)
+let rpc t content validate_and_extract =
   let tid = fresh_tid () in
-  let ping_packet = packet tid (K.Query (K.Ping G.node_id)) in
-  send_packet t ping_packet 
+  packet tid content |> send_packet t  
   >>= fun () ->
-  Clock.with_timeout G.krpc_timeout (get_one_packet t)
+  get_one_packet t |> Clock.with_timeout G.krpc_timeout
   >>| function
   | `Timeout -> Error (Error.of_string "timeout")
-  | `Result p -> is_valid_ping_reply tid p 
+  | `Result { K.transaction_id; K.content = K.Response r } 
+    when tid = transaction_id -> validate_and_extract r
+  | _ -> Error (Error.of_string "RPC error") (* could be more specific here *)
 
+let ping t = 
+  let open K in
+  let validate_ping_reply = 
+    function
+    | R_ping_or_get_peers_node id -> Ok id
+    | _ -> Error (Error.of_string "RPC error: Wrong response")
+  in 
+  let content = K.Query (K.Ping G.node_id) 
+  in
+  rpc t content validate_ping_reply 
 
+let get_peers t info_hash = assert false
 
-
-
-
-
-
-
+(*
+val get_peers : t -> Bt_hash.t -> [`Values of Socket.Address.Inet.t list 
+                                  | `Nodes of Node_id.t list] Deferred.Or_error.t  
+ *)
 
 
 
