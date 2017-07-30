@@ -186,9 +186,10 @@ let process_file f =
 let process uri =
   match parse_uri uri with
   | `File f -> process_file f 
-  | `Magnet info_hash -> process_magnet info_hash
   | `Other -> failwith "scheme error"
   | `Invalid_magnet -> failwith "invalid magnet"
+  | `Magnet info_hash when G.is_node () -> process_magnet info_hash
+  | `Magnet _ -> failwith "node must be enabled"
 
 
 

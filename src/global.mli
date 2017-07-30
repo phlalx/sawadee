@@ -41,3 +41,7 @@ val routing_table_name : string
 
 val krpc_timeout : Time.Span.t
 
+val set_node : bool -> unit
+
+val is_node : unit -> bool
+

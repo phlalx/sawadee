@@ -37,3 +37,9 @@ let routing_table_name = "routing"
 
 let krpc_timeout = sec 5.0
 
+let is_node_ = ref false
+
+let is_node () = !is_node_
+
+let set_node b = is_node_ := b
+

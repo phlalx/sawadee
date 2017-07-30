@@ -24,9 +24,11 @@ let process
     (port : int option) 
     (path : string) 
     (verbose : int option)
+    (node : bool)
   = 
   set_level `Error;
 
+  G.set_node node;
   Option.value_map port ~default:() ~f:G.set_port;
   G.set_path path;
   Option.value_map verbose ~default:() ~f:set_verbose;
@@ -35,7 +37,7 @@ let process
   check_path ()
   >>= fun () ->
 
-  Krpc.read_routing_table () 
+  if G.is_node () then Krpc.read_routing_table () else Deferred.unit
   >>= fun () ->
   info "processed routing table";
 
@@ -56,12 +58,13 @@ let () =
     flag "-p" (required string) ~doc:" set download path" +> 
     flag "-l" (optional int) ~doc:" set server mode with port" +> 
     flag "-v" (optional int) ~doc:" verbose (level = 1 or 2)" +> 
+    flag "-n" no_arg ~doc:" Enable DHT" +> 
     anon ("URI/FILE" %: string) 
   in
   let command =
     Command.async ~summary:"Download torrent file" spec
-      (fun path port verbose filename () -> 
-         process filename port path verbose)
+      (fun path port verbose node filename () -> 
+         process filename port path verbose node)
   in
   Command.run command
 

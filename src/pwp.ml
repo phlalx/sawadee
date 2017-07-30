@@ -130,8 +130,9 @@ let process_message t (p:P.t) (m:M.t) : unit =
   | M.Cancel (index, bgn, length) ->
     info "ignore cancel msg - Not yet implemented"
   | M.Port port -> 
+   if G.is_node () then (
     Socket.Address.Inet.create (Peer.addr p) port |> 
-    Krpc.try_add |> Deferred.ignore |> don't_wait_for
+   Krpc.try_add |> Deferred.ignore |> don't_wait_for )
 
 let cancel_requests t p = 
   let f i = 
