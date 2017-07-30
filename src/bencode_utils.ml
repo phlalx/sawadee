@@ -1,16 +1,11 @@
 open Core
 open Async
 
-module B = Bencode
+module B = Bencode_ext
 
 type node_info = Node_id.t * Socket.Address.Inet.t 
 
 exception Bencode_error
-
-let get x =
-  match x with
-  | Some y -> y
-  | None -> raise Bencode_error
 
 let split (s:string) split_size =
   let n = String.length s in
@@ -42,11 +37,10 @@ let string_to_peer s : Socket.Address.Inet.t =
   Socket.Address.Inet.create addr port
 
 let bencode_to_peer b : Socket.Address.Inet.t =
-  let s = get (B.as_string b) in
-  string_to_peer s
+  B.as_string_exn b |> string_to_peer
 
 let rec bencode_to_peers b =
-  get (B.as_list b) |> List.map ~f:bencode_to_peer
+  B.as_list_exn b |> List.map ~f:bencode_to_peer
 
 let peers_to_bencode peers = 
   let f acc p = acc ^ (peer_to_string p) in
@@ -61,24 +55,9 @@ let hashs_to_bencode l = assert false
 let hash_to_bencode h = B.String (Bt_hash.to_string h)
 
 let bencode_to_nodes b = 
-    let s = get (B.as_string b) in
+    let s = B.as_string_exn b in
     Array.map (split s Node_id.length) ~f:Node_id.of_string 
     |> Array.to_list
-
-(* TODO extend module bencode with _exn function and get rid of the get
-   elsewhere in the code *)
-
-let get_string_from_dict_exn b s =
-  get (B.as_string (get (B.dict_get b s))) 
-
-let get_dict_from_dict_exn b s =
-  get (B.dict_get b s)
-
-let get_int_from_dict_exn b s =
-  get (B.as_int (get (B.dict_get b s)))
-
-let get_list_from_dict_exn b s =
-  get (B.as_list (get (B.dict_get b s)))
 
 let node_info_to_string (n, p) = 
     (Node_id.to_string n) ^ (peer_to_string p)
@@ -93,7 +72,7 @@ let nodes_info_to_bencode nis =
   B.String (List.fold nis ~init:"" ~f)
 
 let bencode_to_nodes_info b =
-  let s : string = get (B.as_string b) in
+  let s : string = B.as_string_exn b in
   let node_info_length = Node_id.length + 6 in
   split s node_info_length
   |> Array.map ~f:string_to_node_info

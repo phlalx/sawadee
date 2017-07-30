@@ -18,7 +18,7 @@ type t = {
   mutable have : Bitset.t;
   mutable pending : Int.Set.t;
   mutable idle : bool;
-  kind : [`Am_initiating | `Peer_initiating ];
+  kind : [`Am_initiating | `Peer_initiating ]; (* TODO do we still need this *)
   receive_buffer : Bigstring.t;
   send_buffer : Bigstring.t;  
   mutable downloading : bool;
@@ -102,33 +102,34 @@ let initiate_handshake t hash pid =
     ) 
   | `Eof _ -> Error (Error.of_string "handshake error")
 
-let wait_for_handshake t hash pid =
+let extract_reply received =
+  let hash_pos = String.length hs_prefix  in
+  let peer_pos = hash_pos + Bt_hash.length in
+  let info_hash_rep = String.sub received ~pos:hash_pos ~len:Bt_hash.length in
+  let remote_peer_id = String.sub received ~pos:peer_pos ~len:Peer_id.length in
+  info_hash_rep, remote_peer_id
+
+let wait_handshake t (has_hash : Bt_hash.t -> bool) pid =
   debug "handshake (wait) from %s" (to_string t);
-  let hash = Bt_hash.to_string hash in
-  let pid = Peer_id.to_string pid in
-  let hs = hs hash pid in
-  let buf = String.create hs_len in
   debug "trying to read %d bytes" hs_len;
+  let buf = String.create hs_len in
   Reader.really_read t.reader buf ~len:hs_len 
   >>| function
   | `Ok -> ( 
-      match validate_handshake buf hash with
-      | None -> Error (Error.of_string "hash error")
-      | Some p -> 
-        t.id <- Peer_id.of_string p;
+      let info_hash_str, peer_id_str = extract_reply buf in
+      let info_hash = Bt_hash.of_string info_hash_str in 
+      if has_hash info_hash then (
+        let peer_id = Peer_id.of_string peer_id_str in
+        let pid_str = Peer_id.to_string pid in
+        t.id <- peer_id;
+        let hs = hs info_hash_str pid_str in
         Writer.write t.writer ~len:hs_len hs;
         info "handshake ok with %s" (to_string t);
-        Ok ()
+        Ok info_hash 
+      ) else 
+        Error (Error.of_string "we don't serve this torrent")
     )
   | `Eof _ -> Error (Error.of_string "handshake error")
-
-(* TODO: see if handshake is asynchronous, we may need only one function,
-   otherwise factorize the common part *)
-let handshake t hash pid =
-  if t.kind = `Am_initiating then
-    initiate_handshake t hash pid 
-  else
-    wait_for_handshake t hash pid
 
 let get_message t =
   let buf = t.receive_buffer in 

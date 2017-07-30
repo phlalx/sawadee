@@ -7,7 +7,7 @@ open Core
 open Async (* only needed for Socket.Address.Inet.t *)
 open Bin_prot
 
-module B = Bencode
+module B = Bencode_ext
 
 type token = string
 
@@ -133,37 +133,37 @@ let bencode_of_t { transaction_id; content } =
 
 let query_of_bencode b = 
   let open Bencode_utils in
-  let args = get_dict_from_dict_exn b "a" in
-  let id = get_string_from_dict_exn args "id" |> Node_id.of_string in
-  get_string_from_dict_exn b "q" 
+  let args = B.dict_get_exn b "a" in
+  let id = B.get_string_from_dict_exn args "id" |> Node_id.of_string in
+  B.get_string_from_dict_exn b "q" 
   |> function 
   | "ping" -> Ping id
   | "find_node" ->
-    let target = get_string_from_dict_exn args "target" |> Node_id.of_string in
+    let target = B.get_string_from_dict_exn args "target" |> Node_id.of_string in
     Find_node (id, target)
   | "get_peers" ->
-    let info_hash = get_string_from_dict_exn args "info_hash" |> Bt_hash.of_string in
+    let info_hash = B.get_string_from_dict_exn args "info_hash" |> Bt_hash.of_string in
     Get_peers (id, info_hash)
   | "announce_peer" -> 
-    let info_hash = get_string_from_dict_exn args "info_hash" |> Bt_hash.of_string in
-    let port = get_int_from_dict_exn args "port" in
-    let token = get_string_from_dict_exn args "token" in
+    let info_hash = B.get_string_from_dict_exn args "info_hash" |> Bt_hash.of_string in
+    let port = B.get_int_from_dict_exn args "port" in
+    let token = B.get_string_from_dict_exn args "token" in
     Announce_peer (id, info_hash, port, token)
   | _ -> assert false
 
 let response_of_bencode b = 
   let open Bencode_utils in
-  let r = get_dict_from_dict_exn b "r" in
-  let id = get_string_from_dict_exn r "id" |> Node_id.of_string in
+  let r = B.dict_get_exn b "r" in
+  let id = B.get_string_from_dict_exn r "id" |> Node_id.of_string in
   (B.dict_get r "values", B.dict_get r "token", B.dict_get r "nodes")
   |> function
   | Some v, Some t, _ ->  
-  (* according to the specs nodes should be none here, but not always the case *)
-    let token = B.as_string t |> get in
+    (* according to the specs nodes should be none here, but not always the case *)
+    let token = B.as_string_exn t in
     let values = bencode_to_peers v in
     R_get_peers_values (id, token, values)
   | None, Some t, Some n -> 
-    let token = B.as_string t |> get in
+    let token = B.as_string_exn t  in
     let nodes_info = bencode_to_nodes_info n in
     R_get_peers_nodes (id, token, nodes_info)
   | None, None, Some n -> 
@@ -172,7 +172,7 @@ let response_of_bencode b =
   | None, None, None -> 
     R_ping_or_get_peers_node id
   | _ -> 
-     Printf.sprintf "bencode = %s" (Bencode.pretty_print b) |> failwith 
+    Printf.sprintf "bencode = %s" (B.pretty_print b) |> failwith 
 
 let int_to_error_code = function
   | 201 -> Generic_error
@@ -185,23 +185,23 @@ let error_of_bencode_list =
   let open Bencode_utils in
   function
   | [code; msg] -> 
-    let c = get (B.as_int code) in
-    let m = get (B.as_string msg) in
+    let c = B.as_int_exn code in
+    let m = B.as_string_exn msg in
     Error (int_to_error_code c,m)
   | _ -> assert false
 
 let content_of_bencode b = 
   let open Bencode_utils in
-  get_string_from_dict_exn b "y" 
+  B.get_string_from_dict_exn b "y" 
   |> function 
   | "q" -> Query (query_of_bencode b)
   | "r" -> Response (response_of_bencode b)
-  | "e" -> get_list_from_dict_exn b "e" |> error_of_bencode_list 
+  | "e" -> B.get_list_from_dict_exn b "e" |> error_of_bencode_list 
   | _ -> assert false
 
 let t_of_bencode b = 
   let open Bencode_utils in
-  let transaction_id = get_string_from_dict_exn b "t" in
+  let transaction_id = B.get_string_from_dict_exn b "t" in
   let content = content_of_bencode b in
   { transaction_id; content }
 

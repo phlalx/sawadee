@@ -54,8 +54,15 @@ val peer_id : t -> Peer_id.t
     by the tracker (if any... apparently there's none in compact form which
     is the one we're using). 
 
-    As a side effect, we save the peer_id but don't validate it. *)
-val handshake: t -> Bt_hash.t -> Peer_id.t -> unit Deferred.Or_error.t
+    As a side effect, we save the peer_id *)
+val initiate_handshake: t -> Bt_hash.t -> Peer_id.t -> unit Deferred.Or_error.t
+
+
+(** [wait_handshake] is use in the server when we don't know the 
+    info_hash the peer wants to download (it's announced in the handshake.
+     We validate the handshake only if we serve this info_hash *)
+val wait_handshake : t -> (Bt_hash.t -> bool) -> Peer_id.t 
+-> Bt_hash.t Deferred.Or_error.t
 
 val get_message : t -> Message.t Reader.Read_result.t Deferred.t
 

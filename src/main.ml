@@ -38,6 +38,14 @@ let process
   Krpc.read_routing_table () 
   >>= fun () ->
   info "processed routing table";
+
+  if G.is_server () then 
+    Server.start ~port:(G.port_exn ())
+  else 
+    Deferred.unit;
+
+  >>= fun () ->
+
   Start.process uri
 
 

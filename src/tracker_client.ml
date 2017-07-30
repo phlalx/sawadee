@@ -2,7 +2,7 @@ open Core
 open Async
 open Log.Global
 
-module B = Bencode
+module B = Bencode_ext
 
 (* TODO fill this correctly *)
 let uploaded = "0"

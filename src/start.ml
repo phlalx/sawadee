@@ -16,9 +16,9 @@ let ignore_error addr : unit Or_error.t -> unit =
 let add_connected_peer pwp kind info_hash num_pieces addr r w  =
   let open Deferred.Or_error.Monad_infix in 
   let peer = P.create addr r w kind in
-  P.handshake peer info_hash G.peer_id
+  P.initiate_handshake peer info_hash G.peer_id
   >>= fun () ->
-  Print.printf "handshake with (server) peer %s\n" (P.addr_to_string peer);
+  Print.printf "handshake with (tracker) peer %s\n" (P.addr_to_string peer);
   P.init_size_owned_pieces peer num_pieces;
   Pwp.add_peer pwp peer
 
@@ -27,22 +27,6 @@ let add_connected_peer_and_close pwp kind info_hash num_pieces addr r w =
   let close x = Writer.close w >>= fun () -> Reader.close r >>| fun () -> x in
   add_connected_peer pwp kind info_hash num_pieces addr r w 
   >>= close
-
-(* Creates a server that waits for connection from peers.
-   After handshake, peer is initialized and added to Pwp. *)
-let create_server_and_add_peers pwp torrent : unit Deferred.t =
-
-  let open Torrent in
-  let { info_hash; num_pieces } = torrent in
-
-  let handler addr r w =
-    info "incoming connection on server from peer %s" 
-      (Socket.Address.Inet.to_string addr);
-    add_connected_peer_and_close pwp `Peer_initiating info_hash num_pieces addr r w 
-    >>| ignore_error addr 
-  in 
-
-  Server.start handler ~port:(G.port_exn ())
 
 let add_peers_from_tracker pwp torrent addrs : unit Deferred.t =
 
@@ -191,18 +175,13 @@ let process_file f =
 
   let pwp = Pwp.create t file pers in
 
-  (* TODO move this to main *)
-  let server = if G.is_server () then 
-      create_server_and_add_peers pwp t >>= never
-    else 
-      Deferred.unit
-  in
-
   let peers = add_peers_from_tracker pwp t addrs in 
 
-  (* this should not be determined, unless all peers and the server fail.
-     We may as well use [never] *)
-  Deferred.all_unit [server; peers]
+  if G.is_server () then
+    Server.add info_hash pwp; 
+
+  (* TODO *)
+  Deferred.all_unit [peers; never()]
 
 let process uri =
   match parse_uri uri with

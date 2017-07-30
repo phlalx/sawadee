@@ -3,7 +3,7 @@ open Core
 open Async (* only needed for Socket.Address.Inet.t *)
 open Bin_prot
 
-module B = Bencode
+module B = Bencode_ext
 
 type token = string
 
