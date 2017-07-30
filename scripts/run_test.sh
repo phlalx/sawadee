@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 WHEREAMI="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source $WHEREAMI/test_env.sh
@@ -17,8 +17,9 @@ do
     $EXEC_PREFIX/start_client.sh $i &> $LOG & 
     sleep 0.05
 done
-sleep 5.0 
-killall ocamlrun
+sleep 30.0 
+pkill -f main.byte 
+pkill -f tracker_server.byte
 RES=`grep "written 100%" download*/log | wc -l`
 if [ $RES = $NUM_CLIENTS ]
 then 
