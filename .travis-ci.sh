@@ -16,3 +16,4 @@ eval `opam config env`
 
 make all
 make unit
+./scripts/run_test.sh
