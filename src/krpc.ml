@@ -4,19 +4,16 @@ module BU = Bencode_utils
 module G = Global
 module Em = Error_msg
 
+(* TODO make this type globally available *)
+type node_info = Node_id.t * Socket.Address.Inet.t 
+
 type t = {
-  mutable routing : (Node_id.t * Node.t) list 
+  mutable routing : node_info list 
 }
 
 let t = {
   routing = []
 }
-
-(* TODO make this type globally available *)
-type node_info = Node_id.t * Socket.Address.Inet.t 
-
-let table_to_node_info () : node_info list = 
-  let f (i, n) = (i, Node.addr n) in List.map t.routing ~f
 
 let equal x y = Node_id.to_string x = Node_id.to_string y
 let find () = List.Assoc.find t.routing ~equal 
@@ -24,22 +21,19 @@ let find () = List.Assoc.find t.routing ~equal
 let try_add addr : unit Deferred.Or_error.t =
   debug "try reaching node %s" (Socket.Address.Inet.to_string addr);
   let open Deferred.Or_error.Monad_infix in
-  let n = Node.create addr in
+  let n = Node.connect addr in
   Node.ping n 
   >>| fun id -> 
   if Option.is_none (find () id) then (
     (* TODO do this test before the ping? *)
     (* TODO enforce invariant if some(id), status != questionable *)
-    Node.set_id n id; 
-    Node.set_status n `Good;
-    t.routing <- (id, n) :: t.routing;
+    t.routing <- (id, addr) :: t.routing;
     info "added node nodeid(%s) = %s" (Socket.Address.Inet.to_string addr) 
-      (Node.to_string n)
+    (Node_id.to_readable_string id)
   ) 
 
-
 let lookup_info_hash info_hash (_, addr) = 
-  let n = Node.create addr in 
+  let n = Node.connect addr in 
   Node.get_peers n info_hash 
   >>| Result.ok
 
@@ -66,7 +60,7 @@ let rec lookup_info_hash' (nis:node_info list) info_hash ~depth :
 let max_depth = 4 
 
 let lookup info_hash = 
-  let nis = table_to_node_info () |> trim_nodes_info info_hash in
+  let nis = t.routing |> trim_nodes_info info_hash in
   match%bind lookup_info_hash' nis info_hash ~depth:max_depth with  
   | Some x -> return x 
   | None -> return []
@@ -92,7 +86,6 @@ let table_of_string s =
   Bencode_utils.split_list s (Node_id.length + compact_length) 
   |> List.map ~f
 
-
 let read_routing_table () = 
   let routing_table_name = sprintf "%s/%s" (G.path ()) G.routing_table_name in 
   let routing_table = 
@@ -116,8 +109,7 @@ let read_routing_table () =
 let write_routing_table () =
   let routing_table_name = sprintf "%s/%s" (G.path ()) G.routing_table_name in 
   try 
-    let table  = let f (i, n) = (i, Node.addr n) in List.map t.routing ~f in
-    Out_channel.write_all routing_table_name ~data:(table_to_string table);
+    Out_channel.write_all routing_table_name ~data:(table_to_string t.routing);
     info "writing routing table to file %s" routing_table_name;
   with
   (* TODO print error in debug *)

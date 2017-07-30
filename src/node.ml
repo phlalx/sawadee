@@ -8,8 +8,6 @@ module K = Krpc_packet
 module G = Global
 
 type t = {
-  mutable id : Node_id.t option;
-  mutable status : [`Good | `Bad | `Questionable]; 
   addr : Socket.Address.Inet.t;
   buffer : Bigstring.t;
   socket : Fd.t;
@@ -17,28 +15,11 @@ type t = {
 
 type node_info = Node_id.t * Socket.Address.Inet.t 
 
-let create addr = 
-  {
-    id = None;
+let connect addr = {
     addr;
     buffer = Common.create_buf K.buffer_size;
-    status = `Questionable;
     socket = Socket.create Socket.Type.udp |> Socket.fd;
   }
-
-let addr t = t.addr
-
-let set_status t s = t.status <- s
-
-let id t = t.id
-
-let to_string t = 
-  match t.id with 
-  | Some id -> Node_id.to_readable_string id
-  | None -> "unknown-id"
-
-let set_id t id = 
-  t.id <- Some id
 
 (* why this returns a deferred when Writer.write does not *)
 let send_packet t m = 
@@ -112,7 +93,7 @@ let get_peers t info_hash =
   in
   rpc t query extract_query_response
 
-
+let close t = assert false
 
 
 
