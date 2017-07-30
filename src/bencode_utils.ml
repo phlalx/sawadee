@@ -14,7 +14,7 @@ let split (s:string) split_size =
   Array.init (n / split_size) ~f
 
 let split_list (s:string) split_size =
-    Array.to_list (split s split_size)
+  Array.to_list (split s split_size)
 
 let peer_to_string peer_addr = 
   let port = Socket.Address.Inet.port peer_addr in
@@ -40,6 +40,13 @@ let bencode_to_peer b : Socket.Address.Inet.t =
   B.as_string_exn b |> string_to_peer
 
 let rec bencode_to_peers b =
+  let s : string = B.as_string_exn b in
+  let peer_addr_length = 6 in
+  split s peer_addr_length
+  |> Array.map ~f:string_to_peer
+  |> Array.to_list
+
+let rec bencode_list_to_peers b =
   B.as_list_exn b |> List.map ~f:bencode_to_peer
 
 let peers_to_bencode peers = 
@@ -55,12 +62,12 @@ let hashs_to_bencode l = assert false
 let hash_to_bencode h = B.String (Bt_hash.to_string h)
 
 let bencode_to_nodes b = 
-    let s = B.as_string_exn b in
-    Array.map (split s Node_id.length) ~f:Node_id.of_string 
-    |> Array.to_list
+  let s = B.as_string_exn b in
+  Array.map (split s Node_id.length) ~f:Node_id.of_string 
+  |> Array.to_list
 
 let node_info_to_string (n, p) = 
-    (Node_id.to_string n) ^ (peer_to_string p)
+  (Node_id.to_string n) ^ (peer_to_string p)
 
 let string_to_node_info s = 
   let s1 = String.sub s ~pos:0 ~len:Node_id.length in

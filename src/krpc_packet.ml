@@ -160,7 +160,7 @@ let response_of_bencode b =
   | Some v, Some t, _ ->  
     (* according to the specs nodes should be none here, but not always the case *)
     let token = B.as_string_exn t in
-    let values = bencode_to_peers v in
+    let values = bencode_list_to_peers v in
     R_get_peers_values (id, token, values)
   | None, Some t, Some n -> 
     let token = B.as_string_exn t  in

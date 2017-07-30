@@ -22,6 +22,8 @@ val bencode_to_peer : B.t -> Socket.Address.Inet.t
 
 val bencode_to_peers : B.t -> Socket.Address.Inet.t list
 
+val bencode_list_to_peers : B.t -> Socket.Address.Inet.t list
+
 val node_to_bencode : Node_id.t -> B.t
 
 val nodes_to_bencode : Node_id.t list -> B.t

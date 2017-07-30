@@ -100,7 +100,7 @@ Basic features are missing:
 * Download several files concurrently
 * A decent user interface
 * Udp trackers
-* Downloading of magnets via DHT
+* Downloading of magnets via DHT (in progress)
 
 The last two items should be the most useful ones, if only for testing, as it's easier to download torrents that depend on them.
 
@@ -110,7 +110,8 @@ Regarding the implementation:
   * Still very basic and straighforward to see what downloading/uploading strategy to put in place. It requires some experimentation to find the right heuristic. 
 * Lot of TODOs in the code, but mainly minor improvements
 * Use more efficient datastructures for requesting strategy
-* Automatic testing / continuous integration with travis 
+* Automatic testing 
+* continuous integration with travis (in progress)
 
 ### Resources and libs
 

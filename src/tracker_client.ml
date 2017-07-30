@@ -52,6 +52,14 @@ let check_scheme uri =
     info "uri scheme not http";
   return (Result.ok_if_true is_scheme_http ~error)
 
+let ignore_error : 'a Or_error.t -> 'a Option.t = 
+  function 
+  | Ok x -> Some x
+  | Error err -> 
+    (* failwith (Sexp.to_string (Error.sexp_of_t err)); *)
+    debug "Error connecting %s" (Sexp.to_string (Error.sexp_of_t err));
+    None
+
 (*  Error can come from
     - failed connecting attempt
     - server can't process the request 
@@ -73,7 +81,7 @@ let query_tracker t uri : sl Deferred.Option.t =
     >>= fun t ->
     return (Ok t.Tracker_reply.peers)  
   in
-  reply_or_error >>| Result.ok 
+  reply_or_error >>| ignore_error
 
 let query_all_trackers t uris =
   match%bind Deferred.List.filter_map uris ~how:`Parallel ~f:(query_tracker t) with 
