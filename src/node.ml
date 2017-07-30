@@ -15,6 +15,8 @@ type t = {
   socket : Fd.t;
 }
 
+type node_info = Node_id.t * Socket.Address.Inet.t 
+
 let create addr = 
   {
     id = None;
@@ -70,12 +72,13 @@ let counter = ref 0
 
 let fresh_tid () = incr counter; !counter |> string_of_int
 
-let packet transaction_id content = K.{ transaction_id; content }
+let query_packet transaction_id query = 
+  K.{ transaction_id; content = Query query}
 
 (* generate template for rpcs *)
-let rpc t content validate_and_extract =
+let rpc t query validate_and_extract =
   let tid = fresh_tid () in
-  packet tid content |> send_packet t  
+  query_packet tid query |> send_packet t  
   >>= fun () ->
   get_one_packet t |> Clock.with_timeout G.krpc_timeout
   >>| function
@@ -84,23 +87,31 @@ let rpc t content validate_and_extract =
     when tid = transaction_id -> validate_and_extract r
   | _ -> Error (Error.of_string "RPC error") (* could be more specific here *)
 
+let rpc_error = Error (Error.of_string "RPC error: Wrong response")
+
 let ping t = 
   let open K in
-  let validate_ping_reply = 
+  let extract_ping_response = 
     function
     | R_ping_or_get_peers_node id -> Ok id
-    | _ -> Error (Error.of_string "RPC error: Wrong response")
+    | _ -> rpc_error 
   in 
-  let content = K.Query (K.Ping G.node_id) 
+  let query = K.Ping G.node_id
   in
-  rpc t content validate_ping_reply 
+  rpc t query extract_ping_response
 
-let get_peers t info_hash = assert false
+let get_peers t info_hash = 
+  let open K in
+  let extract_query_response = 
+    function
+    | R_get_peers_values (id, token, addrs) -> Ok (`Values addrs)
+    | R_get_peers_nodes (id, token, nodes) -> Ok (`Nodes nodes)
+    | _ -> rpc_error
+  in 
+  let query = Get_peers (G.node_id, info_hash)
+  in
+  rpc t query extract_query_response
 
-(*
-val get_peers : t -> Bt_hash.t -> [`Values of Socket.Address.Inet.t list 
-                                  | `Nodes of Node_id.t list] Deferred.Or_error.t  
- *)
 
 
 

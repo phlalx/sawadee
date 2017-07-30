@@ -17,7 +17,8 @@ type response =
   | R_ping_or_get_peers_node of Node_id.t 
   | R_find_node of Node_id.t * Socket.Address.Inet.t
   | R_get_peers_values of Node_id.t * token * Socket.Address.Inet.t list 
-  | R_get_peers_nodes of Node_id.t * token * Node_id.t list 
+  | R_get_peers_nodes of Node_id.t * token * 
+                         (Node_id.t * Socket.Address.Inet.t) list 
 
 type error_code = 
   | Generic_error

@@ -16,9 +16,25 @@ let t = {
 let equal x y = Node_id.to_string x = Node_id.to_string y
 let find () = List.Assoc.find t.routing ~equal 
 
-open Krpc_packet
 
-let try_add addr =
+
+let lookup_node n info_hash = 
+  let open Deferred.Or_error.Monad_infix in
+  info "query %s" (Node.to_string n);
+  Node.get_peers n info_hash
+  >>| function
+  | `Values addrs -> 
+    info "got some addresses"; Ok [] 
+  | `Nodes ns -> 
+    info "got myself some nodes %d" (List.length ns); Ok []
+
+let lookup info_hash = 
+  let f (_, n) = Deferred.ignore (lookup_node n info_hash) in 
+  Deferred.List.iter t.routing ~f
+  >>| fun () -> Ok ()
+
+
+let try_add addr : unit Deferred.Or_error.t =
   debug "try reaching node %s" (Socket.Address.Inet.to_string addr);
   let open Deferred.Or_error.Monad_infix in
   let n = Node.create addr in
@@ -73,8 +89,8 @@ let read_routing_table () =
       [] 
   in
 
-  let f (_, p) = try_add p |> Deferred.ignore |> don't_wait_for in
-  List.iter decoded_table ~f
+  let f (_, p) = try_add p |> Deferred.ignore in
+  Deferred.List.iter decoded_table ~f
 
 let write_routing_table () =
   let routing_table_name = sprintf "%s/%s" (G.path ()) G.routing_table_name in 

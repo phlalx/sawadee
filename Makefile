@@ -3,11 +3,10 @@
 OCB_FLAGS = -tag bin_annot -use-ocamlfind 
 OCB =	ocamlbuild $(OCB_FLAGS) -I src -I src_test
 
-
-all: main tracker_server test_bitset test_krpc_packet
-
 main:
 	$(OCB) main.byte
+
+all: main tracker_server test_bitset test_krpc_packet
 
 tracker_server:
 	$(OCB) tracker_server.byte

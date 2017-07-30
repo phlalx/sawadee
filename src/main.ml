@@ -19,9 +19,6 @@ let set_verbose i =
   | 2 -> set_level `Debug;
   | _ -> Em.terminate (Em.verbose_error ()) 
 
-
-
-
 let process 
     (uri : string)
     (port : int option) 
@@ -38,7 +35,9 @@ let process
   check_path ()
   >>= fun () ->
 
-  Krpc.read_routing_table ();
+  Krpc.read_routing_table () 
+  >>= fun () ->
+  info "processed routing table";
   Start.process uri
 
 

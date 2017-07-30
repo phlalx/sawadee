@@ -90,21 +90,10 @@ let parse_uri f =
 
 
 let process_magnet m = 
-
-
-  assert false
-
-
-let process uri =
-
-  let f = 
-    match parse_uri uri with
-    | `File f -> f 
-    | `Magnet info_hash -> process_magnet info_hash
-    | `Other -> failwith "scheme error"
-    | `Invalid_magnet -> failwith "invalid magnet"
-  in
-
+  let%bind peers = Krpc.lookup m in
+  exit 0
+  
+let process_file f = 
   (***** read torrent file *****)
   let t = try 
       Torrent.from_file f
@@ -214,8 +203,12 @@ let process uri =
      We may as well use [never] *)
   Deferred.all_unit [server; peers]
 
-
-
+let process uri =
+  match parse_uri uri with
+  | `File f -> process_file f 
+  | `Magnet info_hash -> process_magnet info_hash
+  | `Other -> failwith "scheme error"
+  | `Invalid_magnet -> failwith "invalid magnet"
 
 
 

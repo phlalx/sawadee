@@ -21,7 +21,8 @@ type response =
   | R_ping_or_get_peers_node of Node_id.t  (* id *)
   | R_find_node of Node_id.t * Socket.Address.Inet.t (* id, nodes *)
   | R_get_peers_values of Node_id.t * token * Socket.Address.Inet.t list (* id, token, values *)
-  | R_get_peers_nodes of Node_id.t * token * Node_id.t list (* id, token, nodes *)
+  | R_get_peers_nodes of Node_id.t * token * 
+                         (Node_id.t * Socket.Address.Inet.t) list (* id, token, nodes *)
 
 type error_code = 
   | Generic_error 
@@ -41,30 +42,30 @@ type t = {
 }
 
 let error_code_to_string = function
-| Generic_error -> "generic_error"
-| Server_error -> "server_error"
-| Protocol_error -> "protocol_error"
-| Method_unknown -> "method_unknown"
+  | Generic_error -> "generic_error"
+  | Server_error -> "server_error"
+  | Protocol_error -> "protocol_error"
+  | Method_unknown -> "method_unknown"
 
 let error_to_string (e, m) =
   (error_code_to_string e) ^ m
 
 let response_to_string = function 
-| R_ping_or_get_peers_node _ -> "r_ping_or_get_peers_node" 
-| R_find_node _ -> "r_find_node"
-| R_get_peers_nodes _ -> "r_get_peers_node"
-| R_get_peers_values _ -> "r_get_peers_values"
+  | R_ping_or_get_peers_node _ -> "r_ping_or_get_peers_node" 
+  | R_find_node _ -> "r_find_node"
+  | R_get_peers_nodes _ -> "r_get_peers_node"
+  | R_get_peers_values _ -> "r_get_peers_values"
 
 let query_to_string = function
-| Ping _ -> "ping"
-| Find_node _ -> "find_node"
-| Get_peers _ -> "get_peers"
-| Announce_peer _ -> "announce_peer"
+  | Ping _ -> "ping"
+  | Find_node _ -> "find_node"
+  | Get_peers _ -> "get_peers"
+  | Announce_peer _ -> "announce_peer"
 
 let content_to_string = function
- | Query q -> query_to_string q
- | Response r -> response_to_string r
- | Error e -> error_to_string e
+  | Query q -> query_to_string q
+  | Response r -> response_to_string r
+  | Error e -> error_to_string e
 
 
 let to_string { transaction_id; content } = 
@@ -84,7 +85,7 @@ let bencode_of_response =
                                ("nodes", (peer_to_bencode nodes) ) :: [] (* TODO why nodes key for a peer? *)
   | R_get_peers_nodes (id, token, nodes) -> 
     ("id", node_to_bencode id) :: ("token", B.String token) :: 
-    ("nodes", (nodes_to_bencode nodes) ) :: []
+    ("nodes", (nodes_info_to_bencode nodes) ) :: []
   | R_get_peers_values (id, token, values) -> 
     ("id", node_to_bencode id) :: ("token", B.String token) ::
     ("values", peers_to_bencode values) :: []
@@ -164,8 +165,8 @@ let response_of_bencode b =
     R_get_peers_values (id, token, values)
   | None, Some t, Some n -> 
     let token = B.as_string t |> get in
-    let nodes = bencode_to_nodes n in
-    R_get_peers_nodes (id, token, nodes)
+    let nodes_info = bencode_to_nodes_info n in
+    R_get_peers_nodes (id, token, nodes_info)
   | None, None, Some n -> 
     let nodes = bencode_to_peer n in
     R_find_node (id, nodes)

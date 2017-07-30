@@ -26,6 +26,12 @@ val node_to_bencode : Node_id.t -> Bencode.t
 
 val nodes_to_bencode : Node_id.t list -> Bencode.t
 
+val nodes_info_to_bencode : (Node_id.t * Socket.Address.Inet.t) list ->
+  Bencode.t
+
+val bencode_to_nodes_info : Bencode.t ->
+  (Node_id.t * Socket.Address.Inet.t) list
+
 val bencode_to_nodes : Bencode.t -> Node_id.t list 
 
 val hash_to_bencode : Bt_hash.t -> Bencode.t

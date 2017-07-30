@@ -3,6 +3,8 @@ open Async
 
 module B = Bencode
 
+type node_info = Node_id.t * Socket.Address.Inet.t 
+
 exception Bencode_error
 
 let get x =
@@ -83,13 +85,24 @@ let get_int_from_dict_exn b s =
 let get_list_from_dict_exn b s =
   get (B.as_list (get (B.dict_get b s)))
 
+let node_info_to_string (n, p) = 
+    (Node_id.to_string n) ^ (peer_to_string p)
 
+let string_to_node_info s = 
+  let s1 = String.sub s ~pos:0 ~len:Node_id.length in
+  let s2 = String.sub s ~pos:Node_id.length ~len:6 in 
+  (Node_id.of_string s1, string_to_peer s2) 
 
+let nodes_info_to_bencode nis = 
+  let f acc p = acc ^ (node_info_to_string p) in
+  B.String (List.fold nis ~init:"" ~f)
 
-
-
-
-
+let bencode_to_nodes_info b =
+  let s : string = get (B.as_string b) in
+  let node_info_length = Node_id.length + 6 in
+  split s node_info_length
+  |> Array.map ~f:string_to_node_info
+  |> Array.to_list
 
 
 
