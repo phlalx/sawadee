@@ -1,5 +1,4 @@
-open Core
-open Async
+open Core open Async
 open Log.Global
 module BU = Bencode_utils
 module G = Global
@@ -13,26 +12,14 @@ let t = {
   routing = []
 }
 
+(* TODO make this type globally available *)
+type node_info = Node_id.t * Socket.Address.Inet.t 
+
+let table_to_node_info () : node_info list = 
+  let f (i, n) = (i, Node.addr n) in List.map t.routing ~f
+
 let equal x y = Node_id.to_string x = Node_id.to_string y
 let find () = List.Assoc.find t.routing ~equal 
-
-
-
-let lookup_node n info_hash = 
-  let open Deferred.Or_error.Monad_infix in
-  info "query %s" (Node.to_string n);
-  Node.get_peers n info_hash
-  >>| function
-  | `Values addrs -> 
-    info "got some addresses"; Ok [] 
-  | `Nodes ns -> 
-    info "got myself some nodes %d" (List.length ns); Ok []
-
-let lookup info_hash = 
-  let f (_, n) = Deferred.ignore (lookup_node n info_hash) in 
-  Deferred.List.iter t.routing ~f
-  >>| fun () -> Ok ()
-
 
 let try_add addr : unit Deferred.Or_error.t =
   debug "try reaching node %s" (Socket.Address.Inet.to_string addr);
@@ -49,6 +36,40 @@ let try_add addr : unit Deferred.Or_error.t =
     info "added node nodeid(%s) = %s" (Socket.Address.Inet.to_string addr) 
       (Node.to_string n)
   ) 
+
+
+let lookup_info_hash info_hash (_, addr) = 
+  let n = Node.create addr in 
+  Node.get_peers n info_hash 
+  >>| Result.ok
+
+(* TODO we return the k first node_info closest to info_hash *)
+let trim_nodes_info info_hash (nis : node_info list) : node_info list = nis
+
+let rec lookup_info_hash' (nis:node_info list) info_hash ~depth : 
+  Socket.Address.Inet.t list Deferred.Option.t =
+  if depth = 0 then
+    return None 
+  else (
+    let%bind l = Deferred.List.filter_map nis ~f:(lookup_info_hash info_hash) in 
+    let f = function 
+      | `Values x -> `Fst x 
+      | `Nodes x -> `Snd x 
+    in
+    let values, nodes = List.partition_map l ~f in
+    let combined_values = values |> List.concat in 
+    let combined_nis = nodes |> List.concat in 
+    match combined_values with 
+    | [] -> lookup_info_hash' combined_nis info_hash ~depth:(depth - 1)
+    |  _  -> return (Some combined_values))
+
+let max_depth = 4 
+
+let lookup info_hash = 
+  let nis = table_to_node_info () |> trim_nodes_info info_hash in
+  match%bind lookup_info_hash' nis info_hash ~depth:max_depth with  
+  | Some x -> return x 
+  | None -> return []
 
 let table_to_string table =
   let f (id, p) =

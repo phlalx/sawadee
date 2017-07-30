@@ -152,14 +152,13 @@ let query_of_bencode b =
   | _ -> assert false
 
 let response_of_bencode b = 
-  (*   let s = Printf.sprintf "bencode = %s" (Bencode.pretty_print b)
-       in failwith s;
-  *)  let open Bencode_utils in
+  let open Bencode_utils in
   let r = get_dict_from_dict_exn b "r" in
   let id = get_string_from_dict_exn r "id" |> Node_id.of_string in
   (B.dict_get r "values", B.dict_get r "token", B.dict_get r "nodes")
   |> function
-  | Some v, Some t, None -> 
+  | Some v, Some t, _ ->  
+  (* according to the specs nodes should be none here, but not always the case *)
     let token = B.as_string t |> get in
     let values = bencode_to_peers v in
     R_get_peers_values (id, token, values)
@@ -172,7 +171,8 @@ let response_of_bencode b =
     R_find_node (id, nodes)
   | None, None, None -> 
     R_ping_or_get_peers_node id
-  | _ -> assert false
+  | _ -> 
+     Printf.sprintf "bencode = %s" (Bencode.pretty_print b) |> failwith 
 
 let int_to_error_code = function
   | 201 -> Generic_error

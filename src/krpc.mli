@@ -13,4 +13,4 @@ val read_routing_table : unit -> unit Deferred.t
 
 val write_routing_table : unit -> unit
 
-val lookup : Bt_hash.t -> unit Deferred.Or_error.t
+val lookup : Bt_hash.t -> Socket.Address.Inet.t list Deferred.t

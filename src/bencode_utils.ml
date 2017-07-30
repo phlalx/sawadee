@@ -46,16 +46,11 @@ let bencode_to_peer b : Socket.Address.Inet.t =
   string_to_peer s
 
 let rec bencode_to_peers b =
-  let s : string = get (B.as_string b) in
-  let peer_addr_length = 6 in
-  split s peer_addr_length
-  |> Array.map ~f:string_to_peer
-  |> Array.to_list
+  get (B.as_list b) |> List.map ~f:bencode_to_peer
 
 let peers_to_bencode peers = 
   let f acc p = acc ^ (peer_to_string p) in
   B.String (List.fold peers ~init:"" ~f)
-
 
 let node_to_bencode n = B.String (Node_id.to_string n)
 

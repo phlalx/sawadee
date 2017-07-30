@@ -91,8 +91,9 @@ let parse_uri f =
 
 let process_magnet m = 
   let%bind peers = Krpc.lookup m in
-  exit 0
-  
+  List.iter peers ~f:(fun p -> info "%s" (Socket.Address.Inet.to_string p));
+  never ()
+
 let process_file f = 
   (***** read torrent file *****)
   let t = try 

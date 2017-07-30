@@ -20,7 +20,7 @@
 
         {
             "name": "make",
-            "shell_cmd": "make",
+            "shell_cmd": "linux-run make",
             "file_regex": "^[ ]*File \"(...*?)\", line ([0-9]*)",
             "selector": "source.ocaml",
             "working_dir": "${project_path}",
