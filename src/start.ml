@@ -145,13 +145,16 @@ let process uri =
       info "can't read routing table %s. Using empty table" routing_table_name;
       ""
   in
-  let _decoded_table = 
+  let decoded_table = 
     try
       Krpc.table_of_string routing_table 
     with _ -> 
       info "can't decode routing table %s. Using empty table" routing_table_name;
       [] 
   in
+
+  let f (_, p) = Krpc.try_add p |> Deferred.ignore |> don't_wait_for in
+  List.iter decoded_table ~f;
 
   (****** initialize File.t and retrieve pieces from disk *******)
 
@@ -182,11 +185,12 @@ let process uri =
      with 
        _  -> Print.printf "%s\n" (Em.can't_open bf_name));
     (try 
-       info "writing routing table to file %s" routing_table_name;
        let table = Krpc.table () in
-       Out_channel.write_all routing_table_name ~data:(Krpc.table_to_string table)
+       Out_channel.write_all routing_table_name ~data:(Krpc.table_to_string table);
+       info "writing routing table to file %s" routing_table_name;
      with
-       _  -> Print.printf "%s\n" (Em.can't_open routing_table_name)
+     (* TODO print error in debug *)
+       _ -> Print.printf "%s\n" (Em.can't_open routing_table_name)
     );
 
 

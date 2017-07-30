@@ -24,10 +24,10 @@ type response =
   | R_get_peers_nodes of Node_id.t * token * Node_id.t list (* id, token, nodes *)
 
 type error_code = 
-  | Generic_error (* 201 *)
-  | Server_error (* 202 *)
-  | Protocol_error (* 203 *)
-  | Method_unknown (* 204 *)
+  | Generic_error 
+  | Server_error 
+  | Protocol_error
+  | Method_unknown
 
 type content = 
   | Query of query 
@@ -39,6 +39,37 @@ type t = {
   content : content; 
   (* version : string (* optional, we don't use it *) *)
 }
+
+let error_code_to_string = function
+| Generic_error -> "generic_error"
+| Server_error -> "server_error"
+| Protocol_error -> "protocol_error"
+| Method_unknown -> "method_unknown"
+
+let error_to_string (e, m) =
+  (error_code_to_string e) ^ m
+
+let response_to_string = function 
+| R_ping_or_get_peers_node _ -> "r_ping_or_get_peers_node" 
+| R_find_node _ -> "r_find_node"
+| R_get_peers_nodes _ -> "r_get_peers_node"
+| R_get_peers_values _ -> "r_get_peers_values"
+
+let query_to_string = function
+| Ping _ -> "ping"
+| Find_node _ -> "find_node"
+| Get_peers _ -> "get_peers"
+| Announce_peer _ -> "announce_peer"
+
+let content_to_string = function
+ | Query q -> query_to_string q
+ | Response r -> response_to_string r
+ | Error e -> error_to_string e
+
+
+let to_string { transaction_id; content } = 
+  Printf.sprintf "%s %s" transaction_id (content_to_string content)
+
 
 (* for allocating buffer *)
 let buffer_size = 4096  
@@ -187,6 +218,11 @@ let bin_write_t (buf:Common.buf) ~(pos:Common.pos) (x:t) =
   let len = String.length s in
   Common.blit_string_buf s buf ~len;
   len 
+
+
+let with_dummy_content content = { transaction_id = ""; content } 
+
+let dummy = Query (Ping Node_id.dummy) |> with_dummy_content
 
 
 

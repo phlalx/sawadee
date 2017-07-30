@@ -6,7 +6,7 @@ open Core
 open Async
 open Log.Global
 
-val try_add : Unix.Inet_addr.t -> port:int -> unit 
+val try_add : Socket.Address.Inet.t -> unit Deferred.Or_error.t
 
 (* serialize table *)
 val table_to_string : (Node_id.t * Socket.Address.Inet.t) list  -> string 

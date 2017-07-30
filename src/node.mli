@@ -6,10 +6,14 @@ open Log.Global
 
 type t 
 
-val create : Socket.Address.Inet.t -> Node_id.t -> t
-
-val get_message : t -> Krpc_packet.t Reader.Read_result.t Deferred.t
-
-val send_message : t -> Krpc_packet.t -> unit Deferred.t
+val create : Socket.Address.Inet.t -> t
 
 val addr : t -> Socket.Address.Inet.t
+
+val set_status : t -> [`Good | `Bad | `Questionable] -> unit 
+
+val id : t -> Node_id.t option
+
+val set_id : t -> Node_id.t -> unit
+
+val ping : t -> Node_id.t Deferred.Or_error.t 

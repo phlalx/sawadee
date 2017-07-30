@@ -39,3 +39,5 @@ val node_id : Node_id.t
 
 val routing_table_name : string
 
+val krpc_timeout : Time.Span.t
+

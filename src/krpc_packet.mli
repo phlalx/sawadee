@@ -35,8 +35,12 @@ type t = {
   content : content; 
 }
 
+val dummy : t
+
 val buffer_size : int
 
 val bin_read_t : int -> t Read.reader
 
 val bin_write_t : t Write.writer
+
+val to_string : t -> string

@@ -134,6 +134,8 @@ let get_message t =
   let buf = t.receive_buffer in 
   (* we need to get the prefix length first to know how many bytes to
      read *)
+  (* TODO doesn't seem right... I'm not sure this is how bin_prot.read
+     is supposed to work. Do we really need to peek the size first  *)
   let prefix_len_substr = Bigsubstring.create buf ~pos:0 ~len:4 in 
   match%bind Reader.really_read_bigsubstring t.reader prefix_len_substr with
   | `Eof _ -> return `Eof

@@ -26,7 +26,7 @@ let peer_to_string peer_addr =
   let s = String.create 6 in
   (* TODO why not use binprot *)
   Binary_packing.pack_signed_32 ~byte_order:`Big_endian ~buf:s ~pos:0 addr_int32;
-  Binary_packing.pack_signed_16 ~byte_order:`Big_endian ~buf:s ~pos:4 port;
+  Binary_packing.pack_unsigned_16 ~byte_order:`Big_endian ~buf:s ~pos:4 port;
   s
 
 let peer_to_bencode peer_addr = 

@@ -14,17 +14,17 @@ let t = {
 
 open Krpc_packet
 
-let msg content = { transaction_id = "abc"; content } 
-
-let ping = Query (Ping G.node_id) |> msg 
-
-let try_add addr ~port =
-  info " trying to add peer %s:%d" (Unix.Inet_addr.to_string addr) port;
-  let addr = Socket.Address.Inet.create addr port in
-  let n = Node.create addr (Node_id.random ()) in
-  don't_wait_for (Node.send_message n ping)
-
-
+let try_add addr =
+  let open Deferred.Or_error.Monad_infix in
+  info "########## trying to add peer %s" (Socket.Address.Inet.to_string addr);
+  let n = Node.create addr in
+  Node.ping n 
+  >>| fun id -> 
+  (* TODO enforce invariant if some(id), status != questionable *)
+  Node.set_id n id; 
+  Node.set_status n `Good;
+  info "########## it worked";
+  t.routing <- (id, n) :: t.routing  (* TODO: use a set/table to avoid duplicate *)
 
 let table_to_string table =
   let f (id, p) =
