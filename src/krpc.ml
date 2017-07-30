@@ -25,20 +25,27 @@ let try_add addr : unit Deferred.Or_error.t =
   Node.ping n 
   >>| fun id -> 
   if Option.is_none (find () id) then (
-    (* TODO do this test before the ping? *)
-    (* TODO enforce invariant if some(id), status != questionable *)
     t.routing <- (id, addr) :: t.routing;
     info "added node nodeid(%s) = %s" (Socket.Address.Inet.to_string addr) 
     (Node_id.to_readable_string id)
   ) 
+
+let try_add_nis nis =
+  let f (_, p) = try_add p |> Deferred.ignore in
+  Deferred.List.iter ~how:`Parallel nis ~f
 
 let lookup_info_hash info_hash (_, addr) = 
   let n = Node.connect addr in 
   Node.get_peers n info_hash 
   >>| Result.ok
 
+let k = 8
+
 (* TODO we return the k first node_info closest to info_hash *)
-let trim_nodes_info info_hash (nis : node_info list) : node_info list = nis
+let trim_nodes_info info_hash (nis : node_info list) : node_info list = 
+  let cmp (id1, _) (id2, _) = Node_id.compare info_hash id1 id2 in
+  let l = List.sort nis ~cmp in 
+  List.take l 4
 
 let rec lookup_info_hash' (nis:node_info list) info_hash ~depth : 
   Socket.Address.Inet.t list Deferred.Option.t =
@@ -53,11 +60,12 @@ let rec lookup_info_hash' (nis:node_info list) info_hash ~depth :
     let values, nodes = List.partition_map l ~f in
     let combined_values = values |> List.concat in 
     let combined_nis = nodes |> List.concat in 
+    (* don't_wait_for (try_add_nis combined_nis); *)
     match combined_values with 
     | [] -> lookup_info_hash' combined_nis info_hash ~depth:(depth - 1)
     |  _  -> return (Some combined_values))
 
-let max_depth = 4 
+let max_depth = 3 
 
 let lookup info_hash = 
   let nis = t.routing |> trim_nodes_info info_hash in
@@ -65,6 +73,7 @@ let lookup info_hash =
   | Some x -> return x 
   | None -> return []
 
+(* TODO don't save the table in bencode but rather in a text format *)
 let table_to_string table =
   let f (id, p) =
     let sid = Node_id.to_string id in
@@ -83,7 +92,7 @@ let table_of_string s =
     let s2 = String.sub s Node_id.length compact_length in
     (Node_id.of_string s1), (BU.string_to_peer s2)
   in
-  Bencode_utils.split_list s (Node_id.length + compact_length) 
+  BU.split_list s (Node_id.length + compact_length) 
   |> List.map ~f
 
 let read_routing_table () = 
@@ -103,8 +112,7 @@ let read_routing_table () =
       [] 
   in
 
-  let f (_, p) = try_add p |> Deferred.ignore in
-  Deferred.List.iter decoded_table ~f
+  try_add_nis decoded_table 
 
 let write_routing_table () =
   let routing_table_name = sprintf "%s/%s" (G.path ()) G.routing_table_name in 

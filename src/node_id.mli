@@ -1,18 +1,9 @@
 
-(** 20-byte string *)
-type t
-
-val random : unit -> t
-
-val dummy : t
-
-val length : int
-
-val to_string : t -> string
-
-val of_string : string -> t
-
-(* for traces, turn this id into something readables *)
-val to_readable_string : t -> string
+include Hash_id.ID
 
 val distance : t -> t -> int
+
+val distance_hash : t -> Bt_hash.t -> int
+
+(* [compare h n1 n2] < 0 if n1 is closest to h than n2, = 0 is same dist *)
+val compare : Bt_hash.t -> t -> t -> int

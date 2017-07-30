@@ -1,7 +1,2 @@
-type t = string
 
-let of_string x = x
-
-let to_string x = x
-
-let length = 20
+include Hash_id.Id

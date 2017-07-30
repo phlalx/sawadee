@@ -1,8 +1,2 @@
-(** 20-byte string *)
-type t
 
-val of_string : string -> t
-
-val to_string : t -> string
-
-val length : int 
+include Hash_id.ID
