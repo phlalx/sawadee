@@ -18,7 +18,6 @@ type t = {
   mutable have : Bitset.t;
   mutable pending : Int.Set.t;
   mutable idle : bool;
-  kind : [`Am_initiating | `Peer_initiating ]; (* TODO do we still need this *)
   receive_buffer : Bigstring.t;
   send_buffer : Bigstring.t;  
   mutable downloading : bool;
@@ -31,7 +30,7 @@ let equals t1 t2 = t1.id = t2.id
 
 let peer_id t = t.id 
 
-let create peer_addr r w kind =
+let create peer_addr r w =
   (* this needs to be done so as we don't get errors when remote peers
      closes his connection *)
   Writer.set_raise_when_consumer_leaves w false;
@@ -47,7 +46,6 @@ let create peer_addr r w kind =
     writer = w; 
     pending = Int.Set.empty;
     idle = false;
-    kind;
     (* this should be big enough to contain [Piece.block_size]
        and the message header TODO *)
     receive_buffer = Bin_prot.Common.create_buf 40000;

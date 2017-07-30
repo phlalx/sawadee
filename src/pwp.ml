@@ -14,6 +14,8 @@ type t = {
   mutable torrent : Torrent.t;
 }
 
+let torrent t = t.torrent
+
 let create torrent file pers = { file; peers = []; num_requested = 0; pers;
                                  torrent }
 

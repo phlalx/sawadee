@@ -24,8 +24,7 @@ val equals : t -> t -> bool
     peer is listening to incoming connexion), and those that we contact
     from the tracker's list of peer. This makes only a difference in the 
     handshake. *)
-val create : Socket.Address.Inet.t -> Reader.t -> Writer.t ->
-  [`Am_initiating | `Peer_initiating ] -> t
+val create : Socket.Address.Inet.t -> Reader.t -> Writer.t -> t
 
 (** maximal number of owned pieces, should be called right after handshake 
 
@@ -56,7 +55,6 @@ val peer_id : t -> Peer_id.t
 
     As a side effect, we save the peer_id *)
 val initiate_handshake: t -> Bt_hash.t -> Peer_id.t -> unit Deferred.Or_error.t
-
 
 (** [wait_handshake] is use in the server when we don't know the 
     info_hash the peer wants to download (it's announced in the handshake.

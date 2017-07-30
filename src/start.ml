@@ -13,9 +13,9 @@ let ignore_error addr : unit Or_error.t -> unit =
     info "Error connecting with peer %s" (Socket.Address.Inet.to_string addr);
     debug "Error connecting %s" (Sexp.to_string (Error.sexp_of_t err))
 
-let add_connected_peer pwp kind info_hash num_pieces addr r w  =
+let add_connected_peer pwp info_hash num_pieces addr r w  =
   let open Deferred.Or_error.Monad_infix in 
-  let peer = P.create addr r w kind in
+  let peer = P.create addr r w in
   P.initiate_handshake peer info_hash G.peer_id
   >>= fun () ->
   Print.printf "handshake with (tracker) peer %s\n" (P.addr_to_string peer);
@@ -23,9 +23,9 @@ let add_connected_peer pwp kind info_hash num_pieces addr r w  =
   Pwp.add_peer pwp peer
 
 (* TODO must be a more elegant way of combining these monads *)
-let add_connected_peer_and_close pwp kind info_hash num_pieces addr r w =
+let add_connected_peer_and_close pwp info_hash num_pieces addr r w =
   let close x = Writer.close w >>= fun () -> Reader.close r >>| fun () -> x in
-  add_connected_peer pwp kind info_hash num_pieces addr r w 
+  add_connected_peer pwp info_hash num_pieces addr r w 
   >>= close
 
 let add_peers_from_tracker pwp torrent addrs : unit Deferred.t =
@@ -39,7 +39,7 @@ let add_peers_from_tracker pwp torrent addrs : unit Deferred.t =
     debug "try connecting to peer %s" (Socket.Address.Inet.to_string addr);
     Deferred.Or_error.try_with (function () -> Tcp.connect wtc)
     >>= fun (_, r, w) ->
-    add_connected_peer_and_close pwp `Am_initiating info_hash num_pieces addr r w 
+    add_connected_peer_and_close pwp info_hash num_pieces addr r w 
   in
 
   let f addr = add_peer addr >>| ignore_error addr in
