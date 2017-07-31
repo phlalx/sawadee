@@ -3,10 +3,10 @@
 WHEREAMI="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source $WHEREAMI/test_env.sh
 
-$EXEC_PREFIX/cleanup_test.sh
-$EXEC_PREFIX/setup_test.sh
+$SCRIPTS_PREFIX/cleanup_test.sh
+$SCRIPTS_PREFIX/setup_test.sh
 sleep 0.1
-$EXEC_PREFIX/start_server.sh 2> /dev/null &
+$SCRIPTS_PREFIX/start_server.sh 2> /dev/null &
 sleep 0.1
 
 for i in $(seq 1 $NUM_CLIENTS)
@@ -14,12 +14,12 @@ do
     DIR=$TEST_PATH_PREFIX$i 
     LOG=$DIR/log
     echo "start client $i"
-    $EXEC_PREFIX/start_client.sh $i &> $LOG & 
+    $SCRIPTS_PREFIX/start_client.sh $i 2> $LOG & 
     sleep 0.05
 done
 sleep $WAITING
-pkill -f main.byte 
-pkill -f tracker_server.byte
+pkill -f main.bc 
+pkill -f tracker_server.bc
 grep "written 100%" download*/log
 RES=`grep "written 100%" download*/log | wc -l`
 if [ $RES = $NUM_CLIENTS ]

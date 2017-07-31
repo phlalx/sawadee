@@ -1,4 +1,5 @@
-export EXEC_PREFIX=scripts
+export EXEC_PREFIX=_build/default/src/
+export SCRIPTS_PREFIX=scripts
 export OCAML_TORRENT=1
 export TEST_PATH_PREFIX=download
 export TORRENT=multifiles_localhost_6969.torrent 

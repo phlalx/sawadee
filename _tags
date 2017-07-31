@@ -1,2 +1,0 @@
-true: package(core,core_extended,ppx_jane,uri,cohttp,async,cohttp.async,bencode,sha,oUnit,hex)
-true: thread,debug

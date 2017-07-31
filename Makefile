@@ -1,35 +1,13 @@
-.PHONY:	all clean debug test test_bitset server 
+.PHONY: default unit test clean
 
-OCB_FLAGS = -tag bin_annot -use-ocamlfind 
-OCB =	ocamlbuild $(OCB_FLAGS) -I src -I src_test
+default:
+	jbuilder build src/main.bc src/test_bitset.bc src/tracker_server.bc
 
-# jbuilder:
-# 	jbuilder build main.exe
+unit:
+	jbuilder runtest
 
-main:
-	$(OCB) main.byte
-
-all: main tracker_server test_bitset test_krpc_packet
-
-tracker_server:
-	$(OCB) tracker_server.byte
-
-test_bitset:
-	$(OCB) test_bitset.byte
-
-test_krpc_packet:
-	$(OCB) test_krpc_packet.byte
-	
-doc:
-	$(OCB) .docdir/index.html
-
-unit: test_bitset test_krpc_packet
-	./test_bitset.byte
-	./test_krpc_packet.byte
-
-clean: 
-	$(OCB) -clean
-	rm -f README.html
+clean:
+	jbuilder clean
 
 README.html: README.md
 	pandoc -c style.css -f markdown_github < README.md > README.html

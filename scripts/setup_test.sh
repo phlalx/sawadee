@@ -9,7 +9,7 @@ do
     DIR=$TEST_PATH_PREFIX$i 
     echo "setting up dir $DIR"
     cp -r $FILES $DIR
-    $EXEC_PREFIX/gen_bitset.py "$DIR/$TORRENT"_bitset $BITSET
+    $SCRIPTS_PREFIX/gen_bitset.py "$DIR/$TORRENT"_bitset $BITSET
 done
  
 

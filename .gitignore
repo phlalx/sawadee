@@ -1,8 +1,8 @@
 _build
-*.native
-*.byte
+*.install
 ocaml-torrent.sublime-workspace
+ocaml-torrent.sublime-project
 README.html
-.docdir
-download
-download2
+.merlin
+download*
+.DS_Store

@@ -1,6 +1,5 @@
 
 open Core
-open Async (* only needed for Addr.t *)
 open Bin_prot
 
 module B = Bencode_ext
