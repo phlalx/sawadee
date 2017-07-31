@@ -24,7 +24,7 @@ val equals : t -> t -> bool
     peer is listening to incoming connexion), and those that we contact
     from the tracker's list of peer. This makes only a difference in the 
     handshake. *)
-val create : Socket.Address.Inet.t -> Reader.t -> Writer.t -> t
+val create : Addr.t -> Reader.t -> Writer.t -> t
 
 (** maximal number of owned pieces, should be called right after handshake 
 

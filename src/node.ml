@@ -8,12 +8,12 @@ module K = Krpc_packet
 module G = Global
 
 type t = {
-  addr : Socket.Address.Inet.t;
+  addr : Addr.t;
   buffer : Bigstring.t;
   socket : Fd.t;
 }
 
-type node_info = Node_id.t * Socket.Address.Inet.t 
+type node_info = Node_id.t * Addr.t 
 
 let connect addr = {
     addr;

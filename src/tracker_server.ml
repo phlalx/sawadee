@@ -8,14 +8,14 @@ open Cohttp
 open Cohttp_async
 
 type t = {
-  mutable peers : Socket.Address.Inet.t list
+  mutable peers : Addr.t list
 }
 
 let state = {
   peers = [];
 }
 
-let callback ~body (addr : Socket.Address.Inet.t) request = 
+let callback ~body (addr : Addr.t) request = 
   info "tracker is processing request";
   let `Inet (inet_addr, _) = addr in
 
@@ -32,8 +32,8 @@ let callback ~body (addr : Socket.Address.Inet.t) request =
   in
   let set_port p =
     let port = int_of_string p in
-    let peer_addr = Socket.Address.Inet.create inet_addr ~port in
-    info "added peer %s" (Socket.Address.Inet.to_string peer_addr);
+    let peer_addr = Addr.create inet_addr ~port in
+    info "added peer %s" (Addr.to_string peer_addr);
     state.peers <- List.dedup (peer_addr :: state.peers)
   in
   Option.value_map port ~default:() ~f:set_port;

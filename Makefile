@@ -3,6 +3,9 @@
 OCB_FLAGS = -tag bin_annot -use-ocamlfind 
 OCB =	ocamlbuild $(OCB_FLAGS) -I src -I src_test
 
+# jbuilder:
+# 	jbuilder build main.exe
+
 main:
 	$(OCB) main.byte
 

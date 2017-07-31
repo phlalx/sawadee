@@ -10,7 +10,7 @@ let ignore_error addr : unit Or_error.t -> unit =
   function 
   | Ok () -> () 
   | Error err -> 
-    info "Error connecting with peer %s" (Socket.Address.Inet.to_string addr);
+    info "Error connecting with peer %s" (Addr.to_string addr);
     debug "Error connecting %s" (Sexp.to_string (Error.sexp_of_t err))
 
 let add_connected_peer pwp info_hash num_pieces addr r w  =
@@ -36,7 +36,7 @@ let add_peers_from_tracker pwp torrent addrs : unit Deferred.t =
   let add_peer addr = 
     let open Deferred.Or_error.Monad_infix in 
     let wtc = Tcp.to_inet_address addr in
-    debug "try connecting to peer %s" (Socket.Address.Inet.to_string addr);
+    debug "try connecting to peer %s" (Addr.to_string addr);
     Deferred.Or_error.try_with (function () -> Tcp.connect wtc)
     >>= fun (_, r, w) ->
     add_connected_peer_and_close pwp info_hash num_pieces addr r w 
@@ -75,7 +75,7 @@ let parse_uri f =
 
 let process_magnet m = 
   let%bind peers = Krpc.lookup m in
-  List.iter peers ~f:(fun p -> info "%s" (Socket.Address.Inet.to_string p));
+  List.iter peers ~f:(fun p -> info "%s" (Addr.to_string p));
   never ()
 
 let process_file f = 

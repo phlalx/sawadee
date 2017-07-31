@@ -3,7 +3,7 @@ open Async
 
 module B = Bencode_ext
 
-type node_info = Node_id.t * Socket.Address.Inet.t 
+type node_info = Node_id.t * Addr.t 
 
 exception Bencode_error
 
@@ -17,8 +17,8 @@ let split_list (s:string) split_size =
   Array.to_list (split s split_size)
 
 let peer_to_string peer_addr = 
-  let port = Socket.Address.Inet.port peer_addr in
-  let addr = Socket.Address.Inet.addr peer_addr in
+  let port = Addr.port peer_addr in
+  let addr = Addr.addr peer_addr in
   let addr_int32 : Int32.t = Unix.Inet_addr.inet4_addr_to_int32_exn addr in
   let s = String.create 6 in
   (* TODO why not use binprot *)
@@ -31,14 +31,14 @@ let peer_to_bencode peer_addr =
 
 
 
-let string_to_peer s : Socket.Address.Inet.t =
+let string_to_peer s : Addr.t =
   let addr_int32 = Binary_packing.unpack_signed_32 ~byte_order:`Big_endian 
       ~buf:s ~pos:0 in
   let port = Binary_packing.unpack_unsigned_16_big_endian ~pos:4 ~buf:s in
   let addr = Unix.Inet_addr.inet4_addr_of_int32 addr_int32 in
-  Socket.Address.Inet.create addr port
+  Addr.create addr port
 
-let bencode_to_peer b : Socket.Address.Inet.t =
+let bencode_to_peer b : Addr.t =
   B.as_string_exn b |> string_to_peer
 
 let rec bencode_to_peers b =

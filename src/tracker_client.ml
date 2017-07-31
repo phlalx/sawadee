@@ -31,7 +31,7 @@ let create_uri_with_parameters t (s:string) =
   in 
   Uri.with_query' (Uri.of_string s) params 
 
-type sl = Socket.Address.Inet.t list 
+type sl = Addr.t list 
 
 let check_response response =
   let error = Error.of_string "Status not OK from tracker" in

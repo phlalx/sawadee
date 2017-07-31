@@ -5,7 +5,7 @@ module G = Global
 module Em = Error_msg
 
 (* TODO make this type globally available *)
-type node_info = Node_id.t * Socket.Address.Inet.t 
+type node_info = Node_id.t * Addr.t 
 
 type t = {
   mutable routing : node_info list 
@@ -19,14 +19,14 @@ let equal x y = Node_id.to_string x = Node_id.to_string y
 let find () = List.Assoc.find t.routing ~equal 
 
 let try_add addr : unit Deferred.Or_error.t =
-  debug "try reaching node %s" (Socket.Address.Inet.to_string addr);
+  debug "try reaching node %s" (Addr.to_string addr);
   let open Deferred.Or_error.Monad_infix in
   let n = Node.connect addr in
   Node.ping n 
   >>| fun id -> 
   if Option.is_none (find () id) then (
     t.routing <- (id, addr) :: t.routing;
-    info "added node nodeid(%s) = %s" (Socket.Address.Inet.to_string addr) 
+    info "added node nodeid(%s) = %s" (Addr.to_string addr) 
     (Node_id.to_readable_string id)
   ) 
 
@@ -48,7 +48,7 @@ let trim_nodes_info info_hash (nis : node_info list) : node_info list =
   List.take l 4
 
 let rec lookup_info_hash' (nis:node_info list) info_hash ~depth : 
-  Socket.Address.Inet.t list Deferred.Option.t =
+  Addr.t list Deferred.Option.t =
   if depth = 0 then
     return None 
   else (
@@ -101,6 +101,7 @@ let read_routing_table () =
     try
       In_channel.read_all routing_table_name
     with _ -> 
+
       info "can't read routing table %s. Using empty table" routing_table_name;
       ""
   in

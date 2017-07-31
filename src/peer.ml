@@ -11,7 +11,7 @@ type t = {
   mutable peer_interested : bool;
   mutable am_choking : bool;
   mutable am_interested : bool; 
-  peer_addr : Socket.Address.Inet.t;
+  peer_addr : Addr.t;
   mutable id : Peer_id.t;
   reader : Reader.t;
   writer : Writer.t;
@@ -95,7 +95,7 @@ let initiate_handshake t hash pid =
       | None -> Error (Error.of_string "hash error")
       | Some p -> t.id <- Peer_id.of_string p;
         info "handshake ok with %s = %s" (to_string t)
-          (Socket.Address.Inet.to_string t.peer_addr);
+          (Addr.to_string t.peer_addr);
         Ok ()
     ) 
   | `Eof _ -> Error (Error.of_string "handshake error")
@@ -226,7 +226,7 @@ let get_pending t = Int.Set.to_list t.pending
 (* must be call right after handshake *)
 let init_size_owned_pieces t num_piece = t.have <- Bitset.empty num_piece
 
-let addr_to_string t = Socket.Address.Inet.to_string t.peer_addr
+let addr_to_string t = Addr.to_string t.peer_addr
 
 let set_downloading t = 
   if not t.downloading then (
@@ -241,6 +241,6 @@ let set_uploading t =
   )
 
 
-let addr t = Socket.Address.Inet.addr t.peer_addr
+let addr t = Addr.addr t.peer_addr
 
 

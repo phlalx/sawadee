@@ -9,32 +9,32 @@ module B = Bencode_ext
 
 val split_list : string -> int -> string list
 
-val peer_to_bencode : Socket.Address.Inet.t -> B.t
+val peer_to_bencode : Addr.t -> B.t
 
-val peers_to_bencode : Socket.Address.Inet.t list -> B.t
+val peers_to_bencode : Addr.t list -> B.t
 
-val peers_to_bencode_list : Socket.Address.Inet.t list -> B.t
+val peers_to_bencode_list : Addr.t list -> B.t
 
 (* TODO be consistent with name of these conversion functions *)
-val peer_to_string :  Socket.Address.Inet.t -> string 
+val peer_to_string :  Addr.t -> string 
 
-val string_to_peer :  string -> Socket.Address.Inet.t  
+val string_to_peer :  string -> Addr.t  
 
-val bencode_to_peer : B.t -> Socket.Address.Inet.t 
+val bencode_to_peer : B.t -> Addr.t 
 
-val bencode_to_peers : B.t -> Socket.Address.Inet.t list
+val bencode_to_peers : B.t -> Addr.t list
 
-val bencode_list_to_peers : B.t -> Socket.Address.Inet.t list
+val bencode_list_to_peers : B.t -> Addr.t list
 
 val node_to_bencode : Node_id.t -> B.t
 
 val nodes_to_bencode : Node_id.t list -> B.t
 
-val nodes_info_to_bencode : (Node_id.t * Socket.Address.Inet.t) list ->
+val nodes_info_to_bencode : (Node_id.t * Addr.t) list ->
   B.t
 
 val bencode_to_nodes_info : B.t ->
-  (Node_id.t * Socket.Address.Inet.t) list
+  (Node_id.t * Addr.t) list
 
 val bencode_to_nodes : B.t -> Node_id.t list 
 

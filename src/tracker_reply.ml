@@ -10,7 +10,7 @@ type t = {
   complete : int;
   incomplete : int;
   interval : int;
-  peers : Socket.Address.Inet.t list
+  peers : Addr.t list
 }
 
 let to_bencode r =

@@ -14,11 +14,9 @@ let hash2 = Bt_hash.of_string "abcdefgagaaaaaaapqrs"
 let token = "this is a token"
 
 let addr1 = 
-  let addr = Unix.Inet_addr.of_string "168.123.13.12" in
-  Socket.Address.Inet.create  addr   129 
+  let addr = Unix.Inet_addr.of_string "168.123.13.12" in Addr.create addr 129 
 let addr2 = 
-  let addr = Unix.Inet_addr.of_string "164.120.13.121" in
-  Socket.Address.Inet.create  addr 10001 
+  let addr = Unix.Inet_addr.of_string "164.120.13.121" in Addr.create addr 10001 
 
 let ping = Query (Ping id1)
 

@@ -16,7 +16,7 @@ let handler addr r w =
     function 
     | Ok () -> () 
     | Error err -> 
-      info "Error connecting with peer %s" (Socket.Address.Inet.to_string addr);
+      info "Error connecting with peer %s" (Addr.to_string addr);
       debug "Error connecting %s" (Sexp.to_string (Error.sexp_of_t err))
   in
 

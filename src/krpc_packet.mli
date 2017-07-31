@@ -1,6 +1,6 @@
 
 open Core
-open Async (* only needed for Socket.Address.Inet.t *)
+open Async (* only needed for Addr.t *)
 open Bin_prot
 
 module B = Bencode_ext
@@ -15,10 +15,10 @@ type query =
 
 type response = 
   | R_ping_or_get_peers_node of Node_id.t 
-  | R_find_node of Node_id.t * Socket.Address.Inet.t
-  | R_get_peers_values of Node_id.t * token * Socket.Address.Inet.t list 
+  | R_find_node of Node_id.t * Addr.t
+  | R_get_peers_values of Node_id.t * token * Addr.t list 
   | R_get_peers_nodes of Node_id.t * token * 
-                         (Node_id.t * Socket.Address.Inet.t) list 
+                         (Node_id.t * Addr.t) list 
 
 type error_code = 
   | Generic_error
