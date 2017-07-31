@@ -85,7 +85,6 @@ let process_file f =
     with
     | Sys_error _ -> Em.terminate (Em.wrong_file f)
     | Failure s -> Em.terminate (Em.not_bencode f)
-    | Bencode_utils.Bencode_error -> Em.terminate (Em.wrong_bencode f)
     | ex -> raise ex
   in 
 

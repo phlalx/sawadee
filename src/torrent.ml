@@ -24,7 +24,6 @@ let split (s:string) split_size =
   Array.init (n / split_size) ~f
 
 let do_file torrent_name chan =
-  let open Bencode_utils in
   let bc = B.decode (`Channel chan) in 
   debug "torrent file = %s" (B.pretty_print bc);
   let announce_bc = B.dict_get_exn bc "announce" in
@@ -74,7 +73,8 @@ let do_file torrent_name chan =
   let total_length = List.fold files_info ~init:0 ~f:(fun acc (_,l) -> l + acc)  in
 
   if not (num_pieces = (total_length + piece_length - 1) / piece_length) then
-    raise Bencode_utils.Bencode_error;
+    (* TODO replace with proper exception *)
+    assert false;
 
   info "torrent: %s" torrent_name;
   info "torrent: %d files" num_files;

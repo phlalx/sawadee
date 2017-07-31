@@ -13,8 +13,6 @@ type t = {
   socket : Fd.t;
 }
 
-type node_info = Node_id.t * Addr.t 
-
 let connect addr = {
     addr;
     buffer = Common.create_buf K.buffer_size;

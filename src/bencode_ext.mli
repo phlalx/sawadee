@@ -11,8 +11,10 @@ val as_dict_exn : t -> (string * t) list
 
 val dict_get_exn : t -> string -> t 
 
-val get_string_from_dict_exn : t -> string -> string
+val dict_get_string_exn : t -> string -> string
 
-val get_int_from_dict_exn : t -> string -> int
+val dict_get_int_exn : t -> string -> int
 
-val get_list_from_dict_exn : t -> string -> t list
+val dict_get_list_exn : t -> string -> t list
+
+val split : t -> int -> t list

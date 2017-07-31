@@ -1,14 +1,11 @@
 open Core open Async
 open Log.Global
-module Bu = Bencode_utils
+
 module G = Global
 module Em = Error_msg
 
-(* TODO make this type globally available *)
-type node_info = Node_id.t * Addr.t 
-
 type t = {
-  mutable routing : node_info list 
+  mutable routing : Node_info.t list 
 }
 
 let t = {
@@ -42,12 +39,12 @@ let lookup_info_hash info_hash (_, addr) =
 let k = 8
 
 (* TODO we return the k first node_info closest to info_hash *)
-let trim_nodes_info info_hash (nis : node_info list) : node_info list = 
+let trim_nodes_info info_hash (nis : Node_info.t list) : Node_info.t list = 
   let cmp (id1, _) (id2, _) = Node_id.compare info_hash id1 id2 in
   let l = List.sort nis ~cmp in 
   List.take l 4
 
-let rec lookup_info_hash' (nis:node_info list) info_hash ~depth : 
+let rec lookup_info_hash' (nis:Node_info.t list) info_hash ~depth : 
   Addr.t list Deferred.Option.t =
   if depth = 0 then
     return None 
@@ -83,8 +80,18 @@ let table_to_string table =
   List.map table ~f
   |> String.concat
 
-(* TODO: create a module for compact representation of peer addresses *)
+(* TODO temporary, we'll serialize idfferently *)
+
 let compact_length = 6
+
+let split (s:string) split_size =
+  let n = String.length s in
+  assert (n % split_size = 0);
+  let f i = String.sub s (i * split_size) split_size in
+  Array.init (n / split_size) ~f
+
+let split_list (s:string) split_size =
+  Array.to_list (split s split_size)
 
 let table_of_string s = 
   let f s = 
@@ -92,7 +99,7 @@ let table_of_string s =
     let s2 = String.sub s Node_id.length compact_length in
     (Node_id.of_string s1), (Addr.of_compact s2)
   in
-  Bu.split_list s (Node_id.length + compact_length) 
+  split_list s (Node_id.length + compact_length) 
   |> List.map ~f
 
 let read_routing_table () = 

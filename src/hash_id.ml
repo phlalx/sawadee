@@ -18,9 +18,19 @@ module type ID = sig
 
   val to_readable_string : t -> string
 
+  val to_bencode : t -> Bencode_ext.t
+
+  val of_bencode : Bencode_ext.t -> t
+
+  val list_to_bencode : t list -> Bencode_ext.t
+
+  val list_of_bencode : Bencode_ext.t -> t list
+
 end
 
 module Id = struct
+
+  module B = Bencode_ext
 
   type t = string
 
@@ -30,19 +40,25 @@ module Id = struct
 
   let length = 20
 
-  let peer_id_length = 20
-
   let _ = Random.self_init ()
 
   let random () = 
-    String.init peer_id_length ~f:(fun _ -> char_of_int (Random.int 256))
+    String.init length ~f:(fun _ -> char_of_int (Random.int 256))
 
   let dummy = "????????????????????"
+
+  let to_bencode t = B.String t
+
+  let of_bencode = B.as_string_exn
 
   let to_readable_string x =
     let f c =
       let i = int_of_char c in
       char_of_int (65 + (i % 26))
     in String.prefix (String.map x ~f) 5
+
+  let list_to_bencode l = B.String (String.concat (List.map l ~f:to_string))
+
+  let list_of_bencode b = B.split b length |> List.map ~f:of_bencode
 
 end

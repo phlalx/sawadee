@@ -15,10 +15,9 @@ type query =
 
 type response = 
   | R_ping_or_get_peers_node of Node_id.t 
-  | R_find_node of Node_id.t * Addr.t
+  | R_find_node of Node_info.t
   | R_get_peers_values of Node_id.t * token * Addr.t list 
-  | R_get_peers_nodes of Node_id.t * token * 
-                         (Node_id.t * Addr.t) list 
+  | R_get_peers_nodes of Node_id.t * token * Node_info.t list 
 
 type error_code = 
   | Generic_error

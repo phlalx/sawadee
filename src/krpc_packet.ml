@@ -18,11 +18,10 @@ type query =
   | Announce_peer of Node_id.t * Bt_hash.t * int * token 
 
 type response = 
-  | R_ping_or_get_peers_node of Node_id.t  (* id *)
-  | R_find_node of Node_id.t * Addr.t (* id, nodes *)
-  | R_get_peers_values of Node_id.t * token * Addr.t list (* id, token, values *)
-  | R_get_peers_nodes of Node_id.t * token * 
-                         (Node_id.t * Addr.t) list (* id, token, nodes *)
+  | R_ping_or_get_peers_node of Node_id.t 
+  | R_find_node of Node_info.t
+  | R_get_peers_values of Node_id.t * token * Addr.t list 
+  | R_get_peers_nodes of Node_id.t * token * Node_info.t list 
 
 type error_code = 
   | Generic_error 
@@ -78,35 +77,33 @@ let buffer_size = 4096
 (******************)
 
 let bencode_of_response =
-  let open Bencode_utils in
   function
-  | R_ping_or_get_peers_node id -> ("id", node_to_bencode id) :: []
-  | R_find_node (id, nodes) -> ("id", node_to_bencode id) :: 
-                               ("nodes", (peer_to_bencode nodes) ) :: [] (* TODO why nodes key for a peer? *)
+  | R_ping_or_get_peers_node id -> ("id", Node_id.to_bencode id) :: []
+  | R_find_node (id, nodes) -> ("id", Node_id.to_bencode id) :: 
+                               ("nodes", (Addr.to_bencode nodes) ) :: [] (* TODO why nodes key for a peer? *)
   | R_get_peers_nodes (id, token, nodes) -> 
-    ("id", node_to_bencode id) :: ("token", B.String token) :: 
-    ("nodes", (nodes_info_to_bencode nodes) ) :: []
+    ("id", Node_id.to_bencode id) :: ("token", B.String token) :: 
+    ("nodes", (Node_info.list_to_bencode nodes) ) :: []
   | R_get_peers_values (id, token, values) -> 
-    ("id", node_to_bencode id) :: ("token", B.String token) ::
-    ("values", peers_to_bencode_list values) :: []
+    ("id", Node_id.to_bencode id) :: ("token", B.String token) ::
+    ("values", Addr.list_to_bencode_list values) :: []
 
 let bencode_of_query =
-  let open Bencode_utils in
   function
   | Ping id -> 
-    let args = B.Dict [ "id", (node_to_bencode id) ]  in
+    let args = B.Dict [ "id", (Node_id.to_bencode id) ]  in
     ("q", B.String "ping") :: ("a", args) :: []
   | Find_node (id, target) -> 
-    let args = B.Dict [( "id", node_to_bencode id); 
-                       ("target", node_to_bencode target)]  in
+    let args = B.Dict [( "id", Node_id.to_bencode id); 
+                       ("target", Node_id.to_bencode target)]  in
     ("q", B.String "find_node") :: ("a", args) :: []
   | Get_peers (id, info_hash) -> 
-    let args = B.Dict [( "id", node_to_bencode id); 
-                       ("info_hash", hash_to_bencode info_hash)]  in
+    let args = B.Dict [( "id", Node_id.to_bencode id); 
+                       ("info_hash", Bt_hash.to_bencode info_hash)]  in
     ("q", B.String "get_peers") :: ("a", args) :: [] 
   | Announce_peer (id, info_hash, port, token) -> 
-    let args = B.Dict [ ("id", node_to_bencode id); 
-                        ("info_hash", hash_to_bencode info_hash);
+    let args = B.Dict [ ("id", Node_id.to_bencode id); 
+                        ("info_hash", Bt_hash.to_bencode info_hash);
                         ("port", B.Integer port);
                         ("token", B.String token) ]  in
     ("q", B.String "announce_peer") :: ("a", args) :: []
@@ -132,42 +129,40 @@ let bencode_of_t { transaction_id; content } =
 (******************)
 
 let query_of_bencode b = 
-  let open Bencode_utils in
   let args = B.dict_get_exn b "a" in
-  let id = B.get_string_from_dict_exn args "id" |> Node_id.of_string in
-  B.get_string_from_dict_exn b "q" 
+  let id = B.dict_get_string_exn args "id" |> Node_id.of_string in
+  B.dict_get_string_exn b "q" 
   |> function 
   | "ping" -> Ping id
   | "find_node" ->
-    let target = B.get_string_from_dict_exn args "target" |> Node_id.of_string in
+    let target = B.dict_get_string_exn args "target" |> Node_id.of_string in
     Find_node (id, target)
   | "get_peers" ->
-    let info_hash = B.get_string_from_dict_exn args "info_hash" |> Bt_hash.of_string in
+    let info_hash = B.dict_get_string_exn args "info_hash" |> Bt_hash.of_string in
     Get_peers (id, info_hash)
   | "announce_peer" -> 
-    let info_hash = B.get_string_from_dict_exn args "info_hash" |> Bt_hash.of_string in
-    let port = B.get_int_from_dict_exn args "port" in
-    let token = B.get_string_from_dict_exn args "token" in
+    let info_hash = B.dict_get_string_exn args "info_hash" |> Bt_hash.of_string in
+    let port = B.dict_get_int_exn args "port" in
+    let token = B.dict_get_string_exn args "token" in
     Announce_peer (id, info_hash, port, token)
   | _ -> assert false
 
 let response_of_bencode b = 
-  let open Bencode_utils in
   let r = B.dict_get_exn b "r" in
-  let id = B.get_string_from_dict_exn r "id" |> Node_id.of_string in
+  let id = B.dict_get_string_exn r "id" |> Node_id.of_string in
   (B.dict_get r "values", B.dict_get r "token", B.dict_get r "nodes")
   |> function
   | Some v, Some t, _ ->  
     (* according to the specs nodes should be none here, but not always the case *)
     let token = B.as_string_exn t in
-    let values = bencode_list_to_peers v in
+    let values = Addr.list_of_bencode_list v in
     R_get_peers_values (id, token, values)
   | None, Some t, Some n -> 
     let token = B.as_string_exn t  in
-    let nodes_info = bencode_to_nodes_info n in
+    let nodes_info = Node_info.list_of_bencode n in
     R_get_peers_nodes (id, token, nodes_info)
   | None, None, Some n -> 
-    let nodes = bencode_to_peer n in
+    let nodes = Addr.of_bencode n in
     R_find_node (id, nodes)
   | None, None, None -> 
     R_ping_or_get_peers_node id
@@ -182,7 +177,6 @@ let int_to_error_code = function
   | _ -> assert false
 
 let error_of_bencode_list = 
-  let open Bencode_utils in
   function
   | [code; msg] -> 
     let c = B.as_int_exn code in
@@ -191,17 +185,15 @@ let error_of_bencode_list =
   | _ -> assert false
 
 let content_of_bencode b = 
-  let open Bencode_utils in
-  B.get_string_from_dict_exn b "y" 
+  B.dict_get_string_exn b "y" 
   |> function 
   | "q" -> Query (query_of_bencode b)
   | "r" -> Response (response_of_bencode b)
-  | "e" -> B.get_list_from_dict_exn b "e" |> error_of_bencode_list 
+  | "e" -> B.dict_get_list_exn b "e" |> error_of_bencode_list 
   | _ -> assert false
 
 let t_of_bencode b = 
-  let open Bencode_utils in
-  let transaction_id = B.get_string_from_dict_exn b "t" in
+  let transaction_id = B.dict_get_string_exn b "t" in
   let content = content_of_bencode b in
   { transaction_id; content }
 
