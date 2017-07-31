@@ -3,7 +3,11 @@ include Bencode
 
 open Core
 
-(* TODO define custom exception and document the place where it can be raised *)
+let value_exn b = 
+  function 
+  | Some v -> v 
+  | None -> failwith (pretty_print b)
+
 
 let as_string_exn x = as_string x |> Option.value_exn
 
@@ -13,7 +17,7 @@ let as_list_exn x = as_list x |> Option.value_exn
 
 let as_dict_exn x = as_dict x |> Option.value_exn
 
-let dict_get_exn b s = dict_get b s |> Option.value_exn
+let dict_get_exn b s = dict_get b s |> value_exn b
 
 let dict_get_string_exn b s =
   dict_get_exn b s |> as_string_exn

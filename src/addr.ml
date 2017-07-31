@@ -34,3 +34,8 @@ let list_of_bencode_list b = B.as_list_exn b |> List.map ~f:of_bencode
 let length = 6
 
 let list_of_bencode b = B.split b length |> List.map ~f:of_bencode
+
+(* TODO *)
+let of_string s = String.split s ~on:':' |> function
+ | [addr; p] -> create (Unix.Inet_addr.of_string addr) (int_of_string p)  
+ | _ -> assert false

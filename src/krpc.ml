@@ -24,7 +24,7 @@ let try_add addr : unit Deferred.Or_error.t =
   if Option.is_none (find () id) then (
     t.routing <- (id, addr) :: t.routing;
     info "added node nodeid(%s) = %s" (Addr.to_string addr) 
-    (Node_id.to_readable_string id)
+      (Node_id.to_readable_string id)
   ) 
 
 let try_add_nis nis =
@@ -57,7 +57,6 @@ let rec lookup_info_hash' (nis:Node_info.t list) info_hash ~depth :
     let values, nodes = List.partition_map l ~f in
     let combined_values = values |> List.concat in 
     let combined_nis = nodes |> List.concat in 
-    (* don't_wait_for (try_add_nis combined_nis); *)
     match combined_values with 
     | [] -> lookup_info_hash' combined_nis info_hash ~depth:(depth - 1)
     |  _  -> return (Some combined_values))
@@ -70,37 +69,57 @@ let lookup info_hash =
   | Some x -> return x 
   | None -> return []
 
-(* TODO don't save the table in bencode but rather in a text format *)
+
+
+
+(******************************)
+
+
+
+let populate_from_hash info_hash = 
+
+  let rec populate_aux (nis:Node_info.t list) info_hash ~depth acc : Node_info.t list Deferred.t =
+    info "called populate %d" (List.length acc);
+    match depth with
+    | 0 -> return acc 
+    | depth -> 
+      begin
+        let%bind l = Deferred.List.filter_map nis ~f:(lookup_info_hash info_hash) in 
+        let f = function 
+          | `Values x -> `Fst x 
+          | `Nodes x -> `Snd x 
+        in
+        let _, nodes = List.partition_map l ~f in
+        let new_nis = nodes |> List.concat in 
+        (* don't_wait_for (try_add_nis combined_nis); *)
+        populate_aux new_nis info_hash ~depth:(depth - 1) (new_nis @ acc)
+      end    
+  in
+
+  let nis = List.take t.routing 4 in populate_aux nis info_hash ~depth:2 []
+
+
+let populate () = 
+  if (List.length t.routing) <= 64 then 
+    begin
+      let h = Bt_hash.random () in 
+      populate_from_hash h 
+      >>= fun nis -> 
+      try_add_nis nis 
+    end
+  else
+    Deferred.unit 
+
+(**************************************)
+
+
+
+
+
 let table_to_string table =
-  let f (id, p) =
-    let sid = Node_id.to_string id in
-    let sn = Addr.to_compact p in
-    sid ^ sn
-  in
-  List.map table ~f
-  |> String.concat
+  List.map table ~f:Node_info.to_string |> String.concat ~sep:"\n"
 
-(* TODO temporary, we'll serialize idfferently *)
-
-let compact_length = 6
-
-let split (s:string) split_size =
-  let n = String.length s in
-  assert (n % split_size = 0);
-  let f i = String.sub s (i * split_size) split_size in
-  Array.init (n / split_size) ~f
-
-let split_list (s:string) split_size =
-  Array.to_list (split s split_size)
-
-let table_of_string s = 
-  let f s = 
-    let s1 = String.sub s 0 Node_id.length in
-    let s2 = String.sub s Node_id.length compact_length in
-    (Node_id.of_string s1), (Addr.of_compact s2)
-  in
-  split_list s (Node_id.length + compact_length) 
-  |> List.map ~f
+let table_of_string s = String.split_lines s |> List.map ~f:Node_info.of_string 
 
 let read_routing_table () = 
   let routing_table_name = sprintf "%s/%s" (G.path ()) G.routing_table_name in 
@@ -119,7 +138,6 @@ let read_routing_table () =
       info "can't decode routing table %s. Using empty table" routing_table_name;
       [] 
   in
-
   try_add_nis decoded_table 
 
 let write_routing_table () =

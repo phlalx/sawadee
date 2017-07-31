@@ -55,8 +55,7 @@ let parse_uri f =
     if not (String.length st = 49) then
       `Invalid_magnet
     else
-      let hex_string = `Hex (String.sub st ~pos:9 ~len:40) in
-      let info_hash = Hex.to_string hex_string |> Bt_hash.of_string in
+      let info_hash = String.sub st ~pos:9 ~len:40 |> Bt_hash.of_hex in
       `Magnet info_hash
   in
 
@@ -74,6 +73,7 @@ let parse_uri f =
 
 
 let process_magnet m = 
+  info "processing magnet %s" (Bt_hash.to_hex m);
   let%bind peers = Krpc.lookup m in
   List.iter peers ~f:(fun p -> info "%s" (Addr.to_string p));
   never ()

@@ -37,7 +37,12 @@ let process
   check_path ()
   >>= fun () ->
 
-  if G.is_node () then Krpc.read_routing_table () else Deferred.unit
+  (if G.is_node () then 
+    Krpc.read_routing_table () 
+    >>= fun () ->
+    Krpc.populate ()
+  else
+   Deferred.unit) 
   >>= fun () ->
   info "processed routing table";
 

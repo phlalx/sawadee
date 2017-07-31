@@ -26,6 +26,10 @@ module type ID = sig
 
   val list_of_bencode : Bencode_ext.t -> t list
 
+  val to_hex : t -> string
+
+  val of_hex : string -> t
+
 end
 
 module Id = struct
@@ -60,5 +64,10 @@ module Id = struct
   let list_to_bencode l = B.String (String.concat (List.map l ~f:to_string))
 
   let list_of_bencode b = B.split b length |> List.map ~f:of_bencode
+
+  let to_hex t = Hex.of_string t |> function (`Hex s) -> s
+
+  let of_hex s = Hex.to_string (`Hex s)
+
 
 end

@@ -20,3 +20,5 @@ val list_to_bencode_list : t list -> Bencode_ext.t
 val list_of_bencode_list : Bencode_ext.t -> t list
 
 val length : int
+
+val of_string : string -> t
