@@ -16,43 +16,25 @@ let split (s:string) split_size =
 let split_list (s:string) split_size =
   Array.to_list (split s split_size)
 
-let peer_to_string peer_addr = 
-  let port = Addr.port peer_addr in
-  let addr = Addr.addr peer_addr in
-  let addr_int32 : Int32.t = Unix.Inet_addr.inet4_addr_to_int32_exn addr in
-  let s = String.create 6 in
-  (* TODO why not use binprot *)
-  Binary_packing.pack_signed_32 ~byte_order:`Big_endian ~buf:s ~pos:0 addr_int32;
-  Binary_packing.pack_unsigned_16 ~byte_order:`Big_endian ~buf:s ~pos:4 port;
-  s
 
 let peer_to_bencode peer_addr = 
-  B.String (peer_to_string peer_addr)
-
-
-
-let string_to_peer s : Addr.t =
-  let addr_int32 = Binary_packing.unpack_signed_32 ~byte_order:`Big_endian 
-      ~buf:s ~pos:0 in
-  let port = Binary_packing.unpack_unsigned_16_big_endian ~pos:4 ~buf:s in
-  let addr = Unix.Inet_addr.inet4_addr_of_int32 addr_int32 in
-  Addr.create addr port
+  B.String (Addr.to_compact peer_addr)
 
 let bencode_to_peer b : Addr.t =
-  B.as_string_exn b |> string_to_peer
+  B.as_string_exn b |> Addr.of_compact 
 
 let rec bencode_to_peers b =
   let s : string = B.as_string_exn b in
   let peer_addr_length = 6 in
   split s peer_addr_length
-  |> Array.map ~f:string_to_peer
+  |> Array.map ~f:Addr.of_compact
   |> Array.to_list
 
 let rec bencode_list_to_peers b =
   B.as_list_exn b |> List.map ~f:bencode_to_peer
 
 let peers_to_bencode peers = 
-  let f acc p = acc ^ (peer_to_string p) in
+  let f acc p = acc ^ (Addr.to_compact p) in
   B.String (List.fold peers ~init:"" ~f)
 
 let peers_to_bencode_list peers = List.map peers ~f:peer_to_bencode |> B.List
@@ -71,12 +53,12 @@ let bencode_to_nodes b =
   |> Array.to_list
 
 let node_info_to_string (n, p) = 
-  (Node_id.to_string n) ^ (peer_to_string p)
+  (Node_id.to_string n) ^ (Addr.to_compact p)
 
 let string_to_node_info s = 
   let s1 = String.sub s ~pos:0 ~len:Node_id.length in
   let s2 = String.sub s ~pos:Node_id.length ~len:6 in 
-  (Node_id.of_string s1, string_to_peer s2) 
+  (Node_id.of_string s1, Addr.of_compact s2) 
 
 let nodes_info_to_bencode nis = 
   let f acc p = acc ^ (node_info_to_string p) in

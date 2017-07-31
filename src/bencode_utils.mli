@@ -15,11 +15,6 @@ val peers_to_bencode : Addr.t list -> B.t
 
 val peers_to_bencode_list : Addr.t list -> B.t
 
-(* TODO be consistent with name of these conversion functions *)
-val peer_to_string :  Addr.t -> string 
-
-val string_to_peer :  string -> Addr.t  
-
 val bencode_to_peer : B.t -> Addr.t 
 
 val bencode_to_peers : B.t -> Addr.t list

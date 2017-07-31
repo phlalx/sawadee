@@ -1,12 +1,8 @@
 open Core
 open Async
 
-type t = Socket.Address.Inet.t 
+include (module type of Socket.Address.Inet)
 
-val create : Unix.Inet_addr.t -> port:int -> t
+val to_compact : t -> string 
 
-val addr : t -> Unix.Inet_addr.t 
-
-val port : t -> int
-
-val to_string : t -> string
+val of_compact : string -> t
