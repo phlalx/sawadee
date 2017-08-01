@@ -1,6 +1,9 @@
 .PHONY: default unit test clean
 
 default:
+	jbuilder build src/main.bc 
+
+all:
 	jbuilder build src/main.bc src/test_bitset.bc src/tracker_server.bc
 
 unit:

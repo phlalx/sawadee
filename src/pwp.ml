@@ -87,6 +87,12 @@ let process_message t (p:P.t) (m:M.t) : unit =
       send_have_messages t index 
   in
 
+  let process_extended id b = 
+    info "received extended message id = %d" id;
+    let bc = Bencode_ext.decode (`String b) in
+    info "%s" (Bencode_ext.pretty_print bc)
+  in
+
   let process_request index bgn length =
     let piece = File.get_piece t.file index in
     Peer.validate p (File.is_valid_piece_index t.file index);
@@ -130,9 +136,13 @@ let process_message t (p:P.t) (m:M.t) : unit =
   | M.Cancel (index, bgn, length) ->
     info "ignore cancel msg - Not yet implemented"
   | M.Port port -> 
-   if G.is_node () then (
-    Addr.create (Peer.addr p) port |> 
-   Krpc.try_add |> Deferred.ignore |> don't_wait_for )
+    if G.is_node () then (
+      Addr.create (Peer.addr p) port |> 
+      Krpc.try_add |> Deferred.ignore |> don't_wait_for )
+  | M.Extended (id, b) -> 
+    process_extended id b 
+
+
 
 let cancel_requests t p = 
   let f i = 

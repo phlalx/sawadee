@@ -40,9 +40,13 @@ let k = 8
 
 (* TODO we return the k first node_info closest to info_hash *)
 let trim_nodes_info info_hash (nis : Node_info.t list) : Node_info.t list = 
+  info "trimming";
   let cmp (id1, _) (id2, _) = Node_id.compare info_hash id1 id2 in
   let l = List.sort nis ~cmp in 
-  List.take l 4
+  let l' = List.take l 4 in
+  let f (n,_) = info "distance %d" (Node_id.distance_hash n info_hash) in
+  List.iter ~f l';
+  l'
 
 let rec lookup_info_hash' (nis:Node_info.t list) info_hash ~depth : 
   Addr.t list Deferred.Option.t =
@@ -56,7 +60,7 @@ let rec lookup_info_hash' (nis:Node_info.t list) info_hash ~depth :
     in
     let values, nodes = List.partition_map l ~f in
     let combined_values = values |> List.concat in 
-    let combined_nis = nodes |> List.concat in 
+    let combined_nis = nodes |> List.concat |> trim_nodes_info info_hash in 
     match combined_values with 
     | [] -> lookup_info_hash' combined_nis info_hash ~depth:(depth - 1)
     |  _  -> return (Some combined_values))
@@ -65,15 +69,13 @@ let max_depth = 3
 
 let lookup info_hash = 
   let nis = t.routing |> trim_nodes_info info_hash in
+  info "querying %d closest peers from the table" (List.length nis);
   match%bind lookup_info_hash' nis info_hash ~depth:max_depth with  
   | Some x -> return x 
   | None -> return []
 
 
-
-
 (******************************)
-
 
 
 let populate_from_hash info_hash = 

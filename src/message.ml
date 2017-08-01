@@ -15,6 +15,8 @@ type t =
   | Piece of int * int * string
   | Cancel of int * int * int
   | Port of int
+  (* TODO better to have Bencode.t instead of string *)
+  | Extended of int * string 
 [@@deriving sexp]
 
 let max_size = Global.max_block_size + 13
@@ -32,6 +34,7 @@ let size = function
   | Piece (_,_,s) -> 9 + (String.length s)
   | Cancel _ -> 13 
   | Port _ -> 3
+  | Extended (_, b) -> 1 + (String.length b)
 
 exception Unkown_message of int 
 
@@ -70,6 +73,13 @@ let bin_read_payload buf ~pos_ref length =
     let port = Read.bin_read_network16_int buf pos_ref in
     assert (port >= 0);
     Port port
+  | 20 ->  
+    let b_len = length - 1 in
+    let id = Read.bin_read_char buf pos_ref in
+    let bencode = String.create b_len in
+    Common.blit_buf_string ~src_pos:!pos_ref buf bencode ~len:b_len; 
+    Extended (int_of_char id, bencode)
+    
   | i -> raise (Unkown_message i)
 
 let bin_read_t buf ~pos_ref = 
@@ -127,6 +137,13 @@ let bin_write_t (buf:Common.buf) ~(pos:Common.pos) (x:t) =
     let pos = Write.bin_write_network32_int buf pos 3 in
     let pos = Write.bin_write_char buf pos (char_of_int 9) in
     Write.bin_write_network16_int buf pos port 
+  | Extended (i, b) -> 
+    let len = String.length b in
+    let pos = Write.bin_write_network32_int buf pos (len + 1) in
+    let pos = Write.bin_write_char buf pos (char_of_int 20) in
+    let pos = Write.bin_write_char buf pos (char_of_int i) in
+    Common.blit_string_buf b ~dst_pos:pos buf ~len;
+    pos + len
 
 let to_string m =
   match m with 
@@ -140,7 +157,8 @@ let to_string m =
   | Request (i,b,l) -> sprintf "Request i = %d" i
   | Piece (i,off,_) -> sprintf "Piece i = %d, off = %d "  i off
   | Cancel _ -> "Cancel"
-  | Port i -> sprintf "port %d" i
+  | Port i -> sprintf "Port %d" i
+  | Extended (i,b) -> "Extended"
 
 
 

@@ -14,6 +14,6 @@ opam install ${OPAM_DEPENDS}
 
 eval `opam config env`
 
-make 
+make all
 make unit
 ./scripts/run_test.sh

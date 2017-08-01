@@ -26,6 +26,7 @@ type t =
   | Piece of int * int * string (** index, begin, block *)
   | Cancel of int * int * int (** index, begin, length *)
   | Port of int 
+  | Extended of int * string  (** id, payload *)
 [@@deriving sexp]
 
 val max_size : int

@@ -75,7 +75,23 @@ let parse_uri f =
 let process_magnet m = 
   info "processing magnet %s" (Bt_hash.to_hex m);
   let%bind peers = Krpc.lookup m in
-  List.iter peers ~f:(fun p -> info "%s" (Addr.to_string p));
+  List.iter peers ~f:(fun p -> info "found peer %s" (Addr.to_string p));
+
+  (* 
+    we get peers... then what? 
+    handshake. 
+    but we can't add them to pwp. 
+    we can't even create pwp.
+    or we can add a new state to pwp. 
+    know/don't know info
+    we need to split torrent in two
+    
+
+
+
+  *) 
+
+
   never ()
 
 let process_file f = 

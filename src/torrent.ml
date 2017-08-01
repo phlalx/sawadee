@@ -17,6 +17,7 @@ type t = {
   num_files : int;
 }
 
+(* TODO still needed? *)
 let split (s:string) split_size =
   let n = String.length s in
   assert (n % split_size = 0);

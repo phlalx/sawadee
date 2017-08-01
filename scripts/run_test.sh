@@ -14,7 +14,7 @@ do
     DIR=$TEST_PATH_PREFIX$i 
     LOG=$DIR/log
     echo "start client $i"
-    $SCRIPTS_PREFIX/start_client.sh $i 2> $LOG & 
+    $SCRIPTS_PREFIX/start_client.sh $i &> $LOG & 
     sleep 0.05
 done
 sleep $WAITING
