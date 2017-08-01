@@ -31,9 +31,6 @@ let handler addr r w =
     >>= fun info_hash ->
     Print.printf "handshake with (server) peer %s\n" (P.addr_to_string peer);
     let pwp = Hashtbl.find_exn table info_hash in
-    let torrent = Pwp.torrent pwp in 
-    let num_pieces = torrent.Torrent.num_pieces in
-    P.init_size_owned_pieces peer num_pieces;
     Pwp.add_peer pwp peer
 
   in  handler_or_error () >>= close >>| ignore_error addr

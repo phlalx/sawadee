@@ -19,7 +19,6 @@ let add_connected_peer pwp info_hash num_pieces addr r w  =
   P.initiate_handshake peer info_hash G.peer_id
   >>= fun () ->
   Print.printf "handshake with (tracker) peer %s\n" (P.addr_to_string peer);
-  P.init_size_owned_pieces peer num_pieces;
   Pwp.add_peer pwp peer
 
 (* TODO must be a more elegant way of combining these monads *)

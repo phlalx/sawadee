@@ -12,5 +12,9 @@
 
 open Core
 
-(* returns list of piece_index and peer *)
-val next_requests : File.t -> Peer.t list -> int -> (int * Peer.t) list
+type pi = Peer.t * State.t 
+
+(* returns list of piece_index and peer_d *)
+(* TODO this is only temporary while we refactor peer/state *)
+val next_requests : File.t -> (Peer_id.t, pi) Hashtbl.t -> int -> 
+(int * pi) list
