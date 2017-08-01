@@ -19,7 +19,7 @@ let of_bencode b = B.as_string_exn b |> of_compact
 
 let list_of_bencode b = B.split b length |> List.map ~f:of_bencode
 
-let to_string (n, p) = (Node_id.to_hex n) ^ " " ^ (Addr.to_string p)
+let to_string (n, p) = sprintf "%s %s" (Node_id.to_hex n) (Addr.to_string p)
 
 let of_string s =
    match String.split s ~on:' ' with 

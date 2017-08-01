@@ -162,14 +162,15 @@ let send_extended_handshake t : unit Deferred.Or_error.t =
   let s = Extension.to_string em in 
   let m = Message.Extended (0, s) in 
   send_message t m;
-  return (Ok ())
+  Deferred.Or_error.ok_unit
 
 let get_extended_handshake t : unit Deferred.Or_error.t = 
-  match%bind get_message t with 
+  match%map get_message t with 
   | `Ok (Message.Extended (0, em)) ->
-    info "got something"; return (Ok())
-  | `Eof -> assert false
+    info "got something"; 
+    Ok ()
   | `Ok m -> failwith (Message.to_string m)
+  | `Eof -> assert false
 
 exception Incorrect_behavior
 
@@ -199,6 +200,4 @@ let create_with_connect addr =
   >>| fun (_, r, w) ->
   create addr r w 
 
-
-let close t = 
-  Writer.close t.writer >>= fun () -> Reader.close t.reader
+let close t = Writer.close t.writer >>= fun () -> Reader.close t.reader

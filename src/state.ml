@@ -2,7 +2,6 @@ open Core
 open Async
 open Log.Global
 
-
 type t = {
   mutable peer_choking : bool; 
   mutable peer_interested : bool;

@@ -27,7 +27,8 @@ let next_requests file peers n : (int * pi) list =
      we also returns the number of peers that have this list, so we can pick
      rarest pieces first *)
   let peers_having_piece i : (int * pi * int) option = 
-    let f (p,s) = (S.has_piece s i) && not (S.is_peer_choking s) && not (S.is_idle s) 
+    let f (p,s) = 
+      (S.has_piece s i) && not (S.is_peer_choking s) && not (S.is_idle s) 
     in
     let l = List.filter peers ~f in
     let n = List.length l in
@@ -38,5 +39,5 @@ let next_requests file peers n : (int * pi) list =
   let l1 = Bitset.to_list pieces_not_requested in 
   let l2 = List.filter_map l1 ~f:peers_having_piece in
   let cmp (_,_,c) (_,_,c') =  compare c c' in (* rarest first *)
-  let l3 = List.sort ~cmp (List.permute l2) in 
-  List.map (List.take l3 n) ~f:(fun (a,b,_) -> (a,b)) 
+  let l3 = List.permute l2 |> List.sort ~cmp in 
+  List.take l3 n |> List.map ~f:(fun (a,b,_) -> (a,b)) 

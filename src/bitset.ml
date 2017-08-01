@@ -95,8 +95,7 @@ let bitfield_length t = ((size t) + 7) / 8
 
 let bitfield_length_from_size i = (i + 7) / 8
 
-let to_string t =
-    List.to_string ~f:string_of_int (to_list t)
+let to_string t = List.to_string ~f:string_of_int (to_list t)
 
 let to_bitfield t = 
   let n = size t in

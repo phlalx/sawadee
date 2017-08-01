@@ -66,15 +66,11 @@ let check_peer info_hash addr =
   >>= fun () -> 
   Peer.close p |> Deferred.ok
 
-
-
 let process_magnet m = 
   info "processing magnet %s" (Bt_hash.to_hex m);
   let%bind addrs = Krpc.lookup m in
-
   let f addr = check_peer m addr >>| ignore_error addr in
   Deferred.List.iter ~how:`Parallel addrs ~f
-
 
 let process_file f = 
   (***** read torrent file *****)
@@ -138,14 +134,14 @@ let process_file f =
   let finally () =
     info "writing bitfield to file %s" f;
     (try
-       Out_channel.write_all bf_name 
-         ~data:(Bitfield.to_string (File.bitfield file))
+       let data = File.bitfield file |> Bitfield.to_string in
+       Out_channel.write_all bf_name ~data
      with 
        _  -> Print.printf "%s\n" (Em.can't_open bf_name));
 
     Krpc.write_routing_table ();
-
-    Pers.close_all_files pers >>= fun () ->
+    Pers.close_all_files pers 
+    >>= fun () ->
     Print.printf "written %d%% to disk\n" (File.percent file);
     info "written %d/%d pieces" (File.num_downloaded_pieces file) num_pieces;
     (* debug "written to files: %s" (File.pieces_to_string file); *)
@@ -189,6 +185,4 @@ let process uri =
   | `Invalid_magnet -> failwith "invalid magnet"
   | `Magnet info_hash when G.is_node () -> process_magnet info_hash
   | `Magnet _ -> failwith "node must be enabled"
-
-
 

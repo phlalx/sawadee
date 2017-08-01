@@ -148,8 +148,6 @@ let process_message t (pi:peer_info) (m:M.t) : unit =
   | M.Extended (id, b) -> 
     info "ignore extended message, already received after handshake"
 
-
-
 let cancel_requests t (pi:peer_info) = 
   let f i = 
     decr_requested t;
@@ -175,17 +173,16 @@ let rec wait_and_process_message t (pi:peer_info) =
   let result = function
     | `Ok m -> 
       process_message t pi m; 
-      return (`Repeat ())
+      `Repeat ()
     | `Eof ->  
       (* signal the deconnection of the peer *)
       cancel_requests t pi;
       info "peer %s has left - remove it from peers" (to_string pi); 
       peer_id pi |> remove_peer t;
-      return (`Finished ())
-
+      `Finished ()
   in
-  Clock.with_timeout G.idle (P.get_message pi.peer)  
-  >>= function
+  P.get_message pi.peer |> Clock.with_timeout G.idle 
+  >>| function
   | `Timeout -> 
     (* TODO decide what to do with these idle peers - keep using them but
        mark them as bad and give priority to other peers? now we just ignore
@@ -193,7 +190,7 @@ let rec wait_and_process_message t (pi:peer_info) =
     info "peer %s is slow - set idle" (to_string pi); 
     cancel_requests t pi;
     State.set_idle pi.state true;
-    return (`Finished ())
+    `Finished ()
   | `Result r -> result r
 
 let initiate_protocol t pi : unit Deferred.t =
@@ -203,7 +200,7 @@ let initiate_protocol t pi : unit Deferred.t =
   (* we send this optional message if we own pieces of the file *)
   if (File.num_downloaded_pieces t.file) > 0 then (
     info "sending my bitfield to %s" (Peer.to_string p);
-    P.send_message p (M.Bitfield (File.bitfield t.file))
+    M.Bitfield (File.bitfield t.file) |> P.send_message p 
   );
   (* this should only be sent to peers we're interested in. To simplify, 
      we suppose we're intersted in all peers, but it should be changed TODO *)

@@ -74,7 +74,6 @@ let lookup info_hash =
   | Some x -> return x 
   | None -> return []
 
-
 (******************************)
 
 
@@ -96,16 +95,14 @@ let populate_from_hash info_hash =
         populate_aux new_nis info_hash ~depth:(depth - 1) (new_nis @ acc)
       end    
   in
-
-  let nis = List.take t.routing 4 in populate_aux nis info_hash ~depth:2 []
+  let nis = List.take t.routing 4 in 
+  populate_aux nis info_hash ~depth:2 []
 
 
 let populate () = 
   if (List.length t.routing) <= 64 then 
     begin
-      let h = Bt_hash.random () in 
-      populate_from_hash h 
-      >>= fun nis -> 
+      let%bind nis = Bt_hash.random () |> populate_from_hash in
       try_add_nis nis 
     end
   else

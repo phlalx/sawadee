@@ -23,10 +23,10 @@ let seek_and_io fd bytes ~off ~pos ~len operation =
   | `Error exn  -> raise exn
 
 let write fd bytes ~off ~pos ~len =
-  if not !enabled then
-    Deferred.unit
-  else
+  if !enabled then
     seek_and_io fd bytes ~off ~pos ~len `Write
+  else
+    Deferred.unit
 
 let read fd bytes ~off ~pos ~len =
   seek_and_io fd bytes ~off ~pos ~len `Read

@@ -116,15 +116,14 @@ let display_segments segments_of_piece =
   Array.iteri segments_of_piece ~f
 
 let create info_files num_pieces piece_length = 
-  let f (name, len) = Deferred.Or_error.ok_exn (open_file name ~len) in
+  let f (name, len) = open_file name ~len |> Deferred.Or_error.ok_exn in
   let%map fds = Deferred.List.map ~how:`Sequential info_files ~f in
   let rd, wr = Pipe.create () in
   let segments = make_segments fds info_files in
   let segments_of_piece = split_along_piece_length segments piece_length num_pieces in
   { fds; segments_of_piece; wr; rd; piece_length; }
 
-let init_write_pipe t ~finally =    
-  read_from_pipe t >>= finally 
+let init_write_pipe t ~finally = read_from_pipe t >>= finally 
 
 let write_piece t p = 
   (* debug "piece %d is pushed to the I/O pipe" (Piece.get_index p); *)
