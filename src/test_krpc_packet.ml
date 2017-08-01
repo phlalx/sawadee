@@ -1,7 +1,7 @@
+open Core
 open OUnit
 open Krpc_packet
 open Bin_prot
-open Async (* TODO don't use? *)
 
 let id1 = Node_id.of_string "abcdefghijklmonopqrs"
 let id2 = Node_id.of_string "abc23fgh4jklmonopqrs"

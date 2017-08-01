@@ -17,14 +17,12 @@ let peer_id pi = P.id pi.peer
 let to_string pi = peer_id pi |> Peer_id.to_readable_string 
 
 type t = {
+  mutable torrent : Torrent.t;
   file : File.t;
   pers : Pers.t;
   mutable num_requested : int;
-  mutable torrent : Torrent.t;
   peers : (Peer_id.t, peer_info) Hashtbl.t 
 }
-
-let torrent t = t.torrent
 
 let create torrent file pers = { file; peers = Hashtbl.Poly.create ();
                                  num_requested = 0; pers; torrent }
@@ -48,14 +46,13 @@ let send_have_messages t i =
 (* we always request all blocks from a piece to the same peer at the 
    same time *)
 let request_all_blocks_from_piece t (pi:peer_info) (piece_i:int) : unit =
-  debug "requesting piece %d from peer %s" piece_i (to_string pi);
+  (* debug "requesting piece %d from peer %s" piece_i (to_string pi); *)
   incr_requested t;
   File.set_piece_status t.file piece_i `Requested; 
   S.add_pending pi.state piece_i;
   let f ~index ~off ~len =
-    let m = M.Request(index, off, len) in
-    sexp ~level:`Debug (M.sexp_of_t m); 
-    P.send_message pi.peer m in
+    M.Request(index, off, len) |> P.send_message pi.peer 
+  in
   Piece.iter (File.get_piece t.file piece_i) ~f
 
 (* try to request as many pieces as we can - there should be no more than
@@ -63,15 +60,13 @@ let request_all_blocks_from_piece t (pi:peer_info) (piece_i:int) : unit =
 let try_request_pieces t =
   let n = G.max_pending_request - t.num_requested in
   if n > 0 then 
-
     let f pi = pi.peer, pi.state in  
     let new_table = Hashtbl.map t.peers ~f in
-    let l = Strategy.next_requests t.file new_table n in
     let f (piece_i, (peer, state)) = 
       let pi = { peer; state } in 
       request_all_blocks_from_piece t pi piece_i 
     in
-    List.iter l ~f
+    Strategy.next_requests t.file new_table n |> List.iter ~f
 
 let process_message t (pi:peer_info) (m:M.t) : unit =
 
@@ -81,13 +76,14 @@ let process_message t (pi:peer_info) (m:M.t) : unit =
     Peer.validate pi.peer (File.is_valid_piece_index t.file index);
     Peer.validate pi.peer (Piece.is_valid_block piece bgn len);
     match Piece.update piece bgn block with 
-    | `Ok -> debug "got block - piece %d offset = %d" index bgn
+    | `Ok -> ()
+    (* debug "got block - piece %d offset = %d" index bgn *)
     | `Hash_error -> 
       decr_requested t;
       File.set_piece_status t.file index `Not_requested;
       info "hash error piece %d from %s" index (to_string pi)
     | `Downloaded ->
-      debug "got piece %d from %s " index (to_string pi);
+      (* debug "got piece %d from %s " index (to_string pi); *)
       Peer.set_downloading pi.peer;
       State.remove_pending pi.state index;
       File.set_piece_status t.file index `Downloaded;
@@ -103,17 +99,11 @@ let process_message t (pi:peer_info) (m:M.t) : unit =
       send_have_messages t index 
   in
 
-  let process_extended id b = 
-    info "received extended message id = %d" id;
-    let bc = Bencode_ext.decode (`String b) in
-    info "%s" (Bencode_ext.pretty_print bc)
-  in
-
   let process_request index bgn length =
     let piece = File.get_piece t.file index in
-    P.validate pi.peer (File.is_valid_piece_index t.file index);
-    P.validate pi.peer (Piece.is_valid_block_request piece bgn length);
-    P.validate pi.peer (File.has_piece t.file index);
+    File.is_valid_piece_index t.file index |> P.validate pi.peer;
+    Piece.is_valid_block_request piece bgn length |> P.validate pi.peer;
+    File.has_piece t.file index |> P.validate pi.peer;
     if not (State.am_choking pi.state) then (
       P.set_uploading pi.peer;
       let piece = File.get_piece t.file index in
@@ -156,7 +146,7 @@ let process_message t (pi:peer_info) (m:M.t) : unit =
       Addr.create (Peer.addr pi.peer) port |> 
       Krpc.try_add |> Deferred.ignore |> don't_wait_for )
   | M.Extended (id, b) -> 
-    process_extended id b 
+    info "ignore extended message, already received after handshake"
 
 
 
@@ -190,7 +180,7 @@ let rec wait_and_process_message t (pi:peer_info) =
       (* signal the deconnection of the peer *)
       cancel_requests t pi;
       info "peer %s has left - remove it from peers" (to_string pi); 
-      remove_peer t (peer_id pi);
+      peer_id pi |> remove_peer t;
       return (`Finished ())
 
   in

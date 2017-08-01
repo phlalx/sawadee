@@ -42,8 +42,11 @@ let create peer_addr r w =
 
 let to_string t = Printf.sprintf "%s" (Peer_id.to_readable_string t.id)
 
-(* last bit of sequence set to 1 = DHT support *)
-let hs_prefix = "\019BitTorrent protocol\000\000\000\000\000\016\000\001"  
+(* last bit of sequence set to 1 = DHT support, bit 20 = extension *)
+
+let status_bytes = "\000\000\000\000\000\016\000\001"  
+
+let hs_prefix = "\019BitTorrent protocol" ^ status_bytes
 
 let hs hash pid = sprintf "%s%s%s" hs_prefix hash pid   
 
@@ -59,6 +62,9 @@ let hs_len = (String.length hs_prefix) + Bt_hash.length + Bt_hash.length (* 68 *
 let validate_handshake received info_hash =
   let hash_pos = String.length hs_prefix  in
   let peer_pos = hash_pos + Bt_hash.length in
+  let sb = String.sub received  ~pos:20 ~len:8 in
+  info "status_byte = sb %b" (status_bytes = sb);
+  info "sb = %S" sb;
   let info_hash_rep = String.sub received ~pos:hash_pos ~len:Bt_hash.length in
   let remote_peer_id = String.sub received ~pos:peer_pos ~len:Peer_id.length in
   match info_hash_rep = info_hash with
@@ -79,8 +85,9 @@ let initiate_handshake t hash pid =
   | `Ok -> ( 
       match validate_handshake buf hash with
       | None -> Error (Error.of_string "hash error")
-      | Some p -> t.id <- Peer_id.of_string p;
-        info "handshake ok with %s = %s" (to_string t)
+      | Some p -> 
+        t.id <- Peer_id.of_string p;
+        info "handshake ok with %s = %s" (to_string t) 
           (Addr.to_string t.peer_addr);
         Ok ()
     ) 
@@ -89,6 +96,9 @@ let initiate_handshake t hash pid =
 let extract_reply received =
   let hash_pos = String.length hs_prefix  in
   let peer_pos = hash_pos + Bt_hash.length in
+  let sb = String.sub received  ~pos:20 ~len:8 in
+  info "status_byte = sb %b" (status_bytes = sb);
+  info "sb = %S" sb;
   let info_hash_rep = String.sub received ~pos:hash_pos ~len:Bt_hash.length in
   let remote_peer_id = String.sub received ~pos:peer_pos ~len:Peer_id.length in
   info_hash_rep, remote_peer_id
@@ -136,16 +146,30 @@ let get_message t =
       | `Ok -> 
         pos_ref := 0;
         let msg = Message.bin_read_t buf ~pos_ref in
-        debug "got message %s from %s" (Message.to_string msg) (to_string t);
+        (* debug "got message %s from %s" (Message.to_string msg) (to_string t); *)
         `Ok msg)
 
 let send_message t (m:Message.t) =
   let len = 4 + Message.size m in (* prefix length + message *)
-  debug "sending message %s %s" (Message.to_string m) (to_string t);
+  (* debug "sending message %s %s" (Message.to_string m) (to_string t); *)
   let buf = t.send_buffer in
   let pos = Message.bin_write_t buf 0 m in
   assert(pos = len); 
   Writer.write_bigstring t.writer buf ~len
+
+let send_extended_handshake t : unit Deferred.Or_error.t = 
+  let em = Extension.Unknown in 
+  let s = Extension.to_string em in 
+  let m = Message.Extended (0, s) in 
+  send_message t m;
+  return (Ok ())
+
+let get_extended_handshake t : unit Deferred.Or_error.t = 
+  match%bind get_message t with 
+  | `Ok (Message.Extended (0, em)) ->
+    info "got something"; return (Ok())
+  | `Eof -> assert false
+  | `Ok m -> failwith (Message.to_string m)
 
 exception Incorrect_behavior
 
@@ -168,12 +192,13 @@ let set_uploading t =
 let addr t = Addr.addr t.peer_addr
 
 let create_with_connect addr = 
-    let open Deferred.Or_error.Monad_infix in 
-    let wtc = Tcp.to_inet_address addr in
-    debug "try connecting to peer %s" (Addr.to_string addr);
-    Deferred.Or_error.try_with (function () -> Tcp.connect wtc)
-    >>| fun (_, r, w) ->
-    create addr r w 
+  let open Deferred.Or_error.Monad_infix in 
+  let wtc = Tcp.to_inet_address addr in
+  debug "try connecting to peer %s" (Addr.to_string addr);
+  Deferred.Or_error.try_with (function () -> Tcp.connect wtc)
+  >>| fun (_, r, w) ->
+  create addr r w 
+
 
 let close t = 
   Writer.close t.writer >>= fun () -> Reader.close t.reader

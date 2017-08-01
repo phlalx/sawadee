@@ -4,12 +4,13 @@
    doesn't have the right format *) 
 
 open Core
-open Async (* only needed for Addr.t *)
 open Bin_prot
 
 module B = Bencode_ext
 
 type token = string
+
+exception Krpc_exception of string
 
 type query = 
   | Ping of Node_id.t 
@@ -80,7 +81,7 @@ let bencode_of_response =
   function
   | R_ping_or_get_peers_node id -> ("id", Node_id.to_bencode id) :: []
   | R_find_node (id, nodes) -> ("id", Node_id.to_bencode id) :: 
-                               ("nodes", (Addr.to_bencode nodes) ) :: [] (* TODO why nodes key for a peer? *)
+                               ("nodes", (Addr.to_bencode nodes) ) :: []
   | R_get_peers_nodes (id, token, nodes) -> 
     ("id", Node_id.to_bencode id) :: ("token", B.String token) :: 
     ("nodes", (Node_info.list_to_bencode nodes) ) :: []
@@ -145,7 +146,7 @@ let query_of_bencode b =
     let port = B.dict_get_int_exn args "port" in
     let token = B.dict_get_string_exn args "token" in
     Announce_peer (id, info_hash, port, token)
-  | _ -> assert false
+  | _ -> raise (Krpc_exception (B.pretty_print b))
 
 let response_of_bencode b = 
   let r = B.dict_get_exn b "r" in
@@ -166,15 +167,14 @@ let response_of_bencode b =
     R_find_node (id, nodes)
   | None, None, None -> 
     R_ping_or_get_peers_node id
-  | _ -> 
-    Printf.sprintf "bencode = %s" (B.pretty_print b) |> failwith 
+  | _ -> raise (Krpc_exception (B.pretty_print b))
 
 let int_to_error_code = function
   | 201 -> Generic_error
   | 202 -> Server_error
   | 203 -> Protocol_error
   | 204 -> Method_unknown
-  | _ -> assert false
+  | _ -> raise (Krpc_exception "unknown error code")
 
 let error_of_bencode_list = 
   function
@@ -182,7 +182,7 @@ let error_of_bencode_list =
     let c = B.as_int_exn code in
     let m = B.as_string_exn msg in
     Error (int_to_error_code c,m)
-  | _ -> assert false
+  | _ -> raise (Krpc_exception "wrong error message")
 
 let content_of_bencode b = 
   B.dict_get_string_exn b "y" 
@@ -190,7 +190,7 @@ let content_of_bencode b =
   | "q" -> Query (query_of_bencode b)
   | "r" -> Response (response_of_bencode b)
   | "e" -> B.dict_get_list_exn b "e" |> error_of_bencode_list 
-  | _ -> assert false
+  | _ -> raise (Krpc_exception (B.pretty_print b))
 
 let t_of_bencode b = 
   let transaction_id = B.dict_get_string_exn b "t" in
@@ -212,18 +212,9 @@ let bin_write_t (buf:Common.buf) ~(pos:Common.pos) (x:t) =
   Common.blit_string_buf s buf ~len;
   len 
 
-
 let with_dummy_content content = { transaction_id = ""; content } 
 
 let dummy = Query (Ping Node_id.dummy) |> with_dummy_content
-
-
-
-
-
-
-
-
 
 
 

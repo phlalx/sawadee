@@ -59,7 +59,7 @@ module Id = struct
     let f c =
       let i = int_of_char c in
       char_of_int (65 + (i % 26))
-    in String.prefix (String.map x ~f) 5
+    in String.suffix (String.map x ~f) 6 
 
   let list_to_bencode l = B.String (String.concat (List.map l ~f:to_string))
 
@@ -68,6 +68,5 @@ module Id = struct
   let to_hex t = Hex.of_string t |> function (`Hex s) -> s
 
   let of_hex s = Hex.to_string (`Hex s)
-
 
 end

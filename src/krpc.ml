@@ -23,7 +23,7 @@ let try_add addr : unit Deferred.Or_error.t =
   >>| fun id -> 
   if Option.is_none (find () id) then (
     t.routing <- (id, addr) :: t.routing;
-    info "added node nodeid(%s) = %s" (Addr.to_string addr) 
+    debug "added node nodeid(%s) = %s" (Addr.to_string addr) 
       (Node_id.to_readable_string id)
   ) 
 
@@ -38,7 +38,7 @@ let lookup_info_hash info_hash (_, addr) =
 
 let k = 8
 
-(* TODO we return the k first node_info closest to info_hash *)
+(* return the k first node_info closest to info_hash *)
 let trim_nodes_info info_hash (nis : Node_info.t list) : Node_info.t list = 
   info "trimming";
   let cmp (id1, _) (id2, _) = Node_id.compare info_hash id1 id2 in
@@ -93,7 +93,6 @@ let populate_from_hash info_hash =
         in
         let _, nodes = List.partition_map l ~f in
         let new_nis = nodes |> List.concat in 
-        (* don't_wait_for (try_add_nis combined_nis); *)
         populate_aux new_nis info_hash ~depth:(depth - 1) (new_nis @ acc)
       end    
   in
@@ -113,9 +112,6 @@ let populate () =
     Deferred.unit 
 
 (**************************************)
-
-
-
 
 
 let table_to_string table =

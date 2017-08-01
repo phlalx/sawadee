@@ -59,9 +59,7 @@ val to_string : t -> string
     [size x] isn't a multiple of 8, the last bits of the string are set to 0. *)
 val to_bitfield : t -> Bitfield.t
 
-val of_bitfield : Bitfield.t -> int -> t (* TODO of_bitfield *)
-(** TODO: according to the specification, we should check that bitfield has 
-    the right size and all extra bits are set to 0 *)
+val of_bitfield : Bitfield.t -> int -> t 
 
 (** [insert_from_bitfield t b] fills t with bits in bitfield [b] as 
     specified by the peer protocol. *)

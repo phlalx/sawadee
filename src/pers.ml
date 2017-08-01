@@ -23,7 +23,6 @@ type t = {
   rd : Piece.t Pipe.Reader.t;
 }
 
-(* TODO: try to simplify/improve this *)
 let rec align_along_piece_length l pl =
   match l with 
   | [] -> []
@@ -39,7 +38,7 @@ let rec align_along_piece_length l pl =
        ({ name; fd; off = off + len1; len = len2; off_in_file = off_in_file + len1 } :: t) 
        pl  )
 
-(* TODO: try to simplify/improve this *)
+(* probably too complicated *)
 let rec split_along_piece_length l pl num_pieces =
   let a = List.to_array (align_along_piece_length l pl) in
   let res = Array.create num_pieces [] in 
@@ -62,10 +61,10 @@ let rec split_along_piece_length l pl num_pieces =
 
 let read_piece t p = 
   let i = Piece.get_index p in
-  debug "read piece %d from disk" i;
+  (* debug "read piece %d from disk" i; *)
   let f seg : unit Deferred.t = 
     let { name; fd; off; len; off_in_file } = seg in
-    debug "reading piece %d from %s" i (segment_to_string seg);
+    (* debug "reading piece %d from %s" i (segment_to_string seg); *)
     let s = Piece.get_bigstring_content p in
     let pos = off % t.piece_length in
     Io.read fd s off_in_file pos len
@@ -75,10 +74,10 @@ let read_piece t p =
 let read_from_pipe t =
   let read_piece p = 
     let i = Piece.get_index p in
-    debug "read from pipe piece %d" i;
+    (* debug "read from pipe piece %d" i; *)
     let f seg : unit Deferred.t = 
       let { name; fd; off; len; off_in_file } = seg in
-      debug "writing piece %d to %s" i (segment_to_string seg);
+      (* debug "writing piece %d to %s" i (segment_to_string seg); *)
       let s = Piece.get_bigstring_content p in
       let pos = off % t.piece_length in
       Io.write fd s off_in_file pos len 
@@ -128,19 +127,13 @@ let init_write_pipe t ~finally =
   read_from_pipe t >>= finally 
 
 let write_piece t p = 
-  debug "piece %d is pushed to the I/O pipe" (Piece.get_index p);
+  (* debug "piece %d is pushed to the I/O pipe" (Piece.get_index p); *)
   if not (Pipe.is_closed t.wr) then
   Pipe.write_without_pushback t.wr p 
 
 let close_all_files t = 
   info "closing all files";
   Deferred.List.iter t.fds ~f:Fd.close
-
-let read_bitfield f ~len = Bitfield.of_string (In_channel.read_all f)
-
-let write_bitfield f bf = 
-  info "writing bitfield to file %s" f;
-  Out_channel.write_all f ~data:(Bitfield.to_string bf)
 
 let close_pipe t = Pipe.close t.wr
 

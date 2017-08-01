@@ -1,6 +1,4 @@
-(** Client-specific global constant 
-
-    TODO : put this in a JSON file. *)
+(** Client-specific global constant *)
 
 open Core
 open Async

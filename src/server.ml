@@ -7,11 +7,10 @@ module G = Global
 
 let table = Hashtbl.Poly.create ()
 
-let add info_hash pwp = ignore (Hashtbl.add table ~key:info_hash ~data:pwp)
+let add info_hash pwp = Hashtbl.add table ~key:info_hash ~data:pwp |> ignore
 
 let handler addr r w =
 
-  (* TODO duplicated with start.ml, is there an api function for this? *)
   let ignore_error addr : unit Or_error.t -> unit =
     function 
     | Ok () -> () 

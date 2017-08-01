@@ -45,10 +45,6 @@ val write_piece : t -> Piece.t -> unit
 
 val read_piece : t -> Piece.t -> unit Deferred.t
 
-val read_bitfield : string -> len:int -> Bitfield.t 
-
-val write_bitfield : string -> Bitfield.t -> unit 
-
 (** process write_piece requests, when close_pipe is closed, 
 drain the pipe and execute finally.
 

@@ -16,7 +16,7 @@ let seek_and_io fd bytes ~off ~pos ~len operation =
     | `Read -> Bigstring.read ~pos ~len desc bytes
     | `Write -> Bigstring.write ~pos ~len desc bytes
   in
-  debug "read/write from off = %d len = %d" off len;
+  (* debug "read/write from off = %d len = %d" off len; *)
   match Fd.syscall fd f with
   | `Already_closed -> assert false
   | `Ok l -> assert (l = len); Deferred.unit

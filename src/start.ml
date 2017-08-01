@@ -29,18 +29,17 @@ let add_peers pwp info_hash addrs : unit Deferred.t =
   let f addr = add_peer addr >>| ignore_error addr in
   Deferred.List.iter ~how:`Parallel addrs ~f
 
-(* TODO try to use option monad *)
 let parse_uri f =
 
   let uri = Uri.of_string f in
 
   (* st should be of the form "urn:btih:hex_info_hash" *)
   let decode_xt st = 
-    if not (String.length st = 49) then
-      `Invalid_magnet
-    else
+    match (String.length st) = 49 with
+    | true ->
       let info_hash = String.sub st ~pos:9 ~len:40 |> Bt_hash.of_hex in
       `Magnet info_hash
+    | false -> `Invalid_magnet
   in
 
   let extract_param uri = 
@@ -55,15 +54,27 @@ let parse_uri f =
   | None -> `File f
   | _ -> `Other
 
+let check_peer info_hash addr = 
+  let open Deferred.Or_error.Monad_infix in 
+  Peer.create_with_connect addr
+  >>= fun p ->
+  Peer.initiate_handshake p info_hash G.peer_id 
+  >>= fun () ->
+  Peer.send_extended_handshake p 
+  >>= fun () -> 
+  Peer.get_extended_handshake p 
+  >>= fun () -> 
+  Peer.close p |> Deferred.ok
+
+
 
 let process_magnet m = 
   info "processing magnet %s" (Bt_hash.to_hex m);
-  let%bind peers = Krpc.lookup m in
-  let f p = 
-    (* TODO *)
-    info "found peer %s" (Addr.to_string p) in
-  List.iter peers ~f;
-  never ()
+  let%bind addrs = Krpc.lookup m in
+
+  let f addr = check_peer m addr >>| ignore_error addr in
+  Deferred.List.iter ~how:`Parallel addrs ~f
+
 
 let process_file f = 
   (***** read torrent file *****)
@@ -93,7 +104,7 @@ let process_file f =
 
   let bitfield = 
     try
-      Pers.read_bitfield bf_name bf_len  (* TODO don't deserve function in Pers *)
+      In_channel.read_all bf_name |> Bitfield.of_string
     with _ -> 
       info "can't read bitfield %s. Using empty bitfield" bf_name;
       Bitfield.empty bf_len
@@ -119,14 +130,16 @@ let process_file f =
 
   Print.printf "read %d%% from disk\n" (File.percent file);
   info "read %d/%d pieces" (File.num_downloaded_pieces file) num_pieces;
-  debug "read from files: %s" (File.pieces_to_string file);
+  (* debug "read from files: %s" (File.pieces_to_string file); *)
 
   (***** set up Pers (pipe for writing pieces) *****)
 
   (* this will be called when pipe is closed *)
   let finally () =
+    info "writing bitfield to file %s" f;
     (try
-       Pers.write_bitfield bf_name (File.bitfield file)
+       Out_channel.write_all bf_name 
+         ~data:(Bitfield.to_string (File.bitfield file))
      with 
        _  -> Print.printf "%s\n" (Em.can't_open bf_name));
 
@@ -135,7 +148,7 @@ let process_file f =
     Pers.close_all_files pers >>= fun () ->
     Print.printf "written %d%% to disk\n" (File.percent file);
     info "written %d/%d pieces" (File.num_downloaded_pieces file) num_pieces;
-    debug "written to files: %s" (File.pieces_to_string file);
+    (* debug "written to files: %s" (File.pieces_to_string file); *)
     exit 0
   in 
 

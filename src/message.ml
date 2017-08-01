@@ -34,7 +34,7 @@ let size = function
   | Piece (_,_,s) -> 9 + (String.length s)
   | Cancel _ -> 13 
   | Port _ -> 3
-  | Extended (_, b) -> 1 + (String.length b)
+  | Extended (_, b) -> 2 + (String.length b)
 
 exception Unkown_message of int 
 
