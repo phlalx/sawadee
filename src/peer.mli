@@ -21,6 +21,7 @@ val equals : t -> t -> bool
     handshake. *)
 val create : Addr.t -> Reader.t -> Writer.t -> t
 
+val create_with_connect : Addr.t -> t Deferred.Or_error.t
 
 (** Used to identify peers in log (readable peer_id) *)
 val to_string : t -> string
@@ -55,7 +56,6 @@ val get_message : t -> Message.t Reader.Read_result.t Deferred.t
 
 val send_message : t -> Message.t -> unit
 
-
 (** assert a condition dependent on values received by a peer. For instance,
     if peer doesn't behave according to the protocol. raises if false 
 
@@ -67,3 +67,6 @@ val set_downloading : t -> unit
 val set_uploading : t -> unit
 
 val addr : t -> Unix.Inet_addr.t
+
+val close : t -> unit Deferred.t
+

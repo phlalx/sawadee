@@ -167,4 +167,13 @@ let set_uploading t =
 
 let addr t = Addr.addr t.peer_addr
 
+let create_with_connect addr = 
+    let open Deferred.Or_error.Monad_infix in 
+    let wtc = Tcp.to_inet_address addr in
+    debug "try connecting to peer %s" (Addr.to_string addr);
+    Deferred.Or_error.try_with (function () -> Tcp.connect wtc)
+    >>| fun (_, r, w) ->
+    create addr r w 
 
+let close t = 
+  Writer.close t.writer >>= fun () -> Reader.close t.reader

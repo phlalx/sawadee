@@ -13,32 +13,17 @@ let ignore_error addr : unit Or_error.t -> unit =
     info "Error connecting with peer %s" (Addr.to_string addr);
     debug "Error connecting %s" (Sexp.to_string (Error.sexp_of_t err))
 
-let add_connected_peer pwp info_hash num_pieces addr r w  =
-  let open Deferred.Or_error.Monad_infix in 
-  let peer = P.create addr r w in
-  P.initiate_handshake peer info_hash G.peer_id
-  >>= fun () ->
-  Print.printf "handshake with (tracker) peer %s\n" (P.addr_to_string peer);
-  Pwp.add_peer pwp peer
-
-(* TODO must be a more elegant way of combining these monads *)
-let add_connected_peer_and_close pwp info_hash num_pieces addr r w =
-  let close x = Writer.close w >>= fun () -> Reader.close r >>| fun () -> x in
-  add_connected_peer pwp info_hash num_pieces addr r w 
-  >>= close
-
-let add_peers_from_tracker pwp torrent addrs : unit Deferred.t =
-
-  let open Torrent in 
-  let { info_hash; num_pieces } = torrent in
+let add_peers pwp info_hash addrs : unit Deferred.t =
 
   let add_peer addr = 
     let open Deferred.Or_error.Monad_infix in 
-    let wtc = Tcp.to_inet_address addr in
-    debug "try connecting to peer %s" (Addr.to_string addr);
-    Deferred.Or_error.try_with (function () -> Tcp.connect wtc)
-    >>= fun (_, r, w) ->
-    add_connected_peer_and_close pwp info_hash num_pieces addr r w 
+    Peer.create_with_connect addr
+    >>= fun p ->
+    Peer.initiate_handshake p info_hash G.peer_id 
+    >>= fun () -> 
+    Pwp.add_peer pwp p 
+    >>= fun () -> 
+    Peer.close p |> Deferred.ok
   in
 
   let f addr = add_peer addr >>| ignore_error addr in
@@ -74,23 +59,10 @@ let parse_uri f =
 let process_magnet m = 
   info "processing magnet %s" (Bt_hash.to_hex m);
   let%bind peers = Krpc.lookup m in
-  List.iter peers ~f:(fun p -> info "found peer %s" (Addr.to_string p));
-
-  (* 
-    we get peers... then what? 
-    handshake. 
-    but we can't add them to pwp. 
-    we can't even create pwp.
-    or we can add a new state to pwp. 
-    know/don't know info
-    we need to split torrent in two
-    
-
-
-
-  *) 
-
-
+  let f p = 
+    (* TODO *)
+    info "found peer %s" (Addr.to_string p) in
+  List.iter peers ~f;
   never ()
 
 let process_file f = 
@@ -167,7 +139,7 @@ let process_file f =
     exit 0
   in 
 
-  don't_wait_for (Pers.init_write_pipe pers ~finally);
+  Pers.init_write_pipe pers ~finally |> don't_wait_for;
 
   Signal.handle Signal.terminating ~f:(fun _ -> Pers.close_pipe pers);
 
@@ -189,7 +161,7 @@ let process_file f =
 
   let pwp = Pwp.create t file pers in
 
-  let peers = add_peers_from_tracker pwp t addrs in 
+  let peers = add_peers pwp info_hash addrs in 
 
   if G.is_server () then
     Server.add info_hash pwp; 
