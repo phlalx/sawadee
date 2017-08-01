@@ -11,6 +11,7 @@ type t = {
   mutable have : Bitset.t;
   mutable pending : Int.Set.t;
   mutable id : Peer_id.t;
+  mutable idle : bool;
 }
 
 let create () = {
@@ -21,7 +22,12 @@ let create () = {
     am_choking = false; (* should be opposite when starting TODO *) 
     have = Bitset.empty 0; (* to be set by [init_size_owned_pieces] *)
     pending = Int.Set.empty;
+    idle = false;
 }
+
+let is_idle t = t.idle
+
+let set_idle t b = t.idle <- b
 
 let to_string t = Peer_id.to_readable_string t.id 
 

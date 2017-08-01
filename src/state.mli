@@ -10,6 +10,7 @@ type t = {
   mutable have : Bitset.t;
   mutable pending : Int.Set.t;
   mutable id : Peer_id.t;
+  mutable idle : bool;
 }
 
 val create : unit -> t
@@ -20,6 +21,11 @@ val create : unit -> t
     we don't know what torrent the peer is going to request. This is not the 
     case now, but we could be serving more than one torrent *)
 val init_size_owned_pieces : t -> int -> unit
+
+(** unresponsive peers become idle, we don't request them anymore pieces. *)
+val is_idle : t -> bool
+
+val set_idle : t -> bool -> unit
 
 (** [t] maintains the set of pieces owned by peer. Pieces are referred to by 
     their indexes. These `owned pieces` are updated upon message reception

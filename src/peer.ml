@@ -11,7 +11,6 @@ type t = {
   mutable id : Peer_id.t;
   reader : Reader.t;
   writer : Writer.t;
-  mutable idle : bool;
   receive_buffer : Bigstring.t;
   send_buffer : Bigstring.t;  
   mutable downloading : bool;
@@ -33,7 +32,6 @@ let create peer_addr r w =
     id = Peer_id.dummy;
     reader = r; 
     writer = w; 
-    idle = false;
     (* this should be big enough to contain [Piece.block_size]
        and the message header TODO *)
     receive_buffer = Bin_prot.Common.create_buf 40000;
@@ -148,10 +146,6 @@ let send_message t (m:Message.t) =
   let pos = Message.bin_write_t buf 0 m in
   assert(pos = len); 
   Writer.write_bigstring t.writer buf ~len
-
-let is_idle t = t.idle
-
-let set_idle t b = t.idle <- b
 
 exception Incorrect_behavior
 

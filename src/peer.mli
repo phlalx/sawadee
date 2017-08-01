@@ -55,10 +55,6 @@ val get_message : t -> Message.t Reader.Read_result.t Deferred.t
 
 val send_message : t -> Message.t -> unit
 
-(** unresponsive peers become idle, we don't request them anymore pieces. *)
-val is_idle : t -> bool
-
-val set_idle : t -> bool -> unit
 
 (** assert a condition dependent on values received by a peer. For instance,
     if peer doesn't behave according to the protocol. raises if false 

@@ -202,7 +202,7 @@ let rec wait_and_process_message t (pi:peer_info) =
        them. *)
     info "peer %s is slow - set idle" (to_string pi); 
     cancel_requests t pi;
-    Peer.set_idle pi.peer true;
+    State.set_idle pi.state true;
     return (`Finished ())
   | `Result r -> result r
 

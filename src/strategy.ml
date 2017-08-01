@@ -27,7 +27,7 @@ let next_requests file peers n : (int * pi) list =
      we also returns the number of peers that have this list, so we can pick
      rarest pieces first *)
   let peers_having_piece i : (int * pi * int) option = 
-    let f (p,s) = (S.has_piece s i) && not (S.is_peer_choking s) && not (P.is_idle p) 
+    let f (p,s) = (S.has_piece s i) && not (S.is_peer_choking s) && not (S.is_idle s) 
     in
     let l = List.filter peers ~f in
     let n = List.length l in
