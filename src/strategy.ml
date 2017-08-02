@@ -3,11 +3,7 @@ open Core
 open Async
 open Log.Global
 
-module S = State
-module P = Peer
-
-(* TODO temporary *)
-type pi = Peer.t * State.t 
+module Ps = Peer_state
 
 (** Find (piece_index, peer) to download from. 
 
@@ -15,7 +11,7 @@ type pi = Peer.t * State.t
     gets updated on the basis of new events, instead of recomputing this
     all the time *)
 
-let next_requests file peers n : (int * pi) list =
+let next_requests file peers n : (int * Ps.t) list =
 
   let peers = Hashtbl.to_alist peers in
   let peers = List.map peers ~f:snd in
@@ -26,9 +22,9 @@ let next_requests file peers n : (int * pi) list =
      TODO: we could choose a "better" peer instead of the first one
      we also returns the number of peers that have this list, so we can pick
      rarest pieces first *)
-  let peers_having_piece i : (int * pi * int) option = 
-    let f (p,s) = 
-      (S.has_piece s i) && not (S.is_peer_choking s) && not (S.is_idle s) 
+  let peers_having_piece i : (int * Ps.t * int) option = 
+    let f p = 
+      (Ps.has_piece p i) && not (Ps.is_peer_choking p) && not (Ps.is_idle p) 
     in
     let l = List.filter peers ~f in
     let n = List.length l in

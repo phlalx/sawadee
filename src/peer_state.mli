@@ -3,6 +3,7 @@ open Async
 open Log.Global
 
 type t = {
+  peer : Peer.t;
   mutable peer_choking : bool; 
   mutable peer_interested : bool;
   mutable am_choking : bool;
@@ -13,7 +14,13 @@ type t = {
   mutable idle : bool;
 }
 
-val create : unit -> t
+val create : Peer.t -> t
+
+val peer : t -> Peer.t
+
+val id : t -> Peer_id.t
+
+val to_string : t -> string
 
 (** maximal number of owned pieces, should be called right after handshake 
 

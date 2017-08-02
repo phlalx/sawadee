@@ -181,7 +181,15 @@ let process_file f =
      - those that we contact  (got their addresses from the tracker
      - those that contact us (via the server) *)
 
-  let pwp = Pwp.create tinfo file pers in
+  (* TODO eventually we'll create file and pers in Pwp *)
+  let meta = Pwp.{
+      torrent = tinfo;
+      file;
+      pers;
+      num_requested = 0; 
+    }  in
+
+  let pwp = Pwp.create ~meta () in
 
   let peers = add_peers pwp info_hash addrs in 
 

@@ -3,6 +3,7 @@ open Async
 open Log.Global
 
 type t = {
+  peer : Peer.t;
   mutable peer_choking : bool; 
   mutable peer_interested : bool;
   mutable am_choking : bool;
@@ -13,7 +14,8 @@ type t = {
   mutable idle : bool;
 }
 
-let create () = {
+let create peer = {
+    peer;
     id = Peer_id.dummy;
     peer_interested = false; 
     peer_choking = true; 
@@ -23,6 +25,10 @@ let create () = {
     pending = Int.Set.empty;
     idle = false;
 }
+
+let id t = t.id
+
+let peer t = t.peer
 
 let is_idle t = t.idle
 

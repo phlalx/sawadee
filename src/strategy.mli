@@ -5,8 +5,5 @@
 
 open Core
 
-type pi = Peer.t * State.t 
-
-(* TODO change this interface. *)
-val next_requests : File.t -> (Peer_id.t, pi) Hashtbl.t -> int -> 
-(int * pi) list
+val next_requests : File.t -> (Peer_id.t, Peer_state.t) Hashtbl.t -> int -> 
+(int * Peer_state.t) list
