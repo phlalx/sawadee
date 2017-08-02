@@ -10,8 +10,8 @@ let ignore_error addr : unit Or_error.t -> unit =
   function 
   | Ok () -> () 
   | Error err -> 
-    info "Error connecting with peer %s" (Addr.to_string addr);
-    debug "Error connecting %s" (Sexp.to_string (Error.sexp_of_t err))
+    info !"Error connecting with peer %{Addr}" addr;
+    debug !"Error connecting %{Sexp}" (Error.sexp_of_t err)
 
 let add_peers pwp info_hash addrs : unit Deferred.t =
 
@@ -54,27 +54,11 @@ let parse_uri f =
   | None -> `File f
   | _ -> `Other
 
-
-
-
-
-let check_peer info_hash addr = 
-  let open Deferred.Or_error.Monad_infix in 
-  Peer.create_with_connect addr
-  >>= fun p ->
-  Peer.initiate_handshake p info_hash G.peer_id 
-  >>= fun () ->
-  Peer.send_extended_handshake p 
-  >>= fun () -> 
-  Peer.get_extended_handshake p 
-  >>= fun () -> 
-  Peer.close p |> Deferred.ok
-
-let process_magnet m = 
-  info "processing magnet %s" (Bt_hash.to_hex m);
-  let%bind addrs = Krpc.lookup m in
-  let f addr = check_peer m addr >>| ignore_error addr in
-  Deferred.List.iter ~how:`Parallel addrs ~f
+let process_magnet hash = 
+  info !"processing magnet %{Bt_hash.to_hex}" hash;
+  let pwp = Pwp.create () in
+  let%bind addrs = Krpc.lookup hash in
+  add_peers pwp hash addrs
 
 let process_file f = 
   (***** read torrent file *****)
@@ -132,7 +116,6 @@ let process_file f =
 
   Print.printf "read %d%% from disk\n" (File.percent file);
   info "read %d/%d pieces" (File.num_downloaded_pieces file) num_pieces;
-  (* debug "read from files: %s" (File.pieces_to_string file); *)
 
   (***** set up Pers (pipe for writing pieces) *****)
 
@@ -150,7 +133,6 @@ let process_file f =
     >>= fun () ->
     Print.printf "written %d%% to disk\n" (File.percent file);
     info "written %d/%d pieces" (File.num_downloaded_pieces file) num_pieces;
-    (* debug "written to files: %s" (File.pieces_to_string file); *)
     exit 0
   in 
 

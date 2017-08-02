@@ -33,7 +33,7 @@ let callback ~body (addr : Addr.t) request =
   let set_port p =
     let port = int_of_string p in
     let peer_addr = Addr.create inet_addr ~port in
-    info "added peer %s" (Addr.to_string peer_addr);
+    info !"added peer %{Addr}" peer_addr;
     state.peers <- List.dedup (peer_addr :: state.peers)
   in
   Option.value_map port ~default:() ~f:set_port;

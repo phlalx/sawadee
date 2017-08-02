@@ -48,24 +48,24 @@ let owned_pieces t = t.have
 let set_owned_piece t i = Bitset.insert t.have i
 
 let set_owned_pieces t s = Bitset.insert_from_bitfield t.have s;
-  info "peer %s has %d pieces" (to_string t) (Bitset.card t.have) 
+  info !"peer %{} has %d pieces" t (Bitset.card t.have) 
 
 let is_or_not b = if b then "" else "not"
 
 let set_peer_interested t b = 
-  info "%s is %s interested" (to_string t) (is_or_not b);
+  info !"%{} is %{is_or_not} interested" t b;
   t.peer_interested <- b
 
 let set_peer_choking t b = 
-  info "%s is %s choking" (to_string t) (is_or_not b);
+  info !"%{} is %{is_or_not} choking" t b;
   t.peer_choking <- b
 
 let set_am_interested t b = 
-  info "I am %s interested in %s" (is_or_not b) (to_string t);
+  info !"I am %{is_or_not} interested in %{}" b t;
   t.am_interested <- b
 
 let set_am_choking t b = 
-  info "I am %s choking %s" (is_or_not b) (to_string t);
+  info !"I am %{is_or_not} choking %{}" b t;
   t.am_choking <- b
 
 let is_peer_choking t = t.peer_choking

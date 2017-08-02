@@ -31,7 +31,7 @@ let for_all_peers t ~f = Hashtbl.iter t.peers ~f
 let send_have_messages t i =
   let notify_if_doesn't_have i st =
     if not (Ps.has_piece st i) then (
-      debug "notify peer %s about piece %d" (Ps.to_string st) i;
+      debug !"notify peer %{Ps} about piece %d" st i;
       let p = Ps.peer st in 
       M.Have i |> P.send_message p 
     ) in
@@ -40,7 +40,7 @@ let send_have_messages t i =
 (* we always request all blocks from a piece to the same peer at the 
    same time *)
 let request_all_blocks_from_piece (meta:t_meta) (st:Ps.t) (piece_i:int) : unit =
-  (* debug "requesting piece %d from peer %s" piece_i (to_string st); *)
+  (* debug !"requesting piece %d from peer %{}" piece_i st; *)
   incr_requested meta;
   File.set_piece_status meta.file piece_i `Requested; 
   Ps.add_pending st piece_i;
@@ -75,9 +75,9 @@ let process_message (t:t) (st:Ps.t) (m:M.t) : unit =
     | `Hash_error -> 
       decr_requested meta;
       File.set_piece_status meta.file index `Not_requested;
-      info "hash error piece %d from %s" index (Ps.to_string st)
+      info !"hash error piece %d from %{Ps}" index st
     | `Downloaded ->
-      (* debug "got piece %d from %s " index (to_string st); *)
+      (* debug !"got piece %d from %{} " index st; *)
       Peer.set_downloading st.peer;
       Ps.remove_pending st index;
       File.set_piece_status meta.file index `Downloaded;
@@ -151,7 +151,7 @@ let cancel_requests meta st =
   let l = Ps.get_pending st in 
   if not (List.is_empty l) then (
     let s = List.to_string ~f:string_of_int l in 
-    info "cancelling requests from %s: %s" (Ps.to_string st) s
+    info !"cancelling requests from %{Ps}: %s" st s
   );
   List.iter l ~f
 
@@ -173,7 +173,7 @@ let rec wait_and_process_message (t:t) st =
     | `Eof ->  
       (* signal the deconnection of the peer *)
       cancel_requests meta st;
-      info "peer %s has left - remove it from peers" (Ps.to_string st); 
+      info !"peer %{Ps} has left - remove it from peers" st; 
       Ps.id st |> remove_peer t;
       `Finished ()
   in
@@ -184,7 +184,7 @@ let rec wait_and_process_message (t:t) st =
     (* TODO decide what to do with these idle peers - keep using them but
        mark them as bad and give priority to other peers? now we just ignore
        them. *)
-    info "peer %s is slow - set idle" (Ps.to_string st); 
+    info !"peer %{Ps} is slow - set idle" st;
     cancel_requests meta st;
     Ps.set_idle st true;
     `Finished ()
@@ -198,7 +198,7 @@ let initiate_protocol t st : unit Deferred.t =
 
   (* we send this optional message if we own pieces of the file *)
   if (File.num_downloaded_pieces meta.file) > 0 then (
-    info "sending my bitfield to %s" (Peer.to_string p);
+    info !"sending my bitfield to %{Peer}" p;
     M.Bitfield (File.bitfield meta.file) |> P.send_message p 
   );
   (* this should only be sent to peers we're interested in. To simplify, 

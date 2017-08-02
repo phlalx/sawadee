@@ -32,8 +32,8 @@ let process
   Option.value_map port ~default:() ~f:G.set_port;
   G.set_path path;
   Option.value_map verbose ~default:() ~f:set_verbose;
-  info "This peer-id:%s" (Peer_id.to_readable_string G.peer_id);
-  info "This node-id:%s" (Node_id.to_readable_string G.node_id);
+  info !"This peer-id:%{Peer_id.to_readable_string}" G.peer_id;
+  info !"This node-id:%{Node_id.to_readable_string}" G.node_id;
   check_path ()
   >>= fun () ->
 

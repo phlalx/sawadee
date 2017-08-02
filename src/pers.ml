@@ -108,7 +108,7 @@ let make_segments fds info_files =
 
 let display_segments segments_of_piece =
   let print_list_segments segments = 
-    List.iter segments ~f:(fun s -> debug "%s" (segment_to_string s)) in
+    List.iter segments ~f:(fun s -> debug !"%{segment_to_string}" s) in
   let f i ls = 
     debug "piece %d" i;
     print_list_segments ls

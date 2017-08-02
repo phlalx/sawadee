@@ -21,7 +21,7 @@ let to_bencode r =
 
 let of_bencode s =
   let bc = `String s |> B.decode in 
-  debug "tracker reply = %s" (B.pretty_print bc);
+  debug !"tracker reply = %{B.pretty_print}" bc;
   let complete = B.dict_get_int_exn bc "complete" in
   let incomplete = B.dict_get_int_exn bc "incomplete" in
   let interval = B.dict_get_int_exn bc "interval" in

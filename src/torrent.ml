@@ -64,7 +64,7 @@ let bencode_to_uri x = x |> B.as_string_exn |> Uri.of_string
 
 let do_file torrent_name chan =
   let bc = `Channel chan |> B.decode in 
-  debug "torrent file = %s" (B.pretty_print bc);
+  debug !"torrent file = %{B.pretty_print}" bc;
   let announce_bc = B.dict_get_exn bc "announce" in
   let announce = bencode_to_uri announce_bc in
   let announce_list : Uri.t list list =
@@ -82,8 +82,8 @@ let do_file torrent_name chan =
   let info_str = B.encode_to_string info_dict_bc in 
   let info_hash = Sha1.string info_str |> Sha1.to_bin |> Bt_hash.of_string in
   let tinfo = info_of_bencode info_dict_bc in
-  (* info "torrent: announce %s" (Uri.to_string announce); *)
-  (* List.concat announce_list |>  List.iter ~f:(info "torrent: announce %s"); *)
+  info !"torrent: announce %{Uri}" announce;
+  List.concat announce_list |>  List.iter ~f:(info !"torrent: announce %{Uri}"); 
   { announce; announce_list; info_hash; torrent_name; tinfo }
 
 

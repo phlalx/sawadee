@@ -57,7 +57,7 @@ let ignore_error : 'a Or_error.t -> 'a Option.t =
   | Ok x -> Some x
   | Error err -> 
     (* failwith (Sexp.to_string (Error.sexp_of_t err)); *)
-    debug "Error connecting %s" (Sexp.to_string (Error.sexp_of_t err));
+    debug !"Error connecting %{Sexp}" (Error.sexp_of_t err);
     None
 
 (*  Error can come from
@@ -66,7 +66,7 @@ let ignore_error : 'a Or_error.t -> 'a Option.t =
     - error while decoding the reply *)
 let query_tracker (info_hash:Bt_hash.t) (uri:Uri.t) : sl Deferred.Option.t = 
   let uri = create_uri_with_parameters info_hash uri in
-  debug "trying uri %s" (Uri.to_string uri);
+  debug !"trying uri %{Uri}" uri;
   let reply_or_error : sl Deferred.Or_error.t =
     let open Deferred.Or_error.Monad_infix in
     check_scheme uri 

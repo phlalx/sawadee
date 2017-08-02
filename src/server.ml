@@ -15,8 +15,8 @@ let handler addr r w =
     function 
     | Ok () -> () 
     | Error err -> 
-      info "Error connecting with peer %s" (Addr.to_string addr);
-      debug "Error connecting %s" (Sexp.to_string (Error.sexp_of_t err))
+      info !"Error connecting with peer %{Addr}" addr;
+      debug !"Error connecting %{Sexp}" (Error.sexp_of_t err)
   in
 
   let handler_or_error () : unit Deferred.Or_error.t = 
@@ -26,7 +26,7 @@ let handler addr r w =
     let has_hash = Hashtbl.mem table in
     P.wait_handshake peer has_hash G.peer_id
     >>= fun info_hash ->
-    Print.printf "handshake with (server) peer %s\n" (P.addr_to_string peer);
+    Print.printf !"handshake with (server) peer %{P.addr_to_string}\n" peer;
     let pwp = Hashtbl.find_exn table info_hash in
     Pwp.add_peer pwp peer
     >>= fun () ->

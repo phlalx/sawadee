@@ -40,7 +40,7 @@ let create peer_addr r w =
     uploading = false;
   }
 
-let to_string t = Printf.sprintf "%s" (Peer_id.to_readable_string t.id)
+let to_string t = Peer_id.to_readable_string t.id
 
 (* last bit of sequence set to 1 = DHT support, bit 20 = extension *)
 
@@ -48,7 +48,7 @@ let status_bytes = "\000\000\000\000\000\016\000\001"
 
 let hs_prefix = "\019BitTorrent protocol" ^ status_bytes
 
-let hs hash pid = sprintf "%s%s%s" hs_prefix hash pid   
+let hs hash pid = hs_prefix ^ hash ^ pid   
 
 let hs_len = (String.length hs_prefix) + Bt_hash.length + Bt_hash.length (* 68 *)
 
@@ -72,7 +72,7 @@ let validate_handshake received info_hash =
   | false -> None
 
 let initiate_handshake t hash pid =
-  debug "handshake (initiate) with %s" (to_string t);
+  debug !"handshake (initiate) with %{}" t;
   let hash = Bt_hash.to_string hash in
   let pid = Peer_id.to_string pid in
   let hs = hs hash pid in
@@ -87,8 +87,7 @@ let initiate_handshake t hash pid =
       | None -> Error (Error.of_string "hash error")
       | Some p -> 
         t.id <- Peer_id.of_string p;
-        info "handshake ok with %s = %s" (to_string t) 
-          (Addr.to_string t.peer_addr);
+        info !"handshake ok with %{} = %{Addr}" t t.peer_addr;
         Ok ()
     ) 
   | `Eof _ -> Error (Error.of_string "handshake error")
@@ -104,7 +103,7 @@ let extract_reply received =
   info_hash_rep, remote_peer_id
 
 let wait_handshake t (has_hash : Bt_hash.t -> bool) pid =
-  debug "handshake (wait) from %s" (to_string t);
+  debug !"handshake (wait) from %{}" t;
   debug "trying to read %d bytes" hs_len;
   let buf = String.create hs_len in
   Reader.really_read t.reader buf ~len:hs_len 
@@ -118,7 +117,7 @@ let wait_handshake t (has_hash : Bt_hash.t -> bool) pid =
         t.id <- peer_id;
         let hs = hs info_hash_str pid_str in
         Writer.write t.writer ~len:hs_len hs;
-        info "handshake ok with %s" (to_string t);
+        info !"handshake ok with %{}" t;
         Ok info_hash 
       ) else 
         Error (Error.of_string "we don't serve this torrent")
@@ -141,12 +140,12 @@ let get_message t =
       Reader.really_read_bigsubstring t.reader msg_substr
       >>| function
       | `Eof _ -> 
-        info "Didn't get message - peer %s closed connection" (to_string t);
+        info !"Didn't get message - peer %{} closed connection" t;
         `Eof 
       | `Ok -> 
         pos_ref := 0;
         let msg = Message.bin_read_t buf ~pos_ref in
-        (* debug "got message %s from %s" (Message.to_string msg) (to_string t); *)
+        (* debug !"got message %{Message} from %{}" msg t; *)
         `Ok msg)
 
 let send_message t (m:Message.t) =
@@ -180,13 +179,13 @@ let addr_to_string t = Addr.to_string t.peer_addr
 
 let set_downloading t = 
   if not t.downloading then (
-    Print.printf  "downloading from peer %s\n" (addr_to_string t);
+    Print.printf  !"downloading from peer %{addr_to_string}\n" t;
     t.downloading <- true;
   )
 
 let set_uploading t = 
   if not t.uploading then (
-    Print.printf  "uploading to peer %s\n" (addr_to_string t);
+    Print.printf  !"uploading to peer %{addr_to_string}\n" t;
     t.uploading <- true;
   )
 
@@ -195,7 +194,7 @@ let addr t = Addr.addr t.peer_addr
 let create_with_connect addr = 
   let open Deferred.Or_error.Monad_infix in 
   let wtc = Tcp.to_inet_address addr in
-  debug "try connecting to peer %s" (Addr.to_string addr);
+  debug !"try connecting to peer %{Addr}" addr;
   Deferred.Or_error.try_with (function () -> Tcp.connect wtc)
   >>| fun (_, r, w) ->
   create addr r w 
