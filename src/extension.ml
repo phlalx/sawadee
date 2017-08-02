@@ -22,6 +22,6 @@ let of_string s =
   let bc = `String s |> B.decode in 
   info "received extended message %s" (B.pretty_print bc);
   let d = B.dict_get_exn bc "m" in 
-  let d'_ = B.as_dict_exn d in
+  let _d' = B.as_dict_exn d in
   Unknown
 

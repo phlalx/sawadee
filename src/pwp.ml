@@ -16,16 +16,21 @@ let peer_id pi = P.id pi.peer
 
 let to_string pi = peer_id pi |> Peer_id.to_readable_string 
 
-type t = {
-  mutable torrent : Torrent.info;
+type t_meta = {
+  torrent : Torrent.info;
   file : File.t;
   pers : Pers.t;
   mutable num_requested : int;
+}
+
+type t = {
+  mutable meta : t_meta Option.t;
   peers : (Peer_id.t, peer_info) Hashtbl.t 
 }
 
-let create torrent file pers = { file; peers = Hashtbl.Poly.create ();
-                                 num_requested = 0; pers; torrent }
+let create torrent file pers = 
+  let meta = Some { torrent; file; pers; num_requested = 0} in
+  { peers = Hashtbl.Poly.create (); meta }
 
 (* This has to be called whenever a request is sent *)
 let incr_requested t = t.num_requested <- t.num_requested + 1 
@@ -45,54 +50,57 @@ let send_have_messages t i =
 
 (* we always request all blocks from a piece to the same peer at the 
    same time *)
-let request_all_blocks_from_piece t (pi:peer_info) (piece_i:int) : unit =
+let request_all_blocks_from_piece (meta:t_meta) (pi:peer_info) (piece_i:int) : unit =
   (* debug "requesting piece %d from peer %s" piece_i (to_string pi); *)
-  incr_requested t;
-  File.set_piece_status t.file piece_i `Requested; 
+  incr_requested meta;
+  File.set_piece_status meta.file piece_i `Requested; 
   S.add_pending pi.state piece_i;
   let f ~index ~off ~len =
     M.Request(index, off, len) |> P.send_message pi.peer 
   in
-  Piece.iter (File.get_piece t.file piece_i) ~f
+  Piece.iter (File.get_piece meta.file piece_i) ~f
 
 (* try to request as many pieces as we can - there should be no more than
    G.max_pending_request *)
 let try_request_pieces t =
-  let n = G.max_pending_request - t.num_requested in
+  let meta = Option.value_exn t.meta in
+  let n = G.max_pending_request - meta.num_requested in
   if n > 0 then 
     let f pi = pi.peer, pi.state in  
     let new_table = Hashtbl.map t.peers ~f in
     let f (piece_i, (peer, state)) = 
       let pi = { peer; state } in 
-      request_all_blocks_from_piece t pi piece_i 
+      request_all_blocks_from_piece meta pi piece_i 
     in
-    Strategy.next_requests t.file new_table n |> List.iter ~f
+    Strategy.next_requests meta.file new_table n |> List.iter ~f
 
-let process_message t (pi:peer_info) (m:M.t) : unit =
+let process_message (t:t) (pi:peer_info) (m:M.t) : unit =
+
+  let meta = Option.value_exn t.meta in
 
   let process_block index bgn block =
-    let piece = File.get_piece t.file index in
+    let piece = File.get_piece meta.file index in
     let len = String.length block in
-    Peer.validate pi.peer (File.is_valid_piece_index t.file index);
-    Peer.validate pi.peer (Piece.is_valid_block piece bgn len);
+    File.is_valid_piece_index meta.file index |> Peer.validate pi.peer; 
+    Piece.is_valid_block piece bgn len |> Peer.validate pi.peer;
     match Piece.update piece bgn block with 
     | `Ok -> ()
     (* debug "got block - piece %d offset = %d" index bgn *)
     | `Hash_error -> 
-      decr_requested t;
-      File.set_piece_status t.file index `Not_requested;
+      decr_requested meta;
+      File.set_piece_status meta.file index `Not_requested;
       info "hash error piece %d from %s" index (to_string pi)
     | `Downloaded ->
       (* debug "got piece %d from %s " index (to_string pi); *)
       Peer.set_downloading pi.peer;
       State.remove_pending pi.state index;
-      File.set_piece_status t.file index `Downloaded;
-      decr_requested t;
-      Pers.write_piece t.pers piece;
+      File.set_piece_status meta.file index `Downloaded;
+      decr_requested meta;
+      Pers.write_piece meta.pers piece;
 
-      let one_percent = max (t.torrent.Torrent.num_pieces / 100) 1 in
-      if (File.num_downloaded_pieces t.file % one_percent) = 0 then
-        Print.printf "downloaded %d%%\n" (File.percent t.file);
+      let one_percent = max (meta.torrent.Torrent.num_pieces / 100) 1 in
+      if (File.num_downloaded_pieces meta.file % one_percent) = 0 then
+        Print.printf "downloaded %d%%\n" (File.percent meta.file);
 
       (* notify peers that we have a piece they don't have. 
          TODO: we should do it too if we receive a bitfield *)
@@ -100,13 +108,13 @@ let process_message t (pi:peer_info) (m:M.t) : unit =
   in
 
   let process_request index bgn length =
-    let piece = File.get_piece t.file index in
-    File.is_valid_piece_index t.file index |> P.validate pi.peer;
+    let piece = File.get_piece meta.file index in
+    File.is_valid_piece_index meta.file index |> P.validate pi.peer;
     Piece.is_valid_block_request piece bgn length |> P.validate pi.peer;
-    File.has_piece t.file index |> P.validate pi.peer;
+    File.has_piece meta.file index |> P.validate pi.peer;
     if not (State.am_choking pi.state) then (
       P.set_uploading pi.peer;
-      let piece = File.get_piece t.file index in
+      let piece = File.get_piece meta.file index in
       (* TODO: we could avoid a string allocation by using a substring 
          for the block in M.Piece *)
       let block = Piece.get_content piece ~off:bgn ~len:length in
@@ -148,11 +156,11 @@ let process_message t (pi:peer_info) (m:M.t) : unit =
   | M.Extended (id, b) -> 
     info "ignore extended message, already received after handshake"
 
-let cancel_requests t (pi:peer_info) = 
+let cancel_requests meta (pi:peer_info) = 
   let f i = 
-    decr_requested t;
+    decr_requested meta;
     State.remove_pending pi.state i;
-    File.set_piece_status t.file i `Not_requested 
+    File.set_piece_status meta.file i `Not_requested 
   in
   let l = State.get_pending pi.state in 
   if not (List.is_empty l) then (
@@ -168,7 +176,9 @@ let remove_peer t pid : unit =
 
 (* This is the main message processing loop. We consider two types of events.
    Timeout (idle peer), and message reception. *)
-let rec wait_and_process_message t (pi:peer_info) =
+let rec wait_and_process_message (t:t) (pi:peer_info) =
+
+  let meta = Option.value_exn t.meta in
 
   let result = function
     | `Ok m -> 
@@ -176,7 +186,7 @@ let rec wait_and_process_message t (pi:peer_info) =
       `Repeat ()
     | `Eof ->  
       (* signal the deconnection of the peer *)
-      cancel_requests t pi;
+      cancel_requests meta pi;
       info "peer %s has left - remove it from peers" (to_string pi); 
       peer_id pi |> remove_peer t;
       `Finished ()
@@ -188,19 +198,20 @@ let rec wait_and_process_message t (pi:peer_info) =
        mark them as bad and give priority to other peers? now we just ignore
        them. *)
     info "peer %s is slow - set idle" (to_string pi); 
-    cancel_requests t pi;
+    cancel_requests meta pi;
     State.set_idle pi.state true;
     `Finished ()
   | `Result r -> result r
 
 let initiate_protocol t pi : unit Deferred.t =
 
+  let meta = Option.value_exn t.meta in
   let p = pi.peer in
 
   (* we send this optional message if we own pieces of the file *)
-  if (File.num_downloaded_pieces t.file) > 0 then (
+  if (File.num_downloaded_pieces meta.file) > 0 then (
     info "sending my bitfield to %s" (Peer.to_string p);
-    M.Bitfield (File.bitfield t.file) |> P.send_message p 
+    M.Bitfield (File.bitfield meta.file) |> P.send_message p 
   );
   (* this should only be sent to peers we're interested in. To simplify, 
      we suppose we're intersted in all peers, but it should be changed TODO *)
@@ -209,7 +220,7 @@ let initiate_protocol t pi : unit Deferred.t =
   info "start message handler loop";
   Deferred.repeat_until_finished () (fun () -> wait_and_process_message t pi)
 
-let add_peer t peer =
+let add_peer (t:t) peer =
   (* we ignore all peers already connected, and ourselves. It may be the case
      that the calling layers try to add twice the same peer. For instance,
      the tracker can return our own address and we may try to connect to 
@@ -217,7 +228,8 @@ let add_peer t peer =
 
   let peer_id = Peer.id peer in
   let state = State.create () in
-  State.init_size_owned_pieces state t.torrent.Torrent.num_pieces;
+  let meta = Option.value_exn t.meta in
+  State.init_size_owned_pieces state meta.torrent.Torrent.num_pieces;
   let pi = { peer; state } in
 
   match Hashtbl.add t.peers ~key:peer_id ~data:pi with 

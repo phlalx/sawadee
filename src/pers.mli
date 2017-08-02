@@ -34,7 +34,7 @@ type t
     opens (creates if needed) all the files with the expected size. *)
 
 val create : 
-  (string * int) list ->
+  Torrent.file_info list ->
   int (* num_pieces *) ->
   int (* piece length *) ->
   t Deferred.t

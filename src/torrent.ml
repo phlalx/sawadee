@@ -23,7 +23,7 @@ type t = {
   tinfo : info;
 }
 
-let decode_info (info_dict_bc : B.t) : info = 
+let info_of_bencode (info_dict_bc : B.t) : info = 
   let pieces = B.dict_get_exn info_dict_bc "pieces" in
   let piece_length = B.dict_get_int_exn info_dict_bc "piece length" in
 
@@ -81,7 +81,7 @@ let do_file torrent_name chan =
   let info_dict_bc = B.dict_get_exn bc "info" in 
   let info_str = B.encode_to_string info_dict_bc in 
   let info_hash = Sha1.string info_str |> Sha1.to_bin |> Bt_hash.of_string in
-  let tinfo = decode_info info_dict_bc in
+  let tinfo = info_of_bencode info_dict_bc in
   (* info "torrent: announce %s" (Uri.to_string announce); *)
   (* List.concat announce_list |>  List.iter ~f:(info "torrent: announce %s"); *)
   { announce; announce_list; info_hash; torrent_name; tinfo }

@@ -15,6 +15,8 @@ type info = {
   num_files : int;
 }
 
+val info_of_bencode : Bencode_ext.t -> info
+
 type t = {
   torrent_name : string;
   info_hash : Bt_hash.t;
