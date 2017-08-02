@@ -4,13 +4,11 @@ open Log.Global
 
 module B = Bencode_ext
 
-(* TODO maybe use an association list? *)
-type ext = [ `Metadata of int | `Metadata_size of int ]
+type ext = [ `Metadata of int * int ]
 
 let ext_to_string ext = 
   let f = function 
-    | `Metadata i -> "metadata " ^ (string_of_int i)
-    | `Metadata_size i -> "metadatasize " ^ (string_of_int i)
+    | `Metadata (i, s) -> sprintf "metadata %d %d" i s
   in List.map ~f ext |> String.concat ~sep:"|" 
 
 type t = 

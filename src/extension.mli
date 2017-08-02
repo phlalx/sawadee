@@ -1,7 +1,7 @@
 open Core
 open Async
 
-type ext = [ `Metadata of int | `Metadata_size of int ]
+type ext = [ `Metadata of int * int ]
 
 type t = 
   | Reject of int  
