@@ -9,9 +9,7 @@ module Em = Error_msg
 let ignore_error addr : unit Or_error.t -> unit =
   function 
   | Ok () -> () 
-  | Error err -> 
-    info !"Error connecting with peer %{Addr}" addr;
-    debug !"Error connecting %{Sexp}" (Error.sexp_of_t err)
+  | Error err -> info !"Error connecting %{sexp:Error.t}" err
 
 let add_peers pwp info_hash addrs : unit Deferred.t =
 
@@ -148,13 +146,10 @@ let process_file f =
     | al -> List.dedup (List.concat al) |> List.permute 
   in
 
-  let%bind addrs = match%bind Tracker_client.query info_hash uris with
-    | Some addrs -> return addrs 
-    | None -> Em.terminate (Em.tracker_error ())
-  in
+  let%bind addrs = Tracker_client.query info_hash uris in
 
   let num_of_peers = List.length addrs in 
-  Print.printf "tracker returned %d peers\n" num_of_peers;
+  Print.printf "trackers returned %d peers\n" num_of_peers;
   info "tracker replies with list of %d peers" num_of_peers;
 
   (******* create pwp and add peers ****)

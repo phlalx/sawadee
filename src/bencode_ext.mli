@@ -18,3 +18,7 @@ val dict_get_int_exn : t -> string -> int
 val dict_get_list_exn : t -> string -> t list
 
 val split : t -> int -> t list
+
+(* decode first part of the string, and returns remainder.
+   a little bit ad-hoc... *)
+val decode_beginning_exn : string -> t * string option 

@@ -56,8 +56,7 @@ let ignore_error : 'a Or_error.t -> 'a Option.t =
   function 
   | Ok x -> Some x
   | Error err -> 
-    (* failwith (Sexp.to_string (Error.sexp_of_t err)); *)
-    debug !"Error connecting %{Sexp}" (Error.sexp_of_t err);
+    info !"Error connecting %{sexp:Error.t}" err;
     None
 
 (*  Error can come from
@@ -75,7 +74,7 @@ let query_tracker (info_hash:Bt_hash.t) (uri:Uri.t) : sl Deferred.Option.t =
     >>= fun (response, body) -> 
     check_response response
     >>= fun () ->
-    Deferred.ok (Cohttp_async.Body.to_string body)
+    Cohttp_async.Body.to_string body |> Deferred.ok
     >>= fun s ->
     return (Or_error.try_with (fun () -> Tracker_reply.of_bencode s))
     >>= fun t ->
@@ -84,10 +83,9 @@ let query_tracker (info_hash:Bt_hash.t) (uri:Uri.t) : sl Deferred.Option.t =
   reply_or_error >>| ignore_error
 
 let query info_hash uris =
-  match%bind Deferred.List.filter_map uris ~how:`Parallel 
-               ~f:(query_tracker info_hash) with 
-  | res :: _ -> return (Some res)
-  | [] -> return None
+  let%map l = Deferred.List.filter_map uris ~how:`Parallel 
+               ~f:(query_tracker info_hash) 
+  in List.concat l |> List.dedup 
 
 
 

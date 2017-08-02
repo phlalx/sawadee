@@ -158,7 +158,7 @@ let to_string m =
   | Piece (i,off,_) -> sprintf "Piece i = %d, off = %d "  i off
   | Cancel _ -> "Cancel"
   | Port i -> sprintf "Port %d" i
-  | Extended (i,b) -> "Extended"
+  | Extended (i,b) -> "Extended" 
 
 
 

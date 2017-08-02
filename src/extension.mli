@@ -1,13 +1,17 @@
 open Core
 open Async
 
+type ext = [ `Metadata of int | `Metadata_size of int ]
+
 type t = 
-  | Reject 
-  | Data of string 
-  | Handshake of int * int
-    (* specify the message identifier for metadata and metadata size *)
+  | Reject of int  
+  | Request of int 
+  | Data of int * string 
+  | Handshake of ext list
   | Unknown
 
-val to_string : t -> string
+val to_bin : t -> string
 
-val of_string : string -> t
+val of_bin : string -> t
+
+val to_string : t -> string

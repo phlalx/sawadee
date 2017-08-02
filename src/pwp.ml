@@ -106,6 +106,12 @@ let process_message (t:t) (st:Ps.t) (m:M.t) : unit =
       let block = Piece.get_content piece ~off:bgn ~len:length in
       P.send_message st.peer (Message.Piece (index, bgn, block)))
   in
+  let process_extended id s =
+    let em = Extension.of_bin s in
+    info !"extended message %d %{Extension}" id em;
+
+
+  in
   match m with
   | M.KeepAlive -> ()
   | M.Choke -> Ps.set_peer_choking st true;
@@ -140,7 +146,7 @@ let process_message (t:t) (st:Ps.t) (m:M.t) : unit =
       Addr.create (Peer.addr st.peer) port |> 
       Krpc.try_add |> Deferred.ignore |> don't_wait_for )
   | M.Extended (id, b) -> 
-    info "ignore extended message, already received after handshake"
+    process_extended id b 
 
 let cancel_requests meta st = 
   let f i = 
@@ -195,7 +201,7 @@ let initiate_protocol t st : unit Deferred.t =
   let meta = Option.value_exn t.meta in
 
   let p = Ps.peer st in
-
+(* 
   (* we send this optional message if we own pieces of the file *)
   if (File.num_downloaded_pieces meta.file) > 0 then (
     info !"sending my bitfield to %{Peer}" p;
@@ -203,7 +209,7 @@ let initiate_protocol t st : unit Deferred.t =
   );
   (* this should only be sent to peers we're interested in. To simplify, 
      we suppose we're intersted in all peers, but it should be changed TODO *)
-  P.send_message p M.Interested;
+  P.send_message p M.Interested; *)
 
   info "start message handler loop";
   Deferred.repeat_until_finished () (fun () -> wait_and_process_message t st)

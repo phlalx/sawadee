@@ -10,7 +10,6 @@ type t = {
   mutable am_interested : bool; 
   mutable have : Bitset.t;
   mutable pending : Int.Set.t;
-  mutable id : Peer_id.t;
   mutable idle : bool;
 }
 

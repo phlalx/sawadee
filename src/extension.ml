@@ -4,24 +4,63 @@ open Log.Global
 
 module B = Bencode_ext
 
+(* TODO maybe use an association list? *)
+type ext = [ `Metadata of int | `Metadata_size of int ]
+
+let ext_to_string ext = 
+  let f = function 
+    | `Metadata i -> "metadata " ^ (string_of_int i)
+    | `Metadata_size i -> "metadatasize " ^ (string_of_int i)
+  in List.map ~f ext |> String.concat ~sep:"|" 
+
 type t = 
-  | Reject 
-  | Data of string 
-  | Handshake of int * int
+  | Reject of int  
+  | Request of int 
+  | Data of int * string 
+  | Handshake of ext list 
   | Unknown
 
-let to_string t = 
-  let bc = 
-    match t with
-    | Unknown -> B.Dict [ "m", B.Dict [] ]
-    | _ -> assert false
-  in 
-  B.encode_to_string bc
+let extension_message t p = 
+  B.Dict [ "msg_type", B.Integer t; "piece", B.Integer p ] 
 
-let of_string s = 
-  let bc = `String s |> B.decode in 
-  info !"received extended message %{B.pretty_print}" bc;
-  let d = B.dict_get_exn bc "m" in 
-  let _d' = B.as_dict_exn d in
+let to_bin t = 
+  (match t with
+   | Unknown -> assert false
+   | Request i -> 
+     extension_message 0 i |> B.encode_to_string 
+   | Data (i, s) -> 
+     let b = extension_message 1 i |> B.encode_to_string in b ^ s
+   | Reject i -> 
+     extension_message 2 i |> B.encode_to_string 
+   | Handshake [] -> 
+     B.Dict [ "m", B.Dict [] ] |> B.encode_to_string  
+   | _ -> assert false (* TODO: support other types *)
+  )
+
+exception Unknown_message
+
+let dict_get_suff_int_exn (d : B.t) ~suffix : int =
+  let f (x, _) = String.is_suffix x ~suffix in 
+  match B.as_dict_exn d |> List.filter ~f with
+  | [(_, v) ] -> B.as_int_exn v
+  |  _ -> raise Unknown_message  
+
+let of_bin s = 
+  let (bc, s) = B.decode_beginning_exn s in
+  info !"received extended message %{B.pretty_print}" bc; 
   Unknown
+(*   try 
+    let metadata_size = dict_get_suff_int_exn bc ~suffix:"metadata_size" in
+    let metadata = 
+      B.dict_get_exn bc "m" |> dict_get_suff_int_exn ~suffix:"metadata"  in 
+    Handshake [ `Metadata metadata; `Metadata_size metadata_size ]
+  with 
+    _ -> Unknown 
+ *)
 
+let to_string = function
+  | Request i -> sprintf "request %d" i
+  | Reject i -> sprintf "reject %d" i
+  | Data (i, _) -> sprintf "data %d" i
+  | Handshake ext -> sprintf !"Handshake [%{ext_to_string}]" ext 
+  | Unknown -> "unknown"

@@ -14,9 +14,7 @@ let handler addr r w =
   let ignore_error addr : unit Or_error.t -> unit =
     function 
     | Ok () -> () 
-    | Error err -> 
-      info !"Error connecting with peer %{Addr}" addr;
-      debug !"Error connecting %{Sexp}" (Error.sexp_of_t err)
+    | Error err -> info !"Error connecting %{sexp:Error.t}" err
   in
 
   let handler_or_error () : unit Deferred.Or_error.t = 

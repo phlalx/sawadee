@@ -5,6 +5,6 @@ open Async
 
 (** Retrieve list of peer addresses from trackers given in announce.
 
-    We query all the trackers in parallel until we get an answer. *)
-val query: Bt_hash.t -> Uri.t list -> (Addr.t list) Deferred.Option.t
+    We query all the trackers and get as many peers as we can *)
+val query: Bt_hash.t -> Uri.t list -> Addr.t list Deferred.t
 

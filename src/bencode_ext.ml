@@ -1,7 +1,19 @@
 
 include Bencode
+module D = Bencode_streaming.Decode 
 
 open Core
+
+let decode_beginning_exn s = 
+  let d = Bencode_streaming.Decode.of_string s in 
+  match D.next d with  
+  | D.ParseOk b -> (
+    match D.next d with 
+    | D.ParseError s -> (b, Some s) 
+    | ParseEnd -> (b, None)
+    | _ -> assert false
+  )
+  | _ -> assert false 
 
 let value_exn b = 
   function 

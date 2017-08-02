@@ -42,6 +42,8 @@ let create peer_addr r w =
 
 let to_string t = Peer_id.to_readable_string t.id
 
+let addr_to_string t = Addr.to_string t.peer_addr
+
 (* last bit of sequence set to 1 = DHT support, bit 20 = extension *)
 
 let status_bytes = "\000\000\000\000\000\016\000\001"  
@@ -72,7 +74,7 @@ let validate_handshake received info_hash =
   | false -> None
 
 let initiate_handshake t hash pid =
-  debug !"handshake (initiate) with %{}" t;
+  info !"trying to handshake with %{addr_to_string}" t;
   let hash = Bt_hash.to_string hash in
   let pid = Peer_id.to_string pid in
   let hs = hs hash pid in
@@ -87,7 +89,7 @@ let initiate_handshake t hash pid =
       | None -> Error (Error.of_string "hash error")
       | Some p -> 
         t.id <- Peer_id.of_string p;
-        info !"handshake ok with %{} = %{Addr}" t t.peer_addr;
+        info !"handshake ok with %{addr_to_string} (= %{})" t t;
         Ok ()
     ) 
   | `Eof _ -> Error (Error.of_string "handshake error")
@@ -97,14 +99,13 @@ let extract_reply received =
   let peer_pos = hash_pos + Bt_hash.length in
   let sb = String.sub received  ~pos:20 ~len:8 in
   info "status_byte = sb %b" (status_bytes = sb);
-  info "sb = %S" sb;
+  debug "sb = %S" sb;
   let info_hash_rep = String.sub received ~pos:hash_pos ~len:Bt_hash.length in
   let remote_peer_id = String.sub received ~pos:peer_pos ~len:Peer_id.length in
   info_hash_rep, remote_peer_id
 
 let wait_handshake t (has_hash : Bt_hash.t -> bool) pid =
-  debug !"handshake (wait) from %{}" t;
-  debug "trying to read %d bytes" hs_len;
+  info !"wait for %{addr_to_string} to initiate handshake" t;
   let buf = String.create hs_len in
   Reader.really_read t.reader buf ~len:hs_len 
   >>| function
@@ -117,7 +118,7 @@ let wait_handshake t (has_hash : Bt_hash.t -> bool) pid =
         t.id <- peer_id;
         let hs = hs info_hash_str pid_str in
         Writer.write t.writer ~len:hs_len hs;
-        info !"handshake ok with %{}" t;
+        info !"handshake ok with %{addr_to_string} (= %{})" t t;
         Ok info_hash 
       ) else 
         Error (Error.of_string "we don't serve this torrent")
@@ -150,7 +151,7 @@ let get_message t =
 
 let send_message t (m:Message.t) =
   let len = 4 + Message.size m in (* prefix length + message *)
-  (* debug "sending message %s %s" (Message.to_string m) (to_string t); *)
+  debug !"sending message %{Message} %{}" m t;
   let buf = t.send_buffer in
   let pos = Message.bin_write_t buf 0 m in
   assert(pos = len); 
@@ -158,7 +159,7 @@ let send_message t (m:Message.t) =
 
 let send_extended_handshake t : unit Deferred.Or_error.t = 
   let em = Extension.Unknown in 
-  let s = Extension.to_string em in 
+  let s = Extension.to_bin em in 
   let m = Message.Extended (0, s) in 
   send_message t m;
   Deferred.Or_error.ok_unit
@@ -175,7 +176,6 @@ exception Incorrect_behavior
 
 let validate t b = if not b then raise Incorrect_behavior
 
-let addr_to_string t = Addr.to_string t.peer_addr
 
 let set_downloading t = 
   if not t.downloading then (

@@ -10,23 +10,21 @@ type t = {
   mutable am_interested : bool; 
   mutable have : Bitset.t;
   mutable pending : Int.Set.t;
-  mutable id : Peer_id.t;
   mutable idle : bool;
 }
 
 let create peer = {
     peer;
-    id = Peer_id.dummy;
     peer_interested = false; 
     peer_choking = true; 
-    am_interested = true; (* should be opposite when starting *)
-    am_choking = false; (* should be opposite when starting TODO *) 
+    am_interested = false; (* should be opposite when starting *)
+    am_choking = true; (* should be opposite when starting TODO *) 
     have = Bitset.empty 0; (* to be set by [init_size_owned_pieces] *)
     pending = Int.Set.empty;
     idle = false;
 }
 
-let id t = t.id
+let id t = Peer.id t.peer
 
 let peer t = t.peer
 
@@ -34,7 +32,7 @@ let is_idle t = t.idle
 
 let set_idle t b = t.idle <- b
 
-let to_string t = Peer_id.to_readable_string t.id 
+let to_string t = id t |> Peer_id.to_readable_string  
 
 let get_pending t = Int.Set.to_list t.pending
 
