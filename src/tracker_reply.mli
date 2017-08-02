@@ -5,8 +5,6 @@
 open Core
 open Async
 
-exception Bencode_error
-
 type t = {
   complete : int;
   incomplete : int;

@@ -5,7 +5,6 @@ open Async
 
 (** Retrieve list of peer addresses from trackers given in announce.
 
-    We query all the trackers in turn until we get an answer.
-    TODO try to follow spec http://bittorrent.org/beps/bep_0012.html. *)
-val query: Torrent.t -> (Addr.t list) Deferred.Option.t
+    We query all the trackers in parallel until we get an answer. *)
+val query: Bt_hash.t -> Uri.t list -> (Addr.t list) Deferred.Option.t
 

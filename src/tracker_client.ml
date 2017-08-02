@@ -10,26 +10,26 @@ let downloaded = "0"
 let event = "started"
 let compact = "1" 
 
-let create_uri_with_parameters t (s:string) = 
+let create_uri_with_parameters info_hash uri = 
   let open Torrent in
   let params_base = 
-    [("info_hash", Bt_hash.to_string t.info_hash); 
+    [("info_hash", Bt_hash.to_string info_hash); 
      ("peer_id", Peer_id.to_string Global.peer_id); 
      ("uploaded", uploaded);
      ("downloaded", downloaded);
      ("event", event);
-     ("left", string_of_int t.total_length);
      ("compact", compact );
+     (* ("left", string_of_int t.total_length); *)
     ] 
   in
   let params = 
     if Global.is_server () then
-      let port = string_of_int (Global.port_exn ()) in
+      let port = Global.port_exn () |> string_of_int in
       ("port", port) :: params_base
     else
       params_base
   in 
-  Uri.with_query' (Uri.of_string s) params 
+  Uri.with_query' uri params 
 
 type sl = Addr.t list 
 
@@ -64,8 +64,8 @@ let ignore_error : 'a Or_error.t -> 'a Option.t =
     - failed connecting attempt
     - server can't process the request 
     - error while decoding the reply *)
-let query_tracker t uri : sl Deferred.Option.t = 
-  let uri = create_uri_with_parameters t uri in
+let query_tracker (info_hash:Bt_hash.t) (uri:Uri.t) : sl Deferred.Option.t = 
+  let uri = create_uri_with_parameters info_hash uri in
   debug "trying uri %s" (Uri.to_string uri);
   let reply_or_error : sl Deferred.Or_error.t =
     let open Deferred.Or_error.Monad_infix in
@@ -79,20 +79,32 @@ let query_tracker t uri : sl Deferred.Option.t =
     >>= fun s ->
     return (Or_error.try_with (fun () -> Tracker_reply.of_bencode s))
     >>= fun t ->
-    return (Ok t.Tracker_reply.peers)  
+    Ok t.Tracker_reply.peers |> return
   in
   reply_or_error >>| ignore_error
 
-let query_all_trackers t uris =
-  match%bind Deferred.List.filter_map uris ~how:`Parallel ~f:(query_tracker t) with 
+let query info_hash uris =
+  match%bind Deferred.List.filter_map uris ~how:`Parallel 
+               ~f:(query_tracker info_hash) with 
   | res :: _ -> return (Some res)
   | [] -> return None
 
-let query t =
-  let uris = 
-    match t.Torrent.announce_list with
-    | [] -> [ t.Torrent.announce ]
-    | al -> List.dedup (List.concat al) in 
-  let permuted_uris = List.permute uris in
-  query_all_trackers t permuted_uris 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

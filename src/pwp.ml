@@ -17,7 +17,7 @@ let peer_id pi = P.id pi.peer
 let to_string pi = peer_id pi |> Peer_id.to_readable_string 
 
 type t = {
-  mutable torrent : Torrent.t;
+  mutable torrent : Torrent.info;
   file : File.t;
   pers : Pers.t;
   mutable num_requested : int;

@@ -13,7 +13,7 @@ open Async
 
 type t
 
-val create: Torrent.t -> File.t -> Pers.t -> t
+val create: Torrent.info -> File.t -> Pers.t -> t
 
 (** Add new peers to communicate with. Connexion and handshake are already 
     established.

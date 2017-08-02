@@ -83,8 +83,10 @@ let process_file f =
   in 
 
   let open Torrent in
-  let { files_info; num_pieces; piece_length; torrent_name; total_length; 
-        info_hash; pieces_hash; num_files } = t in
+  let { torrent_name; info_hash; announce; announce_list; tinfo } = t in
+
+  let { piece_length; pieces_hash; files_info; total_length; num_pieces; 
+        num_files } = tinfo in
 
   (***** open all files  **********)
 
@@ -154,10 +156,17 @@ let process_file f =
 
   (***** get list of peers ****)
 
-  let%bind addrs = match%bind Tracker_client.query t with
+  let uris = 
+    match announce_list with
+    | [] -> [ announce ]
+    | al -> List.dedup (List.concat al) |> List.permute 
+  in
+
+  let%bind addrs = match%bind Tracker_client.query info_hash uris with
     | Some addrs -> return addrs 
     | None -> Em.terminate (Em.tracker_error ())
   in
+
   let num_of_peers = List.length addrs in 
   Print.printf "tracker returned %d peers\n" num_of_peers;
   info "tracker replies with list of %d peers" num_of_peers;
@@ -168,7 +177,7 @@ let process_file f =
      - those that we contact  (got their addresses from the tracker
      - those that contact us (via the server) *)
 
-  let pwp = Pwp.create t file pers in
+  let pwp = Pwp.create tinfo file pers in
 
   let peers = add_peers pwp info_hash addrs in 
 

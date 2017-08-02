@@ -4,39 +4,26 @@ open Log.Global
 
 module B = Bencode_ext
 
-type t = {
-  info_hash : Bt_hash.t;
-  announce : string;
-  announce_list : string list list;
+type file_info = string * int (* name and length of each individual files *)
+
+type info = {
   piece_length : int;
   pieces_hash : Bt_hash.t Array.t;
-  files_info : (string * int) list; 
-  torrent_name : string;
+  files_info : file_info list; 
   total_length : int;
   num_pieces : int;
   num_files : int;
 }
 
-let do_file torrent_name chan =
-  let bc = B.decode (`Channel chan) in 
-  debug "torrent file = %s" (B.pretty_print bc);
-  let announce_bc = B.dict_get_exn bc "announce" in
-  let announce = B.as_string_exn announce_bc in
-  let announce_list : string list list =
-    match B.dict_get bc "announce-list" with  
-    | None -> []
-    | Some al -> 
-      let al : B.t list = B.as_list_exn al in
-      let f (x:B.t) : string list = 
-        let x = B.as_list_exn x in
-        List.map x ~f:B.as_string_exn
-      in
-      List.map al ~f
-  in
+type t = {
+  torrent_name : string;
+  info_hash : Bt_hash.t;
+  announce : Uri.t;
+  announce_list : Uri.t list list;
+  tinfo : info;
+}
 
-  let info_dict_bc = B.dict_get_exn bc "info" in 
-  let info_str = B.encode_to_string info_dict_bc in 
-  let info_hash = Bt_hash.of_string (Sha1.to_bin (Sha1.string info_str)) in
+let decode_info (info_dict_bc : B.t) : info = 
   let pieces = B.dict_get_exn info_dict_bc "pieces" in
   let piece_length = B.dict_get_int_exn info_dict_bc "piece length" in
 
@@ -49,36 +36,55 @@ let do_file torrent_name chan =
     match B.dict_get info_dict_bc "length" with
     | Some length_bc ->
       let length = B.as_int_exn length_bc in
-      let name = B.dict_get_string_exn info_dict_bc "name" in
-      [name, length]
+      let name = B.dict_get_string_exn info_dict_bc "name" in [name, length]
     | None -> 
-      let files_bc = B.dict_get_exn info_dict_bc "files" in
-      let files = B.as_list_exn files_bc in 
+      let files = B.dict_get_list_exn info_dict_bc "files" in
       let f (file_info_bc: B.t) : string * int =
-        let name_list = B.dict_get_list_exn file_info_bc "path" in
-        let names = List.map name_list ~f:B.as_string_exn in
+        let names = 
+          B.dict_get_list_exn file_info_bc "path"  
+          |> List.map ~f:B.as_string_exn
+          |> Filename.of_parts 
+        in
         let length = B.dict_get_int_exn file_info_bc "length" in
-        (Filename.of_parts names), length
+        names, length
       in
       List.map files f
   in 
   let num_files = List.length files_info in 
   let total_length = 
     List.fold files_info ~init:0 ~f:(fun acc (_,l) -> l + acc)  in
-
   (* TODO proper exception *)
   assert (num_pieces = (total_length + piece_length - 1) / piece_length); 
-
-  info "torrent: %s" torrent_name;
   info "torrent: %d files" num_files;
   info "torrent: %d pieces" num_pieces;
   info "torrent: piece length = %d" piece_length;
-  info "torrent: announce %s" announce;
+  { piece_length; pieces_hash; files_info; total_length; num_pieces; num_files }
 
-  List.concat announce_list |>  List.iter ~f:(info "torrent: announce %s");
+let bencode_to_uri x = x |> B.as_string_exn |> Uri.of_string
 
-  { announce; info_hash; piece_length; pieces_hash; announce_list; 
-    files_info; torrent_name; total_length; num_pieces; num_files }
+let do_file torrent_name chan =
+  let bc = `Channel chan |> B.decode in 
+  debug "torrent file = %s" (B.pretty_print bc);
+  let announce_bc = B.dict_get_exn bc "announce" in
+  let announce = bencode_to_uri announce_bc in
+  let announce_list : Uri.t list list =
+    match B.dict_get bc "announce-list" with  
+    | None -> []
+    | Some al -> 
+      let al : B.t list = B.as_list_exn al in
+      let f (x:B.t) : Uri.t list = 
+        B.as_list_exn x |> List.map ~f:bencode_to_uri
+      in
+      List.map al ~f
+  in
+
+  let info_dict_bc = B.dict_get_exn bc "info" in 
+  let info_str = B.encode_to_string info_dict_bc in 
+  let info_hash = Sha1.string info_str |> Sha1.to_bin |> Bt_hash.of_string in
+  let tinfo = decode_info info_dict_bc in
+  (* info "torrent: announce %s" (Uri.to_string announce); *)
+  (* List.concat announce_list |>  List.iter ~f:(info "torrent: announce %s"); *)
+  { announce; announce_list; info_hash; torrent_name; tinfo }
 
 
 let from_file file_name = In_channel.with_file file_name ~f:(do_file file_name)
