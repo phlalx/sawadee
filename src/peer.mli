@@ -9,8 +9,6 @@ open Async
 
 type t 
 
-val equals : t -> t -> bool
-
 (** We suppose that the connection is already established and we have a reader
     and a writer to communicate with the peer. The address is only used to 
     identify the peer in debug traces.
@@ -52,13 +50,9 @@ val initiate_handshake: t -> Bt_hash.t -> Peer_id.t -> unit Deferred.Or_error.t
 val wait_handshake : t -> (Bt_hash.t -> bool) -> Peer_id.t 
 -> Bt_hash.t Deferred.Or_error.t
 
-val send_extended_handshake : t -> unit Deferred.Or_error.t
+val receive : t -> Message.t Reader.Read_result.t Deferred.t
 
-val get_extended_handshake : t -> unit Deferred.Or_error.t
-
-val get_message : t -> Message.t Reader.Read_result.t Deferred.t
-
-val send_message : t -> Message.t -> unit
+val send : t -> Message.t -> unit
 
 (** assert a condition dependent on values received by a peer. For instance,
     if peer doesn't behave according to the protocol. raises if false 

@@ -2,7 +2,7 @@ open Core
 open Async
 open Log.Global
 
-(** A better solution for send_message/get_message would be to use
+(** A better solution for send/receive would be to use
     bin_prot_read and bin_prot_write but unfortunately the current version
     of the library uses a fixed 8-bytes length (4 bytes in bittorrent). *) 
 
@@ -18,8 +18,6 @@ type t = {
 } 
 
 let buffer_size = Message.max_size
-
-let equals t1 t2 = t1.id = t2.id
 
 let id t = t.id 
 
@@ -125,7 +123,7 @@ let wait_handshake t (has_hash : Bt_hash.t -> bool) pid =
     )
   | `Eof _ -> Error (Error.of_string "handshake error")
 
-let get_message t =
+let receive t =
   let buf = t.receive_buffer in 
   (* we need to get the prefix length first to know how many bytes to
      read *)
@@ -149,7 +147,7 @@ let get_message t =
         (* debug !"got message %{Message} from %{}" msg t; *)
         `Ok msg)
 
-let send_message t (m:Message.t) =
+let send t (m:Message.t) =
   let len = 4 + Message.size m in (* prefix length + message *)
   debug !"sending message %{Message} %{}" m t;
   let buf = t.send_buffer in
@@ -157,25 +155,9 @@ let send_message t (m:Message.t) =
   assert(pos = len); 
   Writer.write_bigstring t.writer buf ~len
 
-let send_extended_handshake t : unit Deferred.Or_error.t = 
-  let em = Extension.Unknown in 
-  let s = Extension.to_bin em in 
-  let m = Message.Extended (0, s) in 
-  send_message t m;
-  Deferred.Or_error.ok_unit
-
-let get_extended_handshake t : unit Deferred.Or_error.t = 
-  match%map get_message t with 
-  | `Ok (Message.Extended (0, em)) ->
-    info "got something"; 
-    Ok ()
-  | `Ok m -> failwith (Message.to_string m)
-  | `Eof -> assert false
-
 exception Incorrect_behavior
 
 let validate t b = if not b then raise Incorrect_behavior
-
 
 let set_downloading t = 
   if not t.downloading then (

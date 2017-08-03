@@ -23,7 +23,7 @@ type t =
   | Have of int (** index *)
   | Bitfield of Bitfield.t
   | Request of int * int  * int (** index, begin, length *)
-  | Piece of int * int * string (** index, begin, block *)
+  | Block of int * int * string (** index, begin, block *)
   | Cancel of int * int * int (** index, begin, length *)
   | Port of int 
   | Extended of int * string  (** id, payload *)
@@ -41,3 +41,6 @@ val bin_read_t : t Read.reader
 val bin_write_t : t Write.writer
 
 val to_string : t -> string
+
+
+

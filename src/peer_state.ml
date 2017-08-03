@@ -11,26 +11,29 @@ type t = {
   mutable have : Bitset.t;
   mutable pending : Int.Set.t;
   mutable idle : bool;
-}
+  mutable port : int Option.t;
+  mutable bitfield : Bitfield.t Option.t;
+  mutable metadata_id : int Option.t;
+  mutable metadata_size : int Option.t
+} [@@deriving fields]
+
 
 let create peer = {
     peer;
     peer_interested = false; 
     peer_choking = true; 
-    am_interested = false; (* should be opposite when starting *)
-    am_choking = true; (* should be opposite when starting TODO *) 
-    have = Bitset.empty 0; (* to be set by [init_size_owned_pieces] *)
+    am_interested = false;
+    am_choking = true;
+    have = Bitset.empty 0; 
     pending = Int.Set.empty;
     idle = false;
+    port = None;
+    bitfield = None;
+    metadata_id = None;
+    metadata_size = None;
 }
 
 let id t = Peer.id t.peer
-
-let peer t = t.peer
-
-let is_idle t = t.idle
-
-let set_idle t b = t.idle <- b
 
 let to_string t = id t |> Peer_id.to_readable_string  
 
@@ -65,14 +68,6 @@ let set_am_interested t b =
 let set_am_choking t b = 
   info !"I am %{is_or_not} choking %{}" b t;
   t.am_choking <- b
-
-let is_peer_choking t = t.peer_choking
-
-let is_peer_interested t = t.peer_interested
-
-let am_choking t = t.am_choking
-
-let am_interested t = t.am_interested
 
 let pending_size t = Int.Set.length t.pending
 

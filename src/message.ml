@@ -12,7 +12,7 @@ type t =
   | Have of int 
   | Bitfield of Bitfield.t
   | Request of int * int  * int
-  | Piece of int * int * string
+  | Block of int * int * string
   | Cancel of int * int * int
   | Port of int
   (* TODO better to have Bencode.t instead of string *)
@@ -31,7 +31,7 @@ let size = function
   | Have _ -> 5
   | Bitfield s -> 1 + (Bitfield.length s) 
   | Request _ -> 13
-  | Piece (_,_,s) -> 9 + (String.length s)
+  | Block (_,_,s) -> 9 + (String.length s)
   | Cancel _ -> 13 
   | Port _ -> 3
   | Extended (_, b) -> 2 + (String.length b)
@@ -63,7 +63,7 @@ let bin_read_payload buf ~pos_ref length =
     let begn = Read.bin_read_network32_int buf pos_ref in
     let block = String.create block_len in
     Common.blit_buf_string ~src_pos:!pos_ref buf block ~len:block_len; 
-    Piece (index, begn, block)
+    Block (index, begn, block)
   | 8 -> 
     let index = Read.bin_read_network32_int buf pos_ref in
     let begn = Read.bin_read_network32_int buf pos_ref in
@@ -119,7 +119,7 @@ let bin_write_t (buf:Common.buf) ~(pos:Common.pos) (x:t) =
     let pos = Write.bin_write_network32_int buf pos index in
     let pos = Write.bin_write_network32_int buf pos begn in
     Write.bin_write_network32_int buf pos len
-  | Piece (index, begn, block) ->
+  | Block (index, begn, block) ->
     let len = String.length block in
     let pos = Write.bin_write_network32_int buf pos (len + 9) in
     let pos = Write.bin_write_char buf pos (char_of_int 7) in
@@ -139,7 +139,7 @@ let bin_write_t (buf:Common.buf) ~(pos:Common.pos) (x:t) =
     Write.bin_write_network16_int buf pos port 
   | Extended (i, b) -> 
     let len = String.length b in
-    let pos = Write.bin_write_network32_int buf pos (len + 1) in
+    let pos = Write.bin_write_network32_int buf pos (len + 2) in
     let pos = Write.bin_write_char buf pos (char_of_int 20) in
     let pos = Write.bin_write_char buf pos (char_of_int i) in
     Common.blit_string_buf b ~dst_pos:pos buf ~len;
@@ -155,7 +155,7 @@ let to_string m =
   | Have i -> sprintf "Have i = %d" i
   | Bitfield s -> "Bitfield"
   | Request (i,b,l) -> sprintf "Request i = %d" i
-  | Piece (i,off,_) -> sprintf "Piece i = %d, off = %d "  i off
+  | Block (i,off,_) -> sprintf "Piece i = %d, off = %d "  i off
   | Cancel _ -> "Cancel"
   | Port i -> sprintf "Port %d" i
   | Extended (i,b) -> "Extended" 

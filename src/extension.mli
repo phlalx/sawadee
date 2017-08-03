@@ -12,6 +12,6 @@ type t =
 
 val to_bin : t -> string
 
-val of_bin : string -> t
+val of_bin : [`Metadata_ext | `Handshake ] -> string -> t
 
 val to_string : t -> string

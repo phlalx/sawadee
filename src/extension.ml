@@ -43,18 +43,26 @@ let dict_get_suff_int_exn (d : B.t) ~suffix : int =
   | [(_, v) ] -> B.as_int_exn v
   |  _ -> raise Unknown_message  
 
-let of_bin s = 
+let metadata_ext_of_bin s =
   let (bc, s) = B.decode_beginning_exn s in
   info !"received extended message %{B.pretty_print}" bc; 
-  Unknown
-(*   try 
+  assert false
+
+let handshake_of_bin s =
+  let bc = `String s |> B.decode in
+  info !"received extended message %{B.pretty_print}" bc; 
+  try 
     let metadata_size = dict_get_suff_int_exn bc ~suffix:"metadata_size" in
     let metadata = 
       B.dict_get_exn bc "m" |> dict_get_suff_int_exn ~suffix:"metadata"  in 
-    Handshake [ `Metadata metadata; `Metadata_size metadata_size ]
+    Handshake [ `Metadata (metadata, metadata_size) ]
   with 
-    _ -> Unknown 
- *)
+    _ -> Handshake []
+
+let of_bin kind s = 
+  match kind with 
+  | `Metadata_ext -> metadata_ext_of_bin s 
+  | `Handshake -> handshake_of_bin s
 
 let to_string = function
   | Request i -> sprintf "request %d" i

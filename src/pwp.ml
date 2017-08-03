@@ -14,11 +14,30 @@ type t_meta = {
   mutable num_requested : int;
 }
 
+type t_info = {
+  mutable state : [`Requested | `Not_requested | `Valid  ];
+  mutable piece : Piece.t Option.t
+}
+
 type t = {
   mutable has_meta : bool; (* convenience field *)
   mutable meta : t_meta Option.t;
-  peers : (Peer_id.t, Ps.t) Hashtbl.t 
+  peers : (Peer_id.t, Ps.t) Hashtbl.t;
+  info : t_info
 }
+
+let create ?meta () = 
+  let info = {
+    state = `Not_requested;
+    piece = None;
+  } in
+
+  { 
+    peers = Hashtbl.Poly.create (); 
+    meta; 
+    has_meta = Option.is_some meta; 
+    info;
+  }
 
 (* This has to be called whenever a request is sent *)
 let incr_requested t = t.num_requested <- t.num_requested + 1 
@@ -33,7 +52,7 @@ let send_have_messages t i =
     if not (Ps.has_piece st i) then (
       debug !"notify peer %{Ps} about piece %d" st i;
       let p = Ps.peer st in 
-      M.Have i |> P.send_message p 
+      M.Have i |> P.send p 
     ) in
   for_all_peers t ~f:(notify_if_doesn't_have i)
 
@@ -45,7 +64,7 @@ let request_all_blocks_from_piece (meta:t_meta) (st:Ps.t) (piece_i:int) : unit =
   File.set_piece_status meta.file piece_i `Requested; 
   Ps.add_pending st piece_i;
   let f ~index ~off ~len =
-    M.Request(index, off, len) |> P.send_message st.peer 
+    M.Request(index, off, len) |> P.send st.peer 
   in 
   File.get_piece meta.file piece_i |> Piece.iter ~f 
 
@@ -59,6 +78,14 @@ let try_request_pieces t =
       request_all_blocks_from_piece meta st piece_i 
     in
     Strategy.next_requests meta.file t.peers n |> List.iter ~f
+
+let send_extended (st:Ps.t) kind me =
+  let i = 
+    match kind with 
+    | `Handshake -> 0
+    | `Metadata_ext -> Option.value_exn st.metadata_id  
+  in
+  M.Extended (i, Extension.to_bin me) |> P.send st.peer
 
 let process_message (t:t) (st:Ps.t) (m:M.t) : unit =
 
@@ -104,62 +131,110 @@ let process_message (t:t) (st:Ps.t) (m:M.t) : unit =
       (* TODO: we could avoid a string allocation by using a substring 
          for the block in M.Piece *)
       let block = Piece.get_content piece ~off:bgn ~len:length in
-      P.send_message st.peer (Message.Piece (index, bgn, block)))
+      Message.Block (index, bgn, block)) |> P.send st.peer
   in
+
+  let request_meta len =
+    let open Extension in
+    t.info.state <- `Requested;
+    let f ~index ~off ~len =
+      Request index |> send_extended st `Metadata_ext 
+    in
+    let p = Piece.create ~index:0 (Bt_hash.random ()) ~len in 
+    Piece.iter ~f p
+  in
+
   let process_extended id s =
-    let em = Extension.of_bin s in
+    let open Extension in
+    let kind = match id, st.metadata_id with
+      | 0, _ -> `Handshake 
+      | a, Some b when a = b -> `Metadata_ext
+      | _ -> assert false
+    in
+
+    let em = Extension.of_bin kind s in
     info !"extended message %d %{Extension}" id em;
+    match kind, em with 
+    | `Handshake, Handshake [`Metadata (id, s)] ->   
+      Ps.set_metadata_id st (Some id);
+      Ps.set_metadata_size st (Some s);
+      request_meta s 
+    | `Handshake, Handshake [] -> ()
 
-
+    | _ -> failwith (Extension.to_string em)  
   in
   match m with
+
   | M.KeepAlive -> ()
-  | M.Choke -> Ps.set_peer_choking st true;
+
+  | M.Choke -> 
+    Ps.set_peer_choking st true;
+
   | M.Unchoke -> 
     Ps.set_peer_choking st false; 
     (* we try to request new pieces after any new event that can trigger
        availability of new pieces *)
-    try_request_pieces t
+    (* try_request_pieces t *)
+
   | M.Interested -> 
     Ps.set_peer_interested st true; 
-    if not (Ps.am_choking st) then P.send_message st.peer Message.Unchoke
+    (* if not (Ps.am_choking st) then P.send st.peer Message.Unchoke *)
+
   | M.Not_interested -> 
     Ps.set_peer_interested st false;
-  | M.Have index -> 
-    Ps.set_owned_piece st index; 
-    try_request_pieces t 
+
   | M.Bitfield bits -> 
-    (* TODO validate bitfield. Not a big deal, but extra bits of the bitfield
-       should be set to 0 *)
+    (* TODO pourquoi pas une exception quand le bitset n'est pas 
+       encore initialisé ? *)
     Ps.set_owned_pieces st bits; 
     try_request_pieces t 
-  | M.Request (index, bgn, length) -> 
-    if not (Ps.am_choking st) then process_request index bgn length
-  | M.Piece (index, bgn, block) -> 
-    (* the spec calls this message a piece when it really is a block of a piece *) 
-    process_block index bgn block; 
-    try_request_pieces t
-  | M.Cancel (index, bgn, length) ->
-    info "ignore cancel msg - Not yet implemented"
+
   | M.Port port -> 
+    info "received port %d" port;
+    Ps.set_port st (Some port);
     if G.is_node () then (
       Addr.create (Peer.addr st.peer) port |> 
       Krpc.try_add |> Deferred.ignore |> don't_wait_for )
+
   | M.Extended (id, b) -> 
     process_extended id b 
 
+  (* the following messages must have meta set *)
+
+  | M.Have index -> 
+    Option.is_some t.meta |> Peer.validate st.peer;
+    Ps.set_owned_piece st index; 
+    try_request_pieces t 
+
+  | M.Request (index, bgn, length) -> 
+    Option.is_some t.meta |> Peer.validate st.peer;
+    if not (Ps.am_choking st) then process_request index bgn length
+
+  | M.Block (index, bgn, block) -> 
+    Option.is_some t.meta |> Peer.validate st.peer;
+    process_block index bgn block; 
+    try_request_pieces t
+
+  | M.Cancel (index, bgn, length) ->
+    Option.is_some t.meta |> Peer.validate st.peer;
+    info "ignore cancel msg - Not yet implemented"
+
 let cancel_requests meta st = 
-  let f i = 
-    decr_requested meta;
-    Ps.remove_pending st i;
-    File.set_piece_status meta.file i `Not_requested 
-  in
-  let l = Ps.get_pending st in 
-  if not (List.is_empty l) then (
-    let s = List.to_string ~f:string_of_int l in 
-    info !"cancelling requests from %{Ps}: %s" st s
-  );
-  List.iter l ~f
+  match meta with 
+  | None -> ()
+  | Some meta ->
+    begin
+      let f i = 
+        decr_requested meta;
+        Ps.remove_pending st i;
+        File.set_piece_status meta.file i `Not_requested 
+      in
+      let s = Ps.pending st in 
+      if not (Set.is_empty s) then (
+        info !"cancelling %d requests from %{Ps}" (Set.length s) st 
+      );
+      Set.iter s ~f
+    end
 
 let remove_peer t pid : unit = 
   (* we can safely remove it, as we knows the connection has been cut. 
@@ -168,9 +243,7 @@ let remove_peer t pid : unit =
 
 (* This is the main message processing loop. We consider two types of events.
    Timeout (idle peer), and message reception. *)
-let rec wait_and_process_message (t:t) st =
-
-  let meta = Option.value_exn t.meta in
+let rec wait_and_process_message t st =
 
   let result = function
     | `Ok m -> 
@@ -178,44 +251,41 @@ let rec wait_and_process_message (t:t) st =
       `Repeat ()
     | `Eof ->  
       (* signal the deconnection of the peer *)
-      cancel_requests meta st;
+      cancel_requests t.meta st;
       info !"peer %{Ps} has left - remove it from peers" st; 
       Ps.id st |> remove_peer t;
       `Finished ()
   in
   let p = Ps.peer st in
-  P.get_message p |> Clock.with_timeout G.idle 
+  P.receive p |> Clock.with_timeout G.idle 
   >>| function
   | `Timeout -> 
     (* TODO decide what to do with these idle peers - keep using them but
        mark them as bad and give priority to other peers? now we just ignore
        them. *)
     info !"peer %{Ps} is slow - set idle" st;
-    cancel_requests meta st;
+    cancel_requests t.meta st;
     Ps.set_idle st true;
     `Finished ()
   | `Result r -> result r
 
 let initiate_protocol t st : unit Deferred.t =
 
+  (* 
   let meta = Option.value_exn t.meta in
 
   let p = Ps.peer st in
-(* 
   (* we send this optional message if we own pieces of the file *)
   if (File.num_downloaded_pieces meta.file) > 0 then (
     info !"sending my bitfield to %{Peer}" p;
-    M.Bitfield (File.bitfield meta.file) |> P.send_message p 
+    M.Bitfield (File.bitfield meta.file) |> P.send p 
   );
   (* this should only be sent to peers we're interested in. To simplify, 
      we suppose we're intersted in all peers, but it should be changed TODO *)
-  P.send_message p M.Interested; *)
+  P.send p M.Interested; *)
 
   info "start message handler loop";
   Deferred.repeat_until_finished () (fun () -> wait_and_process_message t st)
-
-let create ?meta () = 
-  { peers = Hashtbl.Poly.create (); meta; has_meta = Option.is_some meta }
 
 let add_peer (t:t) peer =
   (* we ignore all peers already connected, and ourselves. It may be the case
@@ -225,8 +295,10 @@ let add_peer (t:t) peer =
 
   let st = Ps.create peer in
   let peer_id = Ps.id st in
-  let meta = Option.value_exn t.meta in
-  Ps.init_size_owned_pieces st meta.torrent.Torrent.num_pieces;
+
+  (match t.meta with 
+   | Some meta -> Ps.init_size_owned_pieces st meta.torrent.Torrent.num_pieces
+   | None -> ());
 
   match Hashtbl.add t.peers ~key:peer_id ~data:st with 
   | `Ok  -> initiate_protocol t st |> Deferred.ok
