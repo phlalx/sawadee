@@ -43,3 +43,5 @@ val set_node : bool -> unit
 
 val is_node : unit -> bool
 
+val max_num_pieces : int
+

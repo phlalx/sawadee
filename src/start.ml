@@ -3,25 +3,26 @@ open Async
 open Log.Global
 
 module G = Global
-module P = Peer
+module P = Peer_comm
 module Em = Error_msg
 
 let ignore_error addr : unit Or_error.t -> unit =
   function 
   | Ok () -> () 
-  | Error err -> info !"Error connecting %{sexp:Error.t}" err
+  | Error err -> info !"Start: error connecting %{Error.to_string_hum}" err
 
 let add_peers pwp info_hash addrs : unit Deferred.t =
 
   let add_peer addr = 
     let open Deferred.Or_error.Monad_infix in 
-    Peer.create_with_connect addr
+    P.create_with_connect addr
     >>= fun p ->
-    Peer.initiate_handshake p info_hash G.peer_id 
+    P.initiate_handshake p info_hash 
+    >>= fun { extension; dht } -> 
+    let peer = Peer.create p ~extension ~dht in 
+    Pwp.add_peer pwp peer 
     >>= fun () -> 
-    Pwp.add_peer pwp p 
-    >>= fun () -> 
-    Peer.close p |> Deferred.ok
+    P.close p |> Deferred.ok
   in
 
   let f addr = add_peer addr >>| ignore_error addr in
@@ -53,7 +54,7 @@ let parse_uri f =
   | _ -> `Other
 
 let process_magnet hash = 
-  info !"processing magnet %{Bt_hash.to_hex}" hash;
+  info !"Start: processing magnet %{Bt_hash.to_hex}" hash;
   let pwp = Pwp.create () in
   let%bind addrs = Krpc.lookup hash in
   add_peers pwp hash addrs
@@ -90,10 +91,10 @@ let process_file f =
     try
       In_channel.read_all bf_name |> Bitfield.of_string
     with _ -> 
-      info "can't read bitfield %s. Using empty bitfield" bf_name;
+      info "Start: can't read bitfield %s. Using empty bitfield" bf_name;
       Bitfield.empty bf_len
   in
-  info "read bitfield %s" bf_name;
+  info "Start: read bitfield %s" bf_name;
   let bitset = Bitset.of_bitfield bitfield num_pieces in
 
   (****** initialize File.t and retrieve pieces from disk *******)
@@ -105,7 +106,7 @@ let process_file f =
     Pers.read_piece pers p 
     >>| fun () -> 
     if Piece.is_hash_ok p then File.set_piece_status file i `Downloaded
-    else info "can't read piece %d from disk" i
+    else info "Start: can't read piece %d from disk" i
   in
 
   Deferred.List.iter (Bitset.to_list bitset) ~f:read_piece 
@@ -113,13 +114,13 @@ let process_file f =
   >>= fun () ->
 
   Print.printf "read %d%% from disk\n" (File.percent file);
-  info "read %d/%d pieces" (File.num_downloaded_pieces file) num_pieces;
+  info "Start: read %d/%d pieces" (File.num_downloaded_pieces file) num_pieces;
 
   (***** set up Pers (pipe for writing pieces) *****)
 
   (* this will be called when pipe is closed *)
   let finally () =
-    info "writing bitfield to file %s" f;
+    info "Start: writing bitfield to file %s" f;
     (try
        let data = File.bitfield file |> Bitfield.to_string in
        Out_channel.write_all bf_name ~data
@@ -130,7 +131,7 @@ let process_file f =
     Pers.close_all_files pers 
     >>= fun () ->
     Print.printf "written %d%% to disk\n" (File.percent file);
-    info "written %d/%d pieces" (File.num_downloaded_pieces file) num_pieces;
+    info "Start: written %d/%d pieces" (File.num_downloaded_pieces file) num_pieces;
     exit 0
   in 
 
@@ -150,7 +151,7 @@ let process_file f =
 
   let num_of_peers = List.length addrs in 
   Print.printf "trackers returned %d peers\n" num_of_peers;
-  info "tracker replies with list of %d peers" num_of_peers;
+  info "Start: %d tracker peers" num_of_peers;
 
   (******* create pwp and add peers ****)
 
@@ -159,11 +160,10 @@ let process_file f =
      - those that contact us (via the server) *)
 
   (* TODO eventually we'll create file and pers in Pwp *)
-  let meta = Pwp.{
+  let meta = Meta_state.{
       torrent = tinfo;
       file;
       pers;
-      num_requested = 0; 
     }  in
 
   let pwp = Pwp.create ~meta () in

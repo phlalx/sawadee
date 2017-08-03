@@ -5,5 +5,5 @@
 
 open Core
 
-val next_requests : File.t -> (Peer_id.t, Peer_state.t) Hashtbl.t -> int -> 
-(int * Peer_state.t) list
+val next_requests : File.t -> (Peer_id.t, Peer.t) Hashtbl.t -> int -> 
+(int * Peer.t) list

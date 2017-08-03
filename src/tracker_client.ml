@@ -56,7 +56,7 @@ let ignore_error : 'a Or_error.t -> 'a Option.t =
   function 
   | Ok x -> Some x
   | Error err -> 
-    info !"Error connecting %{sexp:Error.t}" err;
+    info !"Error connecting %{Error.to_string_hum}" err;
     None
 
 (*  Error can come from
@@ -85,7 +85,7 @@ let query_tracker (info_hash:Bt_hash.t) (uri:Uri.t) : sl Deferred.Option.t =
 let query info_hash uris =
   let%map l = Deferred.List.filter_map uris ~how:`Parallel 
                ~f:(query_tracker info_hash) 
-  in List.concat l |> List.dedup 
+  in List.concat l |> List.dedup |> List.filter ~f:Addr.is_valid 
 
 
 

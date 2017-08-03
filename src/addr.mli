@@ -22,3 +22,5 @@ val list_of_bencode_list : Bencode_ext.t -> t list
 val length : int
 
 val of_string : string -> t
+
+val is_valid : t -> bool

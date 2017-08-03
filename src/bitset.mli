@@ -59,6 +59,7 @@ val to_string : t -> string
     [size x] isn't a multiple of 8, the last bits of the string are set to 0. *)
 val to_bitfield : t -> Bitfield.t
 
+(* TODO make this int optional *)
 val of_bitfield : Bitfield.t -> int -> t 
 
 (** [insert_from_bitfield t b] fills t with bits in bitfield [b] as 

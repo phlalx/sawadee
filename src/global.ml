@@ -43,3 +43,4 @@ let is_node () = !is_node_
 
 let set_node b = is_node_ := b
 
+let max_num_pieces = 65536

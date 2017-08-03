@@ -13,14 +13,7 @@ open Async
 
 type t
 
-type t_meta = {
-  torrent : Torrent.info;
-  file : File.t;
-  pers : Pers.t;
-  mutable num_requested : int;
-}
-
-val create: ?meta:t_meta -> unit -> t
+val create: ?meta:Meta_state.t -> unit -> t
 
 (** Add new peers to communicate with. Connexion and handshake are already 
     established.

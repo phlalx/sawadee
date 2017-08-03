@@ -155,7 +155,7 @@ let to_string m =
   | Have i -> sprintf "Have i = %d" i
   | Bitfield s -> "Bitfield"
   | Request (i,b,l) -> sprintf "Request i = %d" i
-  | Block (i,off,_) -> sprintf "Piece i = %d, off = %d "  i off
+  | Block (i,off,_) -> sprintf "Block i = %d, off = %d "  i off
   | Cancel _ -> "Cancel"
   | Port i -> sprintf "Port %d" i
   | Extended (i,b) -> "Extended" 
