@@ -16,7 +16,7 @@ module type ID = sig
 
   val length : int
 
-  val to_readable_string : t -> string
+  val to_string_hum : t -> string
 
   val to_bencode : t -> Bencode_ext.t
 
@@ -55,7 +55,7 @@ module Id = struct
 
   let of_bencode = B.as_string_exn
 
-  let to_readable_string x =
+  let to_string_hum x =
     let f c =
       let i = int_of_char c in
       char_of_int (65 + (i % 26))

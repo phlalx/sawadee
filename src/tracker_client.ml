@@ -38,7 +38,7 @@ let check_response response =
   let status = Cohttp.Response.status response in
   let is_status_ok = status = `OK in
   if not is_status_ok then
-    info "http response not ok";
+    info "Tracker_client: http response not ok";
   return (Result.ok_if_true is_status_ok ~error)
 
 let check_scheme uri =
@@ -49,14 +49,15 @@ let check_scheme uri =
     | None -> false
   in 
   if not is_scheme_http then
-    info "uri scheme not http";
+    info "Tracker_client: uri scheme not http";
   return (Result.ok_if_true is_scheme_http ~error)
 
 let ignore_error : 'a Or_error.t -> 'a Option.t = 
   function 
   | Ok x -> Some x
   | Error err -> 
-    info !"Error connecting %{Error.to_string_hum}" err;
+    info "Tracker_client: can't connect";
+    debug !"Error connecting %{Error.to_string_hum}" err;
     None
 
 (*  Error can come from

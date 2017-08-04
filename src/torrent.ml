@@ -55,16 +55,16 @@ let info_of_bencode (info_dict_bc : B.t) : info =
     List.fold files_info ~init:0 ~f:(fun acc (_,l) -> l + acc)  in
   (* TODO proper exception *)
   assert (num_pieces = (total_length + piece_length - 1) / piece_length); 
-  info "torrent: %d files" num_files;
-  info "torrent: %d pieces" num_pieces;
-  info "torrent: piece length = %d" piece_length;
+  info "Torrent: %d files" num_files;
+  info "Torrent: %d pieces" num_pieces;
+  info "Torrent: piece length = %d" piece_length;
   { piece_length; pieces_hash; files_info; total_length; num_pieces; num_files }
 
 let bencode_to_uri x = x |> B.as_string_exn |> Uri.of_string
 
 let do_file torrent_name chan =
   let bc = `Channel chan |> B.decode in 
-  debug !"torrent file = %{B.pretty_print}" bc;
+  debug !"Torrent: bc = %{B.pretty_print}" bc;
   let announce_bc = B.dict_get_exn bc "announce" in
   let announce = bencode_to_uri announce_bc in
   let announce_list : Uri.t list list =
@@ -82,8 +82,8 @@ let do_file torrent_name chan =
   let info_str = B.encode_to_string info_dict_bc in 
   let info_hash = Sha1.string info_str |> Sha1.to_bin |> Bt_hash.of_string in
   let tinfo = info_of_bencode info_dict_bc in
-  info !"torrent: announce %{Uri}" announce;
-  List.concat announce_list |>  List.iter ~f:(info !"torrent: announce %{Uri}"); 
+  debug !"Torrent: announce %{Uri}" announce;
+  List.concat announce_list |>  List.iter ~f:(debug !"Torrent: announce %{Uri}"); 
   { announce; announce_list; info_hash; torrent_name; tinfo }
 
 

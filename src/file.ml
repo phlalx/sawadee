@@ -26,7 +26,7 @@ let create pieces_hash ~piece_length ~total_length =
   let pieces = Array.init num_pieces ~f  in
   let pieces_status = Array.create num_pieces `Not_requested in
 
-  info "create file (num piece = %d)" num_pieces;
+  info "File: created network file (%d pieces)" num_pieces;
   { len = total_length; 
     num_pieces; 
     downloaded_pieces; 

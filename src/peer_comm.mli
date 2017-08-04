@@ -21,11 +21,7 @@ val create : Addr.t -> Reader.t -> Writer.t -> t
 
 val create_with_connect : Addr.t -> t Deferred.Or_error.t
 
-(** Used to identify peers in log (readable peer_id) *)
 val to_string : t -> string
-
-(** peer socket addr to string *)
-val addr_to_string : t -> string
 
 val id : t -> Peer_id.t 
 

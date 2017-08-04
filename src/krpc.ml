@@ -16,14 +16,14 @@ let equal x y = Node_id.to_string x = Node_id.to_string y
 let find () = List.Assoc.find t.routing ~equal 
 
 let try_add addr : unit Deferred.Or_error.t =
-  debug !"try reaching node %{Addr}" addr;
+  debug !"Krpc: %{Addr} try_reaching_node" addr;
   let open Deferred.Or_error.Monad_infix in
   let n = Node.connect addr in
   Node.ping n 
   >>| fun id -> 
   if Option.is_none (find () id) then (
     t.routing <- (id, addr) :: t.routing;
-    debug !"added node nodeid %{Addr} = %{Node_id.to_readable_string}" addr id
+    debug !"Krpc: %{Addr} = %{Node_id.to_string_hum} added" addr id
   ) 
 
 let try_add_nis nis =
@@ -39,11 +39,10 @@ let k = 8
 
 (* return the k first node_info closest to info_hash *)
 let trim_nodes_info info_hash (nis : Node_info.t list) : Node_info.t list = 
-  info "trimming";
   let cmp (id1, _) (id2, _) = Node_id.compare info_hash id1 id2 in
   let l = List.sort nis ~cmp in 
   let l' = List.take l 4 in
-  let f (n,_) = info "distance %d" (Node_id.distance_hash n info_hash) in
+  let f (n,_) = debug "Krpc: distance %d" (Node_id.distance_hash n info_hash) in
   List.iter ~f l';
   l'
 
@@ -68,7 +67,7 @@ let max_depth = 3
 
 let lookup info_hash = 
   let nis = t.routing |> trim_nodes_info info_hash in
-  info "querying %d closest peers from the table" (List.length nis);
+  info "Krpc: querying %d closest peers" (List.length nis);
   match%bind lookup_info_hash' nis info_hash ~depth:max_depth with  
   | Some x -> return x 
   | None -> return []
@@ -79,7 +78,7 @@ let lookup info_hash =
 let populate_from_hash info_hash = 
 
   let rec populate_aux (nis:Node_info.t list) info_hash ~depth acc : Node_info.t list Deferred.t =
-    info "called populate %d" (List.length acc);
+    info "Krpc: populate %d" (List.length acc);
     match depth with
     | 0 -> return acc 
     | depth -> 
@@ -122,14 +121,14 @@ let read_routing_table () =
       In_channel.read_all routing_table_name
     with _ -> 
 
-      info "can't read routing table %s. Using empty table" routing_table_name;
+      info "Krpc: can't read %s. Using empty table" routing_table_name;
       ""
   in
   let decoded_table = 
     try
       table_of_string routing_table 
     with _ -> 
-      info "can't decode routing table %s. Using empty table" routing_table_name;
+      info "Krpc: can't decode %s. Using empty table" routing_table_name;
       [] 
   in
   try_add_nis decoded_table 
@@ -138,7 +137,8 @@ let write_routing_table () =
   let routing_table_name = sprintf "%s/%s" (G.path ()) G.routing_table_name in 
   try 
     Out_channel.write_all routing_table_name ~data:(table_to_string t.routing);
-    info "writing routing table to file %s" routing_table_name;
+    info "Krpc: writing %s" routing_table_name;
   with
   (* TODO print error in debug *)
-    _ -> Print.printf "%s\n" (Em.can't_open routing_table_name)
+    _ -> info "%s" (Em.can't_open routing_table_name)
+

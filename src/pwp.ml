@@ -61,18 +61,23 @@ let rec process_events t p meta : unit Deferred.t =
     info !"Pwp: %{P} has left" p;
     P.id p |> Hashtbl.remove t.peers |> return 
   | _ -> 
+
+(*     let one_percent = max (meta.torrent.Torrent.num_pieces / 100) 1 in
+    if (File.num_downloaded_pieces meta.file % one_percent) = 0 then
+      info "Pwp: downloaded %d%%" (File.percent meta.file);
+ *) 
     request_pieces t;
     process_events t p meta
 
 let init t p meta = 
-  
-(*   if (File.num_downloaded_pieces meta.file) > 0 then (
-    info !"Start: %{Peer} sending bitfield" p;
+
+  if (File.num_downloaded_pieces meta.file) > 0 then (
+    info !"Pwp: %{Peer} sending bitfield" p;
     File.bitfield meta.file |> P.send_bitfield p 
   );
   P.set_am_interested p true;
   P.set_am_choking p false;
- *)
+
   P.start p meta;
 
   process_events t p meta |> Deferred.ok
@@ -83,6 +88,7 @@ let add_peer t p =
 
   if not t.has_meta then
     failwith "Aie";
+
 
   let meta = Option.value_exn t.meta in
   P.set_num_pieces p meta.torrent.Torrent.num_pieces;

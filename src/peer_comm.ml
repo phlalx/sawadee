@@ -46,9 +46,7 @@ let create peer_addr r w =
     uploading = false;
   }
 
-let to_string t = Peer_id.to_readable_string t.id
-
-let addr_to_string t = Addr.to_string t.peer_addr
+let to_string t = Addr.to_string t.peer_addr 
 
 (* last bit of sequence set to 1 = DHT support, bit 20 = extension *)
 
@@ -91,7 +89,7 @@ let validate_handshake received info_hash =
   | false -> None
 
 let initiate_handshake t hash =
-  info !"Peer_comm: %{addr_to_string} trying handshake" t;
+  info !"Peer_comm %{}: trying handshake" t;
   let hash = Bt_hash.to_string hash in
   let pid = Peer_id.to_string G.peer_id in
   let hs = hs hash pid in
@@ -106,8 +104,8 @@ let initiate_handshake t hash =
       | None -> Error (Error.of_string "hash error")
       | Some (p, extension, dht) -> 
         t.id <- Peer_id.of_string p;
-        info !"Peer_comm: %{addr_to_string} -> %{} handshake ok" t t;
-        info !"Peer_comm: %{} DHT = %b EXT = %b" t extension dht; 
+        info !"Peer_comm %{} %{Peer_id} handshake ok" t t.id;
+        info !"Peer_comm %{}: DHT = %b EXT = %b" t extension dht; 
         let info_hash = Bt_hash.of_string hash in
         Ok { info_hash; extension ; dht } 
     ) 
@@ -124,7 +122,7 @@ let extract_reply received =
   info_hash_rep, remote_peer_id, support_dht, support_extension
 
 let wait_handshake t (has_hash : Bt_hash.t -> bool) =
-  info !"Peer_comm: %{addr_to_string} wait from its handshake" t;
+  info !"Peer_comm %{}: wait from handshake" t;
   let buf = String.create hs_len in
   Reader.really_read t.reader buf ~len:hs_len 
   >>| function
@@ -137,7 +135,7 @@ let wait_handshake t (has_hash : Bt_hash.t -> bool) =
         t.id <- peer_id;
         let hs = hs info_hash_str pid_str in
         Writer.write t.writer ~len:hs_len hs;
-        info !"Peer_comm: %{addr_to_string} -> %{} handshake ok" t t;
+        info !"Peer_comm %{}: %{Peer_id} handshake ok" t peer_id;
         info "Peer_comm: DHT = %b EXT = %b" extension dht; 
         Ok { info_hash; extension; dht } 
       ) else 
@@ -161,7 +159,7 @@ let receive t =
       Reader.really_read_bigsubstring t.reader msg_substr
       >>| function
       | `Eof _ -> 
-        info !"Peer_comm: %{} closed connection" t;
+        info !"Peer_comm %{}: closed connection" t;
         `Eof 
       | `Ok -> 
         pos_ref := 0;
@@ -171,7 +169,7 @@ let receive t =
 
 let send t m =
   let len = 4 + Message.size m in (* prefix length + message *)
-  debug !"Peer_comm: %{} sending message %{Message}" t m;
+  debug !"Peer_comm %{}: sending %{Message}" t m;
   let buf = t.send_buffer in
   let pos = Message.bin_write_t buf 0 m in
   assert(pos = len); 
@@ -179,13 +177,13 @@ let send t m =
 
 let set_downloading t = 
   if not t.downloading then (
-    info !"Peer_comm: %{} downloading\n" t;
+    info !"Peer_comm %{}: downloading" t;
     t.downloading <- true;
   )
 
 let set_uploading t = 
   if not t.uploading then (
-    info !"Peer_comm: %{} uploading\n" t;
+    info !"Peer_comm %{}: uploading" t;
     t.uploading <- true;
   )
 
@@ -194,7 +192,7 @@ let addr t = Addr.addr t.peer_addr
 let create_with_connect addr = 
   let open Deferred.Or_error.Monad_infix in 
   let wtc = Tcp.to_inet_address addr in
-  debug !"Peer_comm: %{Addr} try connecting" addr;
+  debug !"Peer_comm %{Addr}: try connecting" addr;
   Deferred.Or_error.try_with (function () -> Tcp.connect wtc)
   >>| fun (_, r, w) ->
   create addr r w 

@@ -16,7 +16,7 @@ let state = {
 }
 
 let callback ~body (addr : Addr.t) request = 
-  info "tracker is processing request";
+  debug !"Tracker_server: %{Addr} request" addr;
   let `Inet (inet_addr, _) = addr in
 
   let uri = Request.uri request in
@@ -33,7 +33,7 @@ let callback ~body (addr : Addr.t) request =
   let set_port p =
     let port = int_of_string p in
     let peer_addr = Addr.create inet_addr ~port in
-    info !"%{Addr} added" peer_addr;
+    info !"Tracker_server: %{Addr} added" peer_addr;
     state.peers <- List.dedup (peer_addr :: state.peers)
   in
   Option.value_map port ~default:() ~f:set_port;

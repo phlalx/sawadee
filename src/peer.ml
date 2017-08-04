@@ -83,7 +83,7 @@ let validate t b = if not b then raise Incorrect_behavior
 
 let id t = Peer_comm.id t.peer
 
-let to_string t = id t |> Peer_id.to_readable_string  
+let to_string t = id t |> Peer_id.to_string_hum  
 
 let set_num_pieces t num_piece = 
   t.have <- Bitset.empty num_piece
@@ -95,25 +95,25 @@ let owned_pieces t = t.have
 let set_owned_piece t i = Bitset.insert t.have i
 
 let set_owned_pieces t s = Bitset.insert_from_bitfield t.have s;
-  info !"Peer: %{} has %d pieces" t (Bitset.card t.have) 
+  info !"Peer %{}: has %d pieces" t (Bitset.card t.have) 
 
 let is_or_not b = if b then "" else "not"
 
 let set_peer_interested t b = 
-  info !"Peer: %{} is %{is_or_not} interested" t b;
+  info !"Peer %{}: is %{is_or_not} interested" t b;
   t.peer_interested <- b
 
 let set_peer_choking t b = 
-  info !"Peer: %{} is %{is_or_not} choking" t b;
+  info !"Peer %{}: is %{is_or_not} choking" t b;
   t.peer_choking <- b
 
 let set_am_interested t b = 
-  info !"Peer: %{} I am %{is_or_not} interested" t b;
+  info !"Peer %{}: I am %{is_or_not} interested" t b;
   t.am_interested <- b;
   (if b then M.Interested else M.Not_interested) |> P.send t.peer
 
 let set_am_choking t b = 
-  info !"Peer: %{} I am %{is_or_not} choking" t b;
+  info !"Peer %{}: I am %{is_or_not} choking" t b;
   t.am_choking <- b;
   (if b then M.Choke else M.Unchoke) |> P.send t.peer
 
@@ -124,7 +124,7 @@ let request_piece t meta i =
 
   let on_ivar = function 
     | `Timeout -> 
-      info !"Peer: %{} cancelling request" t;
+      info !"Peer %{}: cancelling request" t;
       (* TODO better to do this in pwp? *)
       (* don't forget to put peer to idle *)
       File.set_piece_status meta.file i `Not_requested;
@@ -135,7 +135,7 @@ let request_piece t meta i =
       File.get_piece meta.file i |> Pers.write_piece meta.pers
   in 
 
-  info !"Peer: %{} requesting piece %d" t i; 
+  info !"Peer %{}: we request %d" t i; 
   (* TODO assert not requested *)
   File.set_piece_status meta.file i `Requested; 
   let f ~index ~off ~len =
@@ -162,12 +162,12 @@ let process_block t meta index bgn block =
     Piece.is_valid_block piece bgn len |> validate t;
     match Piece.update piece bgn block with 
     | `Ok -> 
-      debug !"Peer: %{} got block - piece %d offset = %d" t index bgn
+      debug !"Peer %{}: got block - piece %d offset = %d" t index bgn
     | `Hash_error -> 
-      info !"Peer: %{} hash error piece %d" t index
+      info !"Peer %{}: hash error piece %d" t index
     (* TODO write something else on ivar. Now it will just time out *)
     | `Downloaded ->
-      info !"Peer: %{} got piece %d" t index; 
+      info !"Peer %{}: got piece %d" t index; 
       P.set_downloading t.peer;
       Ivar.fill ivar ()
 
@@ -182,11 +182,10 @@ let process_block t meta index bgn block =
 *)
 
 let process_handshake t id s =
-  let open Extension in
   let em = Extension.of_bin `Handshake s in 
-  info !"Peer: extended message %d %{Extension}" id em;
+  info !"Peer %{}: extended message %d %{Extension}" t id em; 
   match em with 
-  | Handshake [`Metadata (id, s)] ->
+  | Extension.Handshake [`Metadata (id, s)] ->
     Some id |> Ivar.fill t.support_metadata;
     Some s |> Ivar.fill t.metadata_size;
   | _ -> 
@@ -194,12 +193,11 @@ let process_handshake t id s =
     None |> Ivar.fill t.metadata_size
 
 let process_metadata t id s =
-  let open Extension in
   match Ivar.peek t.support_metadata with
   | None -> validate t false 
   | Some (Some i) when i = id -> 
-    let em = Extension.of_bin `Metadata_ext s in
-    info !"Peer: extended message %d %{Extension}" id em
+    let em = Extension.of_bin `Metadata_ext s in 
+    info !"Peer %{}: extended message %d %{Extension}" t id em
   | _ -> ()
 
 let process_extended t id s =
@@ -208,8 +206,21 @@ let process_extended t id s =
   else
     process_metadata t id s 
 
-let process_message t (meta:Meta_state.t) m : unit =
-  debug !"Peer: %{} received %{Message}" t m;
+let process_request t meta index bgn length =
+  let open Meta_state in
+  let piece = File.get_piece meta.file index in
+  File.is_valid_piece_index meta.file index |> validate t;
+  Piece.is_valid_block_request piece bgn length |> validate t;
+  File.has_piece meta.file index |> validate t;
+  P.set_uploading t.peer; (* TODO pass this in this module *)
+  let piece = File.get_piece meta.file index in
+  (* TODO: we could avoid a string allocation by using a substring 
+     for the block in M.Piece *)
+  let block = Piece.get_content piece ~off:bgn ~len:length in
+  Message.Block (index, bgn, block) |> P.send t.peer
+
+let process_message t meta m : unit =
+  debug !"Peer %{}: received %{Message}" t m;
   match m with
 
   | M.KeepAlive -> ()
@@ -231,12 +242,12 @@ let process_message t (meta:Meta_state.t) m : unit =
     Pipe.write_without_pushback t.wr Not_interested
 
   | M.Bitfield bits -> 
-    info !"Peer: %{} received bitfield" t;
+    info !"Peer %{}: received bitfield" t;
     set_owned_pieces t bits; 
     Pipe.write_without_pushback t.wr Bitfield
 
   | M.Port port -> 
-    info !"Peer: %{} received port %d" t port;
+    info !"Peer %{}: received port %d" t port;
     set_port t (Some port);
     if G.is_node () then (
       Addr.create (Peer_comm.addr t.peer) port |> 
@@ -246,14 +257,16 @@ let process_message t (meta:Meta_state.t) m : unit =
     process_extended t id b 
 
   | M.Have index -> 
-    info !"Peer: %{} received have %d" t index;
+    info !"Peer %{}: received have %d" t index;
     set_owned_piece t index; 
     Pipe.write_without_pushback t.wr Have 
 
   (* the following messages must have meta set *)
 
   | M.Request (index, bgn, length) -> 
-    failwith "not implemented yet"
+    info !"Peer %{}: peer requests %d" t index;
+    if not (am_choking t) then 
+      process_request t meta index bgn length
 
   | M.Block (index, bgn, block) -> 
     process_block t meta index bgn block
@@ -282,7 +295,7 @@ let rec wait_and_process_message t meta : unit Deferred.t =
   | `Result r -> result r 
 
 let start t (meta : Meta_state.t) : unit =
-  info !"Peer: %{} start message handler loop" t; 
+  info !"Peer %{}: start message handler loop" t; 
   Deferred.forever () (fun () -> wait_and_process_message t meta)
 
 let send_bitfield t bf = M.Bitfield bf |> P.send t.peer

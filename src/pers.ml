@@ -90,7 +90,7 @@ let read_from_pipe t =
 let open_file name ~len : Unix.Fd.t Deferred.Or_error.t = 
   let open Deferred.Or_error.Monad_infix in
   let pname = (G.path ()) ^ "/" ^ name in
-  info "open file %s with length %d" pname len;
+  info "Pers: open file %s with length %d" pname len;
 
   (* TODO tentative to catch possible exceptions raised by Unix functions. *)
   Monitor.try_with_or_error (fun () -> Unix.openfile pname ~mode:[`Creat;`Rdwr]) 
@@ -108,9 +108,8 @@ let make_segments fds info_files =
 
 let display_segments segments_of_piece =
   let print_list_segments segments = 
-    List.iter segments ~f:(fun s -> debug !"%{segment_to_string}" s) in
+    List.iter segments ~f:(fun s -> debug !"Pers: %{segment_to_string}" s) in
   let f i ls = 
-    debug "piece %d" i;
     print_list_segments ls
   in
   Array.iteri segments_of_piece ~f
@@ -131,7 +130,7 @@ let write_piece t p =
   Pipe.write_without_pushback t.wr p 
 
 let close_all_files t = 
-  info "closing all files";
+  info "Pers: closing all files";
   Deferred.List.iter t.fds ~f:Fd.close
 
 let close_pipe t = Pipe.close t.wr

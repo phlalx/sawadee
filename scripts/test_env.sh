@@ -8,5 +8,5 @@ export FILES=tests/multifiles
 export BITSET=165
 export NUM_CLIENTS=10
 export BASE_PORT=6000
-export VERBOSE="-v 2"
+export VERBOSE="-v 1"
 export WAITING=10

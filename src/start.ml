@@ -9,7 +9,9 @@ module Em = Error_msg
 let ignore_error addr : unit Or_error.t -> unit =
   function 
   | Ok () -> () 
-  | Error err -> info !"Start: error connecting %{Error.to_string_hum}" err
+  | Error err -> 
+    info !"Start: can't connect to %{Addr}" addr;
+    debug !"Start: %{Error.to_string_hum}" err
 
 let add_peers pwp info_hash addrs : unit Deferred.t =
 
@@ -113,8 +115,8 @@ let process_file f =
 
   >>= fun () ->
 
-  Print.printf "read %d%% from disk\n" (File.percent file);
-  info "Start: read %d/%d pieces" (File.num_downloaded_pieces file) num_pieces;
+  info "Start: read %d/%d pieces (%d%%)" (File.num_downloaded_pieces file) 
+    num_pieces (File.percent file);
 
   (***** set up Pers (pipe for writing pieces) *****)
 
@@ -125,13 +127,13 @@ let process_file f =
        let data = File.bitfield file |> Bitfield.to_string in
        Out_channel.write_all bf_name ~data
      with 
-       _  -> Print.printf "%s\n" (Em.can't_open bf_name));
+       _  ->  info "%s\n" (Em.can't_open bf_name));
 
     Krpc.write_routing_table ();
     Pers.close_all_files pers 
     >>= fun () ->
-    Print.printf "written %d%% to disk\n" (File.percent file);
-    info "Start: written %d/%d pieces" (File.num_downloaded_pieces file) num_pieces;
+    info "Start: written %d/%d pieces (%d%%)" (File.num_downloaded_pieces file) 
+      num_pieces (File.percent file);
     exit 0
   in 
 
@@ -150,7 +152,6 @@ let process_file f =
   let%bind addrs = Tracker_client.query info_hash uris in
 
   let num_of_peers = List.length addrs in 
-  Print.printf "trackers returned %d peers\n" num_of_peers;
   info "Start: %d tracker peers" num_of_peers;
 
   (******* create pwp and add peers ****)
@@ -164,7 +165,7 @@ let process_file f =
       torrent = tinfo;
       file;
       pers;
-    }  in
+    } in
 
   let pwp = Pwp.create ~meta () in
 
