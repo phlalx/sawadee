@@ -5,5 +5,5 @@
 
 open Core
 
-val next_requests : File.t -> (Peer_id.t, Peer.t) Hashtbl.t -> int -> 
+val next_requests : Network_file.t -> (Peer_id.t, Peer.t) Hashtbl.t -> int -> 
 (int * Peer.t) list

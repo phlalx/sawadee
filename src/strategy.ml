@@ -11,12 +11,10 @@ module P = Peer
     gets updated on the basis of new events, instead of recomputing this
     all the time *)
 
-let next_requests file peers n : (int * P.t) list =
+let next_requests nf peers n : (int * P.t) list =
 
   let peers = Hashtbl.to_alist peers in
   let peers = List.map peers ~f:snd in
-
-  let pieces_not_requested = File.pieces_not_requested file in
 
   (* returns first peer that have this piece and number of peers that have it
      TODO: we could choose a "better" peer instead of the first one
@@ -33,7 +31,7 @@ let next_requests file peers n : (int * P.t) list =
     | [] -> None 
     | h :: _ -> Some (i, h, n)   
   in
-  let l1 = Bitset.to_list pieces_not_requested in 
+  let l1 = Network_file.not_requested nf in 
   let l2 = List.filter_map l1 ~f:peers_having_piece in
   let cmp (_,_,c) (_,_,c') =  compare c c' in (* rarest first *)
   let l3 = List.permute l2 |> List.sort ~cmp in 

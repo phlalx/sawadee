@@ -15,7 +15,7 @@ type event =
 
 val create : Peer_comm.t -> dht:bool -> extension:bool -> t
 
-val start : t -> Meta_state.t -> unit
+val start : t -> Network_file.t -> unit
 
 val event_to_string : event -> string
 
@@ -41,7 +41,7 @@ val send_bitfield : t -> Bitfield.t -> unit
 
 val advertise_piece : t -> int -> unit
 
-val request_piece : t -> Meta_state.t -> int -> unit Deferred.t 
+val request_piece : t -> Network_file.t -> int -> unit Deferred.t 
 
 val read_event : t -> event Deferred.t 
 
@@ -49,12 +49,9 @@ val id : t -> Peer_id.t
 
 val to_string : t -> string
 
-val set_num_pieces : t -> int -> unit
-
 val has_piece : t -> int -> bool
 
-val owned_pieces : t -> Bitset.t
-
+val bitfield : t -> Bitfield.t
 
 (** assert a condition dependent on values received by a peer. For instance,
     if peer doesn't behave according to the protocol. raises if false 

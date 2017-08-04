@@ -13,7 +13,7 @@ open Async
 
 type t
 
-val create: ?meta:Meta_state.t -> unit -> t
+val create: ?nf:Network_file.t -> unit -> t
 
 (** Add new peers to communicate with. Connexion and handshake are already 
     established.

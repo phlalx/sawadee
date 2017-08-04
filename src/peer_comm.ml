@@ -104,7 +104,7 @@ let initiate_handshake t hash =
       | None -> Error (Error.of_string "hash error")
       | Some (p, extension, dht) -> 
         t.id <- Peer_id.of_string p;
-        info !"Peer_comm %{} %{Peer_id} handshake ok" t t.id;
+        info !"Peer_comm %{} %{Peer_id.to_string_hum} handshake ok" t t.id;
         info !"Peer_comm %{}: DHT = %b EXT = %b" t extension dht; 
         let info_hash = Bt_hash.of_string hash in
         Ok { info_hash; extension ; dht } 
@@ -135,7 +135,7 @@ let wait_handshake t (has_hash : Bt_hash.t -> bool) =
         t.id <- peer_id;
         let hs = hs info_hash_str pid_str in
         Writer.write t.writer ~len:hs_len hs;
-        info !"Peer_comm %{}: %{Peer_id} handshake ok" t peer_id;
+        info !"Peer_comm %{}: %{Peer_id.to_string_hum} handshake ok" t peer_id;
         info "Peer_comm: DHT = %b EXT = %b" extension dht; 
         Ok { info_hash; extension; dht } 
       ) else 

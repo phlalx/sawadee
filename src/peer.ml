@@ -23,10 +23,9 @@ type t = {
   mutable peer_interested : bool;
   mutable am_choking : bool;
   mutable am_interested : bool; 
-  mutable have : Bitset.t;
   mutable idle : bool;
   mutable port : int Option.t;
-  mutable bitfield : Bitfield.t Option.t;
+  bitfield : Bitfield.t;
   wr : event Pipe.Writer.t; 
   rd : event Pipe.Reader.t;
   requested : (int, unit Ivar.t) Hashtbl.t;
@@ -41,10 +40,9 @@ let create peer ~dht ~extension =
     peer_choking = true; 
     am_interested = false;
     am_choking = true;
-    have = Bitset.empty 0; 
     idle = false;
     port = None;
-    bitfield = None;
+    bitfield = Bitfield.empty G.max_num_pieces;
     rd;
     wr;
     requested = Hashtbl.Poly.create ();
@@ -85,17 +83,10 @@ let id t = Peer_comm.id t.peer
 
 let to_string t = id t |> Peer_id.to_string_hum  
 
-let set_num_pieces t num_piece = 
-  t.have <- Bitset.empty num_piece
+(* TODO add validation check *)
+let has_piece t i = Bitfield.get t.bitfield i
 
-let has_piece t i = Bitset.belongs t.have i
-
-let owned_pieces t = t.have
-
-let set_owned_piece t i = Bitset.insert t.have i
-
-let set_owned_pieces t s = Bitset.insert_from_bitfield t.have s;
-  info !"Peer %{}: has %d pieces" t (Bitset.card t.have) 
+let bitfield t = t.bitfield
 
 let is_or_not b = if b then "" else "not"
 
@@ -119,29 +110,30 @@ let set_am_choking t b =
 
 (* we always request all blocks from a piece to the same peer at the 
    same time *)
-let request_piece t meta i =
-  let open Meta_state in
+let request_piece t nf i =
+  let open Network_file in
 
   let on_ivar = function 
     | `Timeout -> 
       info !"Peer %{}: cancelling request" t;
       (* TODO better to do this in pwp? *)
       (* don't forget to put peer to idle *)
-      File.set_piece_status meta.file i `Not_requested;
+      Network_file.set_piece_status nf i `Not_requested;
       set_idle t true
     | `Result () -> 
       (* TODO better to do this in pwp? *)
-      File.set_piece_status meta.file i `Downloaded;
-      File.get_piece meta.file i |> Pers.write_piece meta.pers
+      Network_file.set_piece_status nf i `Downloaded;
+      Network_file.write_piece nf i
+      (* TODO change interface of network file *)
   in 
 
   info !"Peer %{}: we request %d" t i; 
   (* TODO assert not requested *)
-  File.set_piece_status meta.file i `Requested; 
+  Network_file.set_piece_status nf i `Requested; 
   let f ~index ~off ~len =
     M.Request(index, off, len) |> P.send t.peer 
   in 
-  File.get_piece meta.file i |> Piece.iter ~f;
+  Network_file.get_piece nf i |> Piece.iter ~f;
   let ivar = Ivar.create () in
   Hashtbl.add_exn t.requested ~key:i ~data:ivar;
   (* TODO error case, if hash is wrong *)
@@ -151,14 +143,14 @@ let request_piece t meta i =
   >>| fun () ->
   Hashtbl.remove t.requested i
 
-let process_block t meta index bgn block =
+let process_block t nf index bgn block =
   match Hashtbl.find t.requested index with 
   | None -> () (* probably means we already canceled this request *)
   | Some ivar ->
-    let open Meta_state in
-    let piece = File.get_piece meta.file index in
+    let open Network_file in
+    let piece = Network_file.get_piece nf index in
     let len = String.length block in
-    File.is_valid_piece_index meta.file index |> validate t; 
+    Network_file.is_valid_piece_index nf index |> validate t; 
     Piece.is_valid_block piece bgn len |> validate t;
     match Piece.update piece bgn block with 
     | `Ok -> 
@@ -206,20 +198,19 @@ let process_extended t id s =
   else
     process_metadata t id s 
 
-let process_request t meta index bgn length =
-  let open Meta_state in
-  let piece = File.get_piece meta.file index in
-  File.is_valid_piece_index meta.file index |> validate t;
+let process_request t nf index bgn length =
+  let piece = Network_file.get_piece nf index in
+  Network_file.is_valid_piece_index nf index |> validate t;
   Piece.is_valid_block_request piece bgn length |> validate t;
-  File.has_piece meta.file index |> validate t;
+  Network_file.has_piece nf index |> validate t;
   P.set_uploading t.peer; (* TODO pass this in this module *)
-  let piece = File.get_piece meta.file index in
+  let piece = Network_file.get_piece nf index in
   (* TODO: we could avoid a string allocation by using a substring 
      for the block in M.Piece *)
   let block = Piece.get_content piece ~off:bgn ~len:length in
   Message.Block (index, bgn, block) |> P.send t.peer
 
-let process_message t meta m : unit =
+let process_message t nf m : unit =
   debug !"Peer %{}: received %{Message}" t m;
   match m with
 
@@ -242,8 +233,10 @@ let process_message t meta m : unit =
     Pipe.write_without_pushback t.wr Not_interested
 
   | M.Bitfield bits -> 
+  (* TODO info !"Peer %{}: has %d pieces" t (Bitset.card t.have)  *)
+  (* TODO validate this bitfield *)
     info !"Peer %{}: received bitfield" t;
-    set_owned_pieces t bits; 
+    Bitfield.copy ~src:bits ~dst:t.bitfield; 
     Pipe.write_without_pushback t.wr Bitfield
 
   | M.Port port -> 
@@ -258,18 +251,18 @@ let process_message t meta m : unit =
 
   | M.Have index -> 
     info !"Peer %{}: received have %d" t index;
-    set_owned_piece t index; 
+    Bitfield.set t.bitfield index true;
     Pipe.write_without_pushback t.wr Have 
 
-  (* the following messages must have meta set *)
+  (* the following messages must have nf set *)
 
   | M.Request (index, bgn, length) -> 
     info !"Peer %{}: peer requests %d" t index;
     if not (am_choking t) then 
-      process_request t meta index bgn length
+      process_request t nf index bgn length
 
   | M.Block (index, bgn, block) -> 
-    process_block t meta index bgn block
+    process_block t nf index bgn block
 
   | M.Cancel (index, bgn, length) -> 
     failwith "not implemented yet"
@@ -283,10 +276,10 @@ let leaving t =
 
 (* This is the main message processing loop. We consider two types of events.
    Timeout (idle peer), and message reception. *)
-let rec wait_and_process_message t meta : unit Deferred.t =
+let rec wait_and_process_message t nf : unit Deferred.t =
 
   let result = function
-    | `Ok m -> process_message t meta m |> return
+    | `Ok m -> process_message t nf m |> return
     | `Eof -> leaving t  
   in
   P.receive t.peer |> Clock.with_timeout G.idle 
@@ -294,9 +287,9 @@ let rec wait_and_process_message t meta : unit Deferred.t =
   | `Timeout -> leaving t
   | `Result r -> result r 
 
-let start t (meta : Meta_state.t) : unit =
+let start t (nf : Network_file.t) : unit =
   info !"Peer %{}: start message handler loop" t; 
-  Deferred.forever () (fun () -> wait_and_process_message t meta)
+  Deferred.forever () (fun () -> wait_and_process_message t nf)
 
 let send_bitfield t bf = M.Bitfield bf |> P.send t.peer
 

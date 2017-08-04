@@ -40,10 +40,10 @@ val card : t -> int
 val reset : t -> unit
 
 (** intersection of sets. Linear in size of set. Raises if different sizes *)
-val inter : t -> t -> t
+(* val inter : t -> t -> t *)
 
 (** complement set. Linear in size *)
-val compl : t -> t
+(* val compl : t -> t *)
 
 (** returns any element if non-empty *)
 val choose : t -> int option

@@ -4,7 +4,7 @@ default:
 	jbuilder build src/main.bc 
 
 all:
-	jbuilder build src/main.bc src/test_krpc_packet.bc src/test_bitset.bc src/tracker_server.bc
+	jbuilder build src/main.bc src/test_krpc_packet.bc src/test_bitset.bc src/tracker_server.bc src/test_bitfield.bc
 
 unit:
 	jbuilder runtest
