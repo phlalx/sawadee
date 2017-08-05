@@ -1,6 +1,4 @@
 open Core
-open Async
-open Log.Global
 
 module B = Bencode_ext
 
@@ -21,7 +19,6 @@ let to_bencode r =
 
 let of_bencode s =
   let bc = `String s |> B.decode in 
-  debug !"tracker reply = %{B.pretty_print}" bc;
   (* let complete = B.dict_get_int_exn bc "complete" in *)
   (* let incomplete = B.dict_get_int_exn bc "incomplete" in *)
   (* let interval = B.dict_get_int_exn bc "interval" in *)

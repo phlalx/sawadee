@@ -7,7 +7,6 @@
     used both in messages and on disk to represent the list of owned pieces  
     of the network file. *)
 open Core
-open Async
 
 (** An element of type [t] represents a set of integer that belongs to \[0, size)
     where [size] is fixed and given at creation *) 

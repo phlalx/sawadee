@@ -1,10 +1,13 @@
 .PHONY: default unit test clean
 
-default:
-	jbuilder build src/main.bc 
+all: 
+	jbuilder build @install
+	
+client:
+	jbuilder build main/src/main.bc 
 
-all:
-	jbuilder build src/main.bc src/test_krpc_packet.bc src/test_bitset.bc src/tracker_server.bc src/test_bitfield.bc
+server:
+	jbuilder build tracker/src/tracker_server.bc 
 
 unit:
 	jbuilder runtest

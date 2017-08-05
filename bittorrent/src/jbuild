@@ -1,0 +1,10 @@
+(jbuild_version 1)
+
+(library
+   ((name bittorrent)
+      (libraries (common core core_extended async ppx_jane uri cohttp cohttp.async 
+                  sha)) 
+      (preprocess (pps (ppx_jane)))
+      (wrapped false) ))
+
+

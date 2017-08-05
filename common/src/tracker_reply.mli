@@ -6,7 +6,6 @@
   TODO: need to be more permissive in what we accept as reply *)
  
 open Core
-open Async
 
 type t = {
   complete : int;

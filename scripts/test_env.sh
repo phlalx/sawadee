@@ -1,4 +1,6 @@
-export EXEC_PREFIX=_build/default/src/
+export EXEC_PREFIX=_build/install/default/bin
+export TRACKER=tracker
+export CLIENT=btclient
 export SCRIPTS_PREFIX=scripts
 export OCAML_TORRENT=1
 export TEST_PATH_PREFIX=download
