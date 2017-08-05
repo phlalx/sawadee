@@ -7,6 +7,10 @@ module Em = Error_msg
 
 type handler = Bt_hash.t
 
+type status = {
+  num_peers : int
+}
+
 let set_verbose i =
   match i with
   | 1 -> set_level `Info; 
@@ -74,3 +78,22 @@ let parse_uri f =
   | Some "file" -> `File (Uri.path uri)
   | None -> `File f
   | _ -> `Other
+
+let handler_of_string h = 
+  try 
+    Some (Bt_hash.of_hex h)
+  with 
+  | _ -> None
+
+let status h = 
+  let f pwp = 
+    let st = Pwp.status pwp in {
+      num_peers = st.Pwp.num_peers
+    }
+  in 
+  Torrent_table.find h |> Option.map ~f 
+
+
+
+
+

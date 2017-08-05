@@ -45,12 +45,12 @@ let dict_get_suff_int_exn (d : B.t) ~suffix : int =
 
 let metadata_ext_of_bin s =
   let (bc, s) = B.decode_beginning_exn s in
-  info !"Extension: decoding %{B.pretty_print}" bc; 
+  debug !"Extension: decoding %{B.pretty_print}" bc; 
   assert false
 
 let handshake_of_bin s =
   let bc = `String s |> B.decode in
-  info !"Extension: decoding %{B.pretty_print}" bc; 
+  debug !"Extension: decoding %{B.pretty_print}" bc; 
   try 
     let metadata_size = dict_get_suff_int_exn bc ~suffix:"metadata_size" in
     let metadata = 

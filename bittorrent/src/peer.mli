@@ -15,7 +15,9 @@ type event =
 
 val create : Peer_comm.t -> dht:bool -> extension:bool -> t
 
-val start : t -> Network_file.t -> unit
+val set_nf : t -> Network_file.t -> unit
+
+val start : t -> unit
 
 val event_to_string : event -> string
 
@@ -41,7 +43,7 @@ val send_bitfield : t -> Bitfield.t -> unit
 
 val advertise_piece : t -> int -> unit
 
-val request_piece : t -> Network_file.t -> int -> unit Deferred.t 
+val request_piece : t -> int -> unit Deferred.t 
 
 val read_event : t -> event Deferred.t 
 

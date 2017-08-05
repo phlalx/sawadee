@@ -69,7 +69,8 @@ let create info_hash tinfo =
     Torrent.num_files;
   } = tinfo in 
 
-  let bitfield_name = (Bt_hash.to_hex info_hash) ^ G.bitset_ext in 
+  let bitfield_name = sprintf "%s/%s%s"
+  (G.torrent_path ()) (Bt_hash.to_hex info_hash)  G.bitset_ext in 
 
   let%bind pers = Pers.create files_info num_pieces piece_length  in
   let requested = Bitfield.empty num_pieces in

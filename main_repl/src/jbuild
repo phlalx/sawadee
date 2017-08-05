@@ -1,0 +1,9 @@
+(jbuild_version 1)
+
+(executable
+   ((name main)
+    (public_name btclient_repl) 
+      (libraries (bittorrent core async ppx_jane)) 
+      (preprocess (pps (ppx_jane)))))
+
+

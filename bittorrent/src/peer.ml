@@ -31,6 +31,7 @@ type t = {
   requested : (int, unit Ivar.t) Hashtbl.t;
   support_metadata : int Option.t Ivar.t;
   metadata_size : int Option.t Ivar.t;
+  mutable nf : Network_file.t Option.t
 } [@@deriving fields]
 
 let create peer ~dht ~extension =
@@ -50,6 +51,7 @@ let create peer ~dht ~extension =
     dht;
     support_metadata = Ivar.create ();
     metadata_size = Ivar.create (); 
+    nf = None
   }
 
 let request_metadata t ~len = assert false
@@ -110,7 +112,8 @@ let set_am_choking t b =
 
 (* we always request all blocks from a piece to the same peer at the 
    same time *)
-let request_piece t nf i =
+let request_piece t i =
+  let nf = Option.value_exn t.nf in
   let open Network_file in
 
   let on_ivar = function 
@@ -210,7 +213,7 @@ let process_request t nf index bgn length =
   let block = Piece.get_content piece ~off:bgn ~len:length in
   Message.Block (index, bgn, block) |> P.send t.peer
 
-let process_message t nf m : unit =
+let process_message t m : unit =
   debug !"Peer %{}: received %{Message}" t m;
   match m with
 
@@ -258,10 +261,12 @@ let process_message t nf m : unit =
 
   | M.Request (index, bgn, length) -> 
     info !"Peer %{}: peer requests %d" t index;
+    let nf = assert false in
     if not (am_choking t) then 
       process_request t nf index bgn length
 
   | M.Block (index, bgn, block) -> 
+    let nf = assert false in
     process_block t nf index bgn block
 
   | M.Cancel (index, bgn, length) -> 
@@ -276,10 +281,10 @@ let leaving t =
 
 (* This is the main message processing loop. We consider two types of events.
    Timeout (idle peer), and message reception. *)
-let rec wait_and_process_message t nf : unit Deferred.t =
+let rec wait_and_process_message t : unit Deferred.t =
 
   let result = function
-    | `Ok m -> process_message t nf m |> return
+    | `Ok m -> process_message t m |> return
     | `Eof -> leaving t  
   in
   P.receive t.peer |> Clock.with_timeout G.idle 
@@ -287,9 +292,11 @@ let rec wait_and_process_message t nf : unit Deferred.t =
   | `Timeout -> leaving t
   | `Result r -> result r 
 
-let start t (nf : Network_file.t) : unit =
+let set_nf t nf = t.nf <- Some nf
+
+let start t : unit =
   info !"Peer %{}: start message handler loop" t; 
-  Deferred.forever () (fun () -> wait_and_process_message t nf)
+  Deferred.forever () (fun () -> wait_and_process_message t)
 
 let send_bitfield t bf = M.Bitfield bf |> P.send t.peer
 

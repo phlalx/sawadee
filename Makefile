@@ -6,6 +6,9 @@ all:
 client:
 	jbuilder build main/src/main.bc 
 
+client_repl:
+	jbuilder build main_repl/src/main.bc 
+
 server:
 	jbuilder build tracker/src/tracker_server.bc 
 
