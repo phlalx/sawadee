@@ -104,4 +104,9 @@ let add_peer t p =
     Error (Error.of_string "ignore peers (already added or ourselves)") 
     |> return
 
+let close t = 
+  match t.nf with 
+  | None -> Deferred.unit  
+  | Some nf -> Network_file.close nf  
+
 

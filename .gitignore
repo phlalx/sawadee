@@ -1,7 +1,7 @@
 _build
 *.install
-ocaml-torrent.sublime-workspace
-ocaml-torrent.sublime-project
+*.sublime-workspace
+*.sublime-project
 README.html
 .merlin
 download*

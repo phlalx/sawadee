@@ -20,3 +20,5 @@ val create: ?nf:Network_file.t -> unit -> t
 
     This deferred is determined if peer leaves or fail *)
 val add_peer: t -> Peer.t -> unit Deferred.Or_error.t 
+
+val close: t -> unit Deferred.t

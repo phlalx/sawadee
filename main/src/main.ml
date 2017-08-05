@@ -4,57 +4,36 @@ open Core
 open Async
 open Log.Global
 
-module G = Global
-module Em = Error_msg
-
-let check_path () = 
-  let p = G.path () in
-  match%bind Sys.is_directory p with 
-  | `Yes -> return ()
-  | `No | `Unknown -> Em.terminate (Em.can't_open p)
-
-let set_verbose i =
-  match i with
-  | 1 -> set_level `Info; 
-  | 2 -> set_level `Debug;
-  | _ -> Em.terminate (Em.verbose_error ()) 
+let terminate _ = 
+  don't_wait_for (
+    Bittorrent.terminate () 
+    >>= fun () ->
+    exit 0   (* TODO try to terminate without exit 0 *)
+  )
 
 let process 
     (uri : string)
     (port : int option) 
     (path : string) 
     (verbose : int option)
-    (node : bool)
+    (node : bool) : unit Deferred.t
   = 
   set_level `Error;
 
-  G.set_node node;
-  Option.value_map port ~default:() ~f:G.set_port;
-  G.set_path path;
-  Option.value_map verbose ~default:() ~f:set_verbose;
-  info !"Main: peer-id:%{Peer_id.to_string_hum}" G.peer_id;
-  info !"Main: node-id:%{Node_id.to_string_hum}" G.node_id;
-  check_path ()
+  Bittorrent.create 
+    ~download_path:path 
+    ~torrent_path:path
+    ~verbose
+    ~server_port:port
   >>= fun () ->
+  Signal.handle Signal.terminating ~f:terminate;
 
-  (if G.is_node () then 
-    Krpc.read_routing_table () 
-    >>= fun () ->
-    Krpc.populate ()
-  else
-   Deferred.unit) 
-  >>= fun () ->
-  info "Main: processed routing table";
+  (match Bittorrent.parse_uri uri with 
+   | `Magnet s -> Bittorrent.add_magnet s 
+   | `File f -> In_channel.read_all f |> Bittorrent.add_torrent 
+   | `Invalid_magnet | `Other -> assert false)
 
-  if G.is_server () then 
-    Server.start ~port:(G.port_exn ())
-  else 
-    Deferred.unit;
-
-  >>= fun () ->
-
-  Start.process uri
-
+  >>= fun _ -> never ()
 
 let () = 
   let spec =

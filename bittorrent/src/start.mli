@@ -17,4 +17,6 @@ open Async
   it will be determined iff all the peers fail or leave. This is because we only
   query the tracker once. *)
 
-val process : string -> unit Deferred.t
+val process_string : string -> Bt_hash.t Deferred.t
+
+val process_magnet : Bt_hash.t -> Bt_hash.t Deferred.t

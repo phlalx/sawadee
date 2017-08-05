@@ -5,10 +5,6 @@ open Log.Global
 module P = Peer_comm
 module G = Global
 
-let table = Hashtbl.Poly.create ()
-
-let add info_hash pwp = Hashtbl.add table ~key:info_hash ~data:pwp |> ignore
-
 let handler addr r w =
 
   let ignore_error addr : unit Or_error.t -> unit =
@@ -23,11 +19,10 @@ let handler addr r w =
     let open Deferred.Or_error.Monad_infix in 
     info "Server: incoming connection";
     let p = Peer_comm.create addr r w in
-    let has_hash = Hashtbl.mem table in
-    P.wait_handshake p has_hash
+    P.wait_handshake p Torrent_table.has_hash
     >>= fun { info_hash; dht; extension } ->
     info !"Server: %{P.to_string} handshake" p;
-    let pwp = Hashtbl.find_exn table info_hash in
+    let pwp = Torrent_table.find_exn info_hash in
     let peer = Peer.create p ~dht ~extension in
     Pwp.add_peer pwp peer 
     >>= fun () ->

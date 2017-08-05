@@ -3,6 +3,7 @@ open Async
 open Log.Global
 
 module B = Bencode_ext
+module G = Global
 
 type file_info = string * int (* name and length of each individual files *)
 
@@ -62,8 +63,7 @@ let info_of_bencode (info_dict_bc : B.t) : info =
 
 let bencode_to_uri x = x |> B.as_string_exn |> Uri.of_string
 
-let do_file torrent_name chan =
-  let bc = `Channel chan |> B.decode in 
+let decode bc =
   debug !"Torrent: bc = %{B.pretty_print}" bc;
   let announce_bc = B.dict_get_exn bc "announce" in
   let announce = bencode_to_uri announce_bc in
@@ -77,14 +77,17 @@ let do_file torrent_name chan =
       in
       List.map al ~f
   in
-
   let info_dict_bc = B.dict_get_exn bc "info" in 
   let info_str = B.encode_to_string info_dict_bc in 
   let info_hash = Sha1.string info_str |> Sha1.to_bin |> Bt_hash.of_string in
+  let torrent_name = (Bt_hash.to_hex info_hash) ^ G.torrent_ext in 
   let tinfo = info_of_bencode info_dict_bc in
   debug !"Torrent: announce %{Uri}" announce;
   List.concat announce_list |>  List.iter ~f:(debug !"Torrent: announce %{Uri}"); 
   { announce; announce_list; info_hash; torrent_name; tinfo }
 
+let decode_channel c = `Channel c |> B.decode |> decode 
 
-let from_file file_name = In_channel.with_file file_name ~f:(do_file file_name)
+let from_file file = In_channel.with_file file ~f:decode_channel
+
+let from_string s = `String s |> B.decode |> decode

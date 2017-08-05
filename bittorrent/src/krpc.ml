@@ -115,7 +115,7 @@ let table_to_string table =
 let table_of_string s = String.split_lines s |> List.map ~f:Node_info.of_string 
 
 let read_routing_table () = 
-  let routing_table_name = sprintf "%s/%s" (G.path ()) G.routing_table_name in 
+  let routing_table_name = sprintf "%s/%s" (G.torrent_path ()) G.routing_table_name in 
   let routing_table = 
     try
       In_channel.read_all routing_table_name
@@ -134,7 +134,7 @@ let read_routing_table () =
   try_add_nis decoded_table 
 
 let write_routing_table () =
-  let routing_table_name = sprintf "%s/%s" (G.path ()) G.routing_table_name in 
+  let routing_table_name = sprintf "%s/%s" (G.torrent_path ()) G.routing_table_name in 
   try 
     Out_channel.write_all routing_table_name ~data:(table_to_string t.routing);
     info "Krpc: writing %s" routing_table_name;
