@@ -28,12 +28,13 @@ let process
   >>= fun () ->
   Signal.handle Signal.terminating ~f:terminate;
 
-  (match Bittorrent.parse_uri uri with 
-   | `Magnet s -> Bittorrent.add_magnet s 
-   | `File f -> In_channel.read_all f |> Bittorrent.add_torrent 
-   | `Invalid_magnet | `Other -> assert false)
+  let _handler = match Bittorrent.parse_uri uri with 
+    | `Magnet s -> Bittorrent.add_magnet s 
+    | `File f -> In_channel.read_all f |> Bittorrent.add_torrent 
+    | `Invalid_magnet | `Other -> assert false
+  in
 
-  >>= fun _ -> never ()
+  never ()
 
 let () = 
   let spec =

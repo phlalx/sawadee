@@ -25,7 +25,7 @@ val write_piece : t -> int -> unit
 
 val not_requested : t -> int list 
 
-val create : Torrent.info -> string -> t Deferred.t
+val create : Bt_hash.t -> Torrent.info -> t Deferred.t
 
 val close : t -> unit Deferred.t 
 

@@ -11,9 +11,9 @@ val create:
   download_path:string -> 
   unit Deferred.t
 
-val add_torrent : string -> handler Deferred.Or_error.t
+val add_torrent : string -> handler
 
-val add_magnet : string -> handler Deferred.Or_error.t
+val add_magnet : string -> handler
 
 val torrent_list : unit -> handler list
 

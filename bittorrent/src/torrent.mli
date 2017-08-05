@@ -18,11 +18,10 @@ type info = {
 val info_of_bencode : Bencode_ext.t -> info
 
 type t = {
-  torrent_name : string; (* TODO this will go somewhere else. name to be used to save torrent on disk *)
   info_hash : Bt_hash.t; 
   announce : Uri.t;
   announce_list : Uri.t list list;
-  tinfo : info;
+  tinfo : info; (* TODO can't we call it info? *)
 }
 
 (** [from_file f] try to open file [f] and decode it

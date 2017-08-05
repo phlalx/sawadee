@@ -17,7 +17,6 @@ type info = {
 }
 
 type t = {
-  torrent_name : string;
   info_hash : Bt_hash.t;
   announce : Uri.t;
   announce_list : Uri.t list list;
@@ -80,11 +79,10 @@ let decode bc =
   let info_dict_bc = B.dict_get_exn bc "info" in 
   let info_str = B.encode_to_string info_dict_bc in 
   let info_hash = Sha1.string info_str |> Sha1.to_bin |> Bt_hash.of_string in
-  let torrent_name = (Bt_hash.to_hex info_hash) ^ G.torrent_ext in 
   let tinfo = info_of_bencode info_dict_bc in
   debug !"Torrent: announce %{Uri}" announce;
   List.concat announce_list |>  List.iter ~f:(debug !"Torrent: announce %{Uri}"); 
-  { announce; announce_list; info_hash; torrent_name; tinfo }
+  { announce; announce_list; info_hash; tinfo }
 
 let decode_channel c = `Channel c |> B.decode |> decode 
 

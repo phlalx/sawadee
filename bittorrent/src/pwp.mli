@@ -13,7 +13,9 @@ open Async
 
 type t
 
-val create: ?nf:Network_file.t -> unit -> t
+val create: Bt_hash.t -> t
+
+val set_nf : t -> Torrent.info -> unit Deferred.t
 
 (** Add new peers to communicate with. Connexion and handshake are already 
     established.

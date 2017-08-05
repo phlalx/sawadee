@@ -36,11 +36,9 @@ let create ~server_port ~verbose ~torrent_path ~download_path  =
   else 
     Deferred.unit
 
-let add_torrent s = 
-    Start.process_string s |> Deferred.ok
+let add_torrent s = Start.process_string s 
 
-let add_magnet s = 
-    Bt_hash.of_string s |> Start.process_magnet |> Deferred.ok
+let add_magnet s = Bt_hash.of_string s |> Start.process_magnet 
 
 let torrent_list () = 
   Torrent_table.keys ()

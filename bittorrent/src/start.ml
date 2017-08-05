@@ -30,48 +30,36 @@ let add_peers pwp info_hash addrs : unit Deferred.t =
   let f addr = add_peer addr >>| ignore_error addr in
   Deferred.List.iter ~how:`Parallel addrs ~f
 
+let add_peers_from_tracker pwp info_hash uris = 
+  don't_wait_for (
+    let%bind addrs = Tracker_client.query info_hash uris in
+    let num_of_peers = List.length addrs in 
+    info "Start: %d tracker peers" num_of_peers;
+    add_peers pwp info_hash addrs
+  )
+
+let add_peers_from_dht pwp info_hash = 
+  don't_wait_for (
+    let%bind addrs = Krpc.lookup info_hash in
+    add_peers pwp info_hash addrs
+  )
+
+let process_any ?uris ?tinfo info_hash : Bt_hash.t =
+
+  let pwp = Pwp.create info_hash in 
+
+  let () = match tinfo with 
+    | None -> ()
+    | Some tinfo -> Pwp.set_nf pwp tinfo |> don't_wait_for
+  in
+  Option.value_map uris ~default:() ~f:(add_peers_from_tracker pwp info_hash);
+  add_peers_from_dht pwp info_hash; 
+  Torrent_table.add info_hash pwp; 
+  info_hash
+
 let process_magnet hash = 
   info !"Start: processing magnet %{Bt_hash.to_hex}" hash;
-  let pwp = Pwp.create () in
-  let%map addrs = Krpc.lookup hash in
-  add_peers pwp hash addrs;
-  hash
-
-let process_torrent t = 
-  let open Torrent in
-  let { torrent_name; info_hash; announce; announce_list; tinfo } = t in
-
-  (***** get list of peers ****)
-
-  let uris = 
-    match announce_list with
-    | [] -> [ announce ]
-    | al -> List.dedup (List.concat al) |> List.permute 
-  in
-
-  let%bind addrs = Tracker_client.query info_hash uris in
-
-  let num_of_peers = List.length addrs in 
-  info "Start: %d tracker peers" num_of_peers;
-
-  (******* create pwp and add peers ****)
-
-  (* There are two types of peers. 
-     - those that we contact  (got their addresses from the tracker
-     - those that contact us (via the server) *)
-
-  let bf_name = sprintf "%s/%s%s" (G.torrent_path ()) (Filename.basename torrent_name) 
-      G.bitset_ext in
-
-  let%map nf = Network_file.create tinfo bf_name in
-
-  let pwp = Pwp.create ~nf () in
-
-  add_peers pwp info_hash addrs |> don't_wait_for;
-
-  Torrent_table.add info_hash pwp; 
-
-  info_hash
+  process_any hash
 
 let process_string s = 
   let t = try 
@@ -80,5 +68,15 @@ let process_string s =
     | Failure s -> assert false (* TODO *)
     | ex -> raise ex
   in 
-  process_torrent t
+
+  let open Torrent in
+  let { info_hash; announce; announce_list; tinfo } = t in  (* TODO what happened to torrent name? *)
+
+  let uris = 
+    match announce_list with
+    | [] -> [ announce ]
+    | al -> List.dedup (List.concat al) |> List.permute 
+  in
+
+  process_any ~uris ~tinfo info_hash
 

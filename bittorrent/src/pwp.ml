@@ -9,18 +9,26 @@ module G = Global
 open Network_file
 
 type t = {
-  mutable has_nf : bool; (* convenience field *)
+  info_hash : Bt_hash.t;
+  has_nf : unit Ivar.t;
   mutable nf : Network_file.t Option.t;
   peers : (Peer_id.t, P.t) Hashtbl.t;
   mutable num_requested : int;
 }
 
-let create ?nf () = { 
-  peers = Hashtbl.Poly.create (); 
-  nf; 
-  has_nf = Option.is_some nf; 
-  num_requested = 0;
-}
+let set_nf t tinfo = 
+  let%map nf = Network_file.create t.info_hash tinfo in
+  t.nf <- Some nf;
+  Ivar.fill t.has_nf ()
+
+let create info_hash =
+  { 
+    info_hash;
+    peers = Hashtbl.Poly.create (); 
+    nf = None;
+    has_nf = Ivar.create ();
+    num_requested = 0;
+  }
 
 let for_all_peers t ~f = Hashtbl.iter t.peers ~f
 
@@ -63,10 +71,10 @@ let rec process_events t p nf : unit Deferred.t =
     P.id p |> Hashtbl.remove t.peers |> return 
   | _ -> 
 
-(*     let one_percent = max (nf.torrent.Torrent.num_pieces / 100) 1 in
-    if (File.num_downloaded_pieces nf.file % one_percent) = 0 then
-      info "Pwp: downloaded %d%%" (File.percent nf.file);
- *) 
+    (*     let one_percent = max (nf.torrent.Torrent.num_pieces / 100) 1 in
+           if (File.num_downloaded_pieces nf.file % one_percent) = 0 then
+           info "Pwp: downloaded %d%%" (File.percent nf.file);
+    *) 
     request_pieces t;
     process_events t p nf
 
@@ -87,8 +95,11 @@ let add_peer t p =
 
   info !"Pwp: %{Peer} added" p;
 
-  if not t.has_nf then
-    failwith "Aie";
+
+  info !"Pwp: %{Peer} waiting for nf" p;
+  Ivar.read t.has_nf 
+  >>= fun () ->
+  info !"Pwp: %{Peer} yeah! can proceed" p;
 
   let nf = Option.value_exn t.nf in
 

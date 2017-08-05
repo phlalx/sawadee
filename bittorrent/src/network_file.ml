@@ -3,6 +3,7 @@ open Async
 open Log.Global
 
 module Em = Error_msg
+module G = Global
 
 type t = {
   bitfield_name : string; 
@@ -58,7 +59,7 @@ let not_requested t =
 
   in List.filter ~f (range t.num_pieces)
 
-let create tinfo bitfield_name = 
+let create info_hash tinfo = 
   let { 
     Torrent.piece_length;
     Torrent.pieces_hash;
@@ -67,6 +68,8 @@ let create tinfo bitfield_name =
     Torrent.num_pieces;
     Torrent.num_files;
   } = tinfo in 
+
+  let bitfield_name = (Bt_hash.to_hex info_hash) ^ G.bitset_ext in 
 
   let%bind pers = Pers.create files_info num_pieces piece_length  in
   let requested = Bitfield.empty num_pieces in
