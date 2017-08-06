@@ -1,0 +1,9 @@
+(jbuild_version 1)
+
+(library
+   ((name dht)
+      (libraries (common core core_extended async ppx_jane uri)) 
+      (preprocess (pps (ppx_jane)))
+      (wrapped false) ))
+
+

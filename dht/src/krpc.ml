@@ -1,9 +1,6 @@
 open Core open Async
 open Log.Global
 
-module G = Global
-module Em = Error_msg
-
 type t = {
   mutable routing : Node_info.t list 
 }
@@ -96,7 +93,6 @@ let populate_from_hash info_hash =
   let nis = List.take t.routing 4 in 
   populate_aux nis info_hash ~depth:2 []
 
-
 let populate () = 
   if (List.length t.routing) <= 64 then 
     begin
@@ -106,39 +102,6 @@ let populate () =
   else
     Deferred.unit 
 
-(**************************************)
+let init r = t.routing <- r
 
-
-let table_to_string table =
-  List.map table ~f:Node_info.to_string |> String.concat ~sep:"\n"
-
-let table_of_string s = String.split_lines s |> List.map ~f:Node_info.of_string 
-
-let read_routing_table () = 
-  let routing_table_name = sprintf "%s/%s" (G.torrent_path ()) G.routing_table_name in 
-  let routing_table = 
-    try
-      In_channel.read_all routing_table_name
-    with _ -> 
-
-      info "Krpc: can't read %s. Using empty table" routing_table_name;
-      ""
-  in
-  let decoded_table = 
-    try
-      table_of_string routing_table 
-    with _ -> 
-      info "Krpc: can't decode %s. Using empty table" routing_table_name;
-      [] 
-  in
-  try_add_nis decoded_table 
-
-let write_routing_table () =
-  let routing_table_name = sprintf "%s/%s" (G.torrent_path ()) G.routing_table_name in 
-  try 
-    Out_channel.write_all routing_table_name ~data:(table_to_string t.routing);
-    info "Krpc: writing %s" routing_table_name;
-  with
-  (* TODO print error in debug *)
-    _ -> info "%s" (Em.can't_open routing_table_name)
-
+let table () = t.routing

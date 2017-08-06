@@ -5,7 +5,11 @@ open Bin_prot
 open Log.Global
 
 module K = Krpc_packet
-module G = Global
+
+let node_id = Node_id.random ()
+let () = info !"Krpc: peer-id:%{Node_id.to_string_hum}" node_id
+
+let krpc_timeout = sec 5.0
 
 type t = {
   addr : Addr.t;
@@ -59,7 +63,7 @@ let rpc t query validate_and_extract =
   let tid = fresh_tid () in
   query_packet tid query |> send_packet t  
   >>= fun () ->
-  get_one_packet t |> Clock.with_timeout G.krpc_timeout
+  get_one_packet t |> Clock.with_timeout krpc_timeout
   >>| function
   | `Timeout -> Error (Error.of_string "timeout")
   | `Result { K.transaction_id; K.content = K.Response r } 
@@ -75,7 +79,7 @@ let ping t =
     | R_ping_or_get_peers_node id -> Ok id
     | _ -> rpc_error 
   in 
-  let query = K.Ping G.node_id
+  let query = K.Ping node_id
   in
   rpc t query extract_ping_response
 
@@ -87,7 +91,7 @@ let get_peers t info_hash =
     | R_get_peers_nodes (id, token, nodes) -> Ok (`Nodes nodes)
     | _ -> rpc_error
   in 
-  let query = Get_peers (G.node_id, info_hash)
+  let query = Get_peers (node_id, info_hash)
   in
   rpc t query extract_query_response
 

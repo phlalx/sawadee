@@ -21,7 +21,13 @@ let list_of_bencode b = B.split b length |> List.map ~f:of_bencode
 
 let to_string (n, p) = sprintf !"%{Node_id.to_hex} %{Addr}" n p
 
-let of_string s =
-   match String.split s ~on:' ' with 
-   | [n; a] -> (Node_id.of_string n), (Addr.of_string a) 
-   | _ -> assert false
+let of_string_exn s =
+  match String.split s ~on:' ' with 
+  | [n; a] -> (Node_id.of_string n), (Addr.of_string a) 
+  | _ -> failwith "wrong node info format"
+
+let list_to_string t =
+  List.map t ~f:to_string |> String.concat ~sep:"\n"
+
+let list_of_string_exn s = 
+  String.split_lines s |> List.map ~f:of_string_exn

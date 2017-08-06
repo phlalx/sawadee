@@ -5,6 +5,26 @@ open Log.Global
 module G = Global
 module Em = Error_msg
 
+let init_krpc () =
+  let table_name = sprintf "%s/%s" (G.torrent_path ()) G.routing_table_name in 
+  let table = 
+    try
+      In_channel.read_all table_name |> Node_info.list_of_string_exn 
+    with _ ->  (* TODO match on exn *)
+      info "Krpc: can't read %s. Using empty table" table_name;
+      [] 
+  in
+  Krpc.try_add_nis table 
+
+let terminate_dht () =
+  let table_name = sprintf "%s/%s" (G.torrent_path ()) G.routing_table_name in 
+  try 
+    let data = Krpc.table () |> Node_info.list_to_string in 
+    Out_channel.write_all table_name ~data;
+    info "Bittorrent: writing %s" table_name;
+  with
+    _ -> info "%s" (Em.can't_open table_name)
+
 let set_verbose i =
   match i with
   | 1 -> set_level `Info; 
@@ -20,7 +40,6 @@ let create ~server_port ~verbose ~torrent_path ~download_path  =
   set_level `Error;
 
   info !"Bittorrent: peer-id:%{Peer_id.to_string_hum}" G.peer_id;
-  info !"Bittorrent: node-id:%{Node_id.to_string_hum}" G.node_id;
 
   Option.value_map verbose ~default:() ~f:set_verbose;
   G.set_download_path download_path;
@@ -30,7 +49,9 @@ let create ~server_port ~verbose ~torrent_path ~download_path  =
   check_path torrent_path 
   >>= fun () -> 
   if G.is_server () then 
-    Server.start ~port:(G.port_exn ())
+    Server.start ~port:(G.port_exn ()) 
+    >>= 
+    init_krpc 
   else 
     Deferred.unit
 
@@ -44,7 +65,7 @@ let torrent_list () =
 let terminate () =
   Torrent_table.data () |> Deferred.List.iter ~f:Pwp.close
   >>= fun () ->
-  Krpc.write_routing_table ();
+  if G.is_server () then terminate_dht ();
   flushed () 
 
 let status h = 

@@ -40,11 +40,7 @@ val torrent_ext : string
 
 val peer_id : Peer_id.t
 
-val node_id : Node_id.t
-
 val routing_table_name : string
-
-val krpc_timeout : Time.Span.t
 
 val set_node : bool -> unit
 
