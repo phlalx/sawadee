@@ -1,12 +1,6 @@
 open Core
 open Async
 
-type handler
-
-type status = {
-  num_peers : int
-}
-
 (* fail on error *)
 val create: 
   server_port:(int option) ->
@@ -15,19 +9,13 @@ val create:
   download_path:string -> 
   unit Deferred.t
 
-val add_torrent : string -> handler
+val add_torrent : string -> Bt_hash.t
 
-val add_magnet : string -> handler
+val add_magnet : string -> Bt_hash.t
 
-val torrent_list : unit -> handler list
+val torrent_list : unit -> Bt_hash.t list
 
 val terminate : unit -> unit Deferred.t
 
-val handler_to_string : handler -> string
+val status : Bt_hash.t -> Status.t Option.t
 
-val handler_of_string : string -> handler Option.t
-
-val status : handler -> status Option.t
-
-val parse_uri : string -> 
-  [ `Magnet of string | `File of string | `Invalid_magnet | `Other ]

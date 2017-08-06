@@ -23,7 +23,8 @@ val create_with_connect : Addr.t -> t Deferred.Or_error.t
 
 val to_string : t -> string
 
-val id : t -> Peer_id.t 
+(* TODO move this to Peer and returns pid in handshake info *)
+val id : t -> Peer_id.t  
 
 type handshake_info = {
     extension : bool;

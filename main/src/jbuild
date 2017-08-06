@@ -3,7 +3,7 @@
 (executable
    ((name main)
     (public_name btclient) 
-      (libraries (bittorrent core async ppx_jane)) 
+      (libraries (bittorrent common core async ppx_jane)) 
       (preprocess (pps (ppx_jane)))))
 
 

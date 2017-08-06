@@ -28,7 +28,7 @@ let process
   >>= fun () ->
   Signal.handle Signal.terminating ~f:terminate;
 
-  let _handler = match Bittorrent.parse_uri uri with 
+  let _handler = match Utils.parse_uri uri with 
     | `Magnet s -> Bittorrent.add_magnet s 
     | `File f -> In_channel.read_all f |> Bittorrent.add_torrent 
     | `Invalid_magnet | `Other -> assert false

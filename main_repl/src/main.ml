@@ -19,18 +19,18 @@ exception Invalid
 
 let eval_add s = 
   try 
-   let handler = match Bittorrent.parse_uri s with 
-     | `Magnet s -> Bittorrent.add_magnet s 
-     | `File f -> In_channel.read_all f |> Bittorrent.add_torrent 
-     | `Invalid_magnet | `Other -> raise Invalid
-   in
-   Print.printf !"Added %{Bittorrent.handler_to_string}.\n" handler
- with 
+    let handler = match Utils.parse_uri s with 
+      | `Magnet s -> Bittorrent.add_magnet s 
+      | `File f -> In_channel.read_all f |> Bittorrent.add_torrent 
+      | `Invalid_magnet | `Other -> raise Invalid
+    in
+    Print.printf !"Added %{Bt_hash.to_hex}.\n" handler
+  with 
   | Invalid -> Print.printf "Can't add %s: not a magnet.\n" s
   | Sys_error _ -> Print.printf "Can't open file %s.\n" s
 
 let eval_list () =
-  let f = Print.printf !"%{Bittorrent.handler_to_string}\n" in
+  let f = Print.printf !"%{Bt_hash.to_hex}\n" in
   Bittorrent.torrent_list () |> List.iter ~f
 
 let help () = 
@@ -41,26 +41,22 @@ let help () =
   Print.printf " quit\n";
   Print.printf " help\n"
 
-let status_to_string (st:Bittorrent.status) =
-  let open Bittorrent in 
+let status_to_string st =
+  let open Status in 
   sprintf "num_peers = %d\n" st.num_peers 
 
-let eval_status t : unit Option.t = 
-  let open Option.Monad_infix in
-  Bittorrent.handler_of_string t 
-  >>= 
-  Bittorrent.status 
-  >>= fun (st:Bittorrent.status) -> 
-  Print.printf !"%{status_to_string}" st; 
-  Some ()
+let eval_status t : unit =
+  match Option.try_with (fun () -> Bt_hash.of_hex t) with 
+  | None -> Print.printf "Bad handler. Not a hex hash.\n"
+  | Some t -> 
+    match Bittorrent.status t with
+    | Some st -> Print.printf !"%{status_to_string}" st
+    | None -> Print.printf "Not in table\n."
 
 let eval = function 
   | "add" :: s :: [] -> eval_add s |> return
   | "list" :: [] -> eval_list () |> return
-  | "status" :: h :: [] -> (
-    match eval_status h with
-    | None -> Print.printf "%s is not a proper handler\n" h
-    | Some _ -> ()) |> return
+  | "status" :: h :: [] -> eval_status h |> return
   | "quit" :: [] -> terminate ()
   | "help" :: [] -> help () |> return
   | _ -> Print.printf "bad command\n" |> return

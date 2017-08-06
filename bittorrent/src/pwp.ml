@@ -129,7 +129,7 @@ let close t =
   | None -> Deferred.unit  
   | Some nf -> Network_file.close nf  
 
-let status t = {
+let status t = Status.{
   num_peers = Hashtbl.length t.peers  
 } 
 
