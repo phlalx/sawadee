@@ -50,11 +50,9 @@ let to_string t = Addr.to_string t.peer_addr
 
 (* last bit of sequence set to 1 = DHT support, bit 20 = extension *)
 
-(* TODO overkill *)
 let check_bit s i = 
   let bf = Bitfield.of_string s in 
-  let bs = Bitset.of_bitfield bf 64 in 
-  Bitset.belongs bs i  
+  Bitfield.get bf i  
 
 let status_bytes = "\000\000\000\000\000\016\000\001"  
 
@@ -73,75 +71,52 @@ let hs_len = (String.length hs_prefix) + Bt_hash.length + Bt_hash.length (* 68 *
    hash must match.
 *)
 
-(* TODO: this has to be factorized *)
+let hs hash pid = sprintf !"%s%{Bt_hash}%{Peer_id}" hs_prefix hash pid
 
-(* validate sequence received and extract peer id *)
-let validate_handshake received info_hash =
+let extract (s : string) : Bt_hash.t * Peer_id.t * bool * bool = 
   let hash_pos = String.length hs_prefix  in
   let peer_pos = hash_pos + Bt_hash.length in
-  let sb = String.sub received  ~pos:20 ~len:8 in
-  let support_dht = check_bit sb dht_bit in 
-  let support_extension = check_bit sb extension_bit in 
-  let info_hash_rep = String.sub received ~pos:hash_pos ~len:Bt_hash.length in
-  let remote_peer_id = String.sub received ~pos:peer_pos ~len:Peer_id.length in
-  match info_hash_rep = info_hash with
-  | true -> Some (remote_peer_id, support_dht, support_extension)
-  | false -> None
+  let prefix = String.sub s  ~pos:20 ~len:8 in
+  let dht = check_bit prefix dht_bit in 
+  let extension = check_bit prefix extension_bit in 
+  let hash = String.sub s ~pos:hash_pos ~len:Bt_hash.length in
+  let pid = String.sub s ~pos:peer_pos ~len:Peer_id.length in
+  Bt_hash.of_string hash, Peer_id.of_string pid, dht, extension
 
-let initiate_handshake t hash =
-  info !"Peer_comm %{}: trying handshake" t;
-  let hash = Bt_hash.to_string hash in
-  let pid = Peer_id.to_string G.peer_id in
-  let hs = hs hash pid in
+let rec send_handshake t hash ~initiate : handshake_info Deferred.Or_error.t = 
+  info !"Peer_comm %{}: sends handshake" t;
+  let hs = hs hash G.peer_id in
+  Writer.write t.writer hs ~len:hs_len;
+  match initiate with 
+  | `Non_initiator info -> 
+    Ok info |> return
+  | `Initiator -> 
+    let has_hash x = x = hash in 
+    receive_handshake t has_hash ~initiate:`Non_initiator
 
-  Writer.write t.writer hs ~len:hs_len; 
-
+and receive_handshake t (has_hash : Bt_hash.t -> bool) ~initiate : handshake_info Deferred.Or_error.t =
+  info !"Peer_comm %{}: waits handshake" t;
   let buf = String.create hs_len in
-  Reader.really_read t.reader ~len:hs_len buf
-  >>| function 
-  | `Ok -> ( 
-      match validate_handshake buf hash with
-      | None -> Error (Error.of_string "hash error")
-      | Some (p, extension, dht) -> 
-        t.id <- Peer_id.of_string p;
-        info !"Peer_comm %{} %{Peer_id.to_string_hum} handshake ok" t t.id;
-        info !"Peer_comm %{}: DHT = %b EXT = %b" t extension dht; 
-        let info_hash = Bt_hash.of_string hash in
-        Ok { info_hash; extension ; dht } 
-    ) 
-  | `Eof _ -> Error (Error.of_string "handshake error")
+  Reader.really_read t.reader buf ~len:hs_len
+  >>= function
+  | `Ok  ->  
+    begin
+      let hash, pid, extension, dht = extract buf in
+      t.id <- pid;
+      let hi = { info_hash = hash; dht; extension } in
+      match initiate, has_hash hash with 
+      | `Initiator, true ->
+        let initiate = `Non_initiator hi in
+        send_handshake t hash ~initiate
+      | `Non_initiator, true ->
+        Ok hi |> return
+      | _, false -> Error (Error.of_string "don't have hash") |> return
+    end
+  | `Eof _ -> Error (Error.of_string "handshake error") |> return
 
-let extract_reply received =
-  let hash_pos = String.length hs_prefix  in
-  let peer_pos = hash_pos + Bt_hash.length in
-  let sb = String.sub received  ~pos:20 ~len:8 in
-  let support_dht = check_bit sb dht_bit in 
-  let support_extension = check_bit sb extension_bit in 
-  let info_hash_rep = String.sub received ~pos:hash_pos ~len:Bt_hash.length in
-  let remote_peer_id = String.sub received ~pos:peer_pos ~len:Peer_id.length in
-  info_hash_rep, remote_peer_id, support_dht, support_extension
+let initiate_handshake t hash = send_handshake t hash ~initiate:`Initiator
 
-let wait_handshake t (has_hash : Bt_hash.t -> bool) =
-  info !"Peer_comm %{}: wait from handshake" t;
-  let buf = String.create hs_len in
-  Reader.really_read t.reader buf ~len:hs_len 
-  >>| function
-  | `Ok -> ( 
-      let info_hash_str, peer_id_str, extension, dht = extract_reply buf in
-      let info_hash = Bt_hash.of_string info_hash_str in 
-      if has_hash info_hash then (
-        let peer_id = Peer_id.of_string peer_id_str in
-        let pid_str = Peer_id.to_string G.peer_id in
-        t.id <- peer_id;
-        let hs = hs info_hash_str pid_str in
-        Writer.write t.writer ~len:hs_len hs;
-        info !"Peer_comm %{}: %{Peer_id.to_string_hum} handshake ok" t peer_id;
-        info "Peer_comm: DHT = %b EXT = %b" extension dht; 
-        Ok { info_hash; extension; dht } 
-      ) else 
-        Error (Error.of_string "we don't serve this torrent")
-    )
-  | `Eof _ -> Error (Error.of_string "handshake error")
+let wait_handshake t has_hash = receive_handshake t has_hash ~initiate:`Initiator
 
 let receive t =
   let buf = t.receive_buffer in 
