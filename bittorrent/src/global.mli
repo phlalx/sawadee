@@ -25,7 +25,7 @@ val set_download_path : string -> unit
 
 val set_torrent_path : string -> unit
 
-val set_port : int -> unit
+val set_dht_port : int -> unit
 
 val max_pending_request : int 
 
@@ -42,9 +42,9 @@ val peer_id : Peer_id.t
 
 val routing_table_name : string
 
-val set_node : bool -> unit
+val dht_port_exn : unit -> int
 
-val is_node : unit -> bool
+val is_dht : unit -> bool
 
 val max_num_pieces : int
 

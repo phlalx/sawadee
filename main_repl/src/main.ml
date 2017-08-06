@@ -80,6 +80,7 @@ let process
     ~torrent_path:path
     ~verbose:None
     ~server_port:port
+    ~dht_port:None
   >>= fun () ->
 
   Signal.handle Signal.terminating ~f:(fun _ -> terminate () |> don't_wait_for);

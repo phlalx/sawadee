@@ -7,6 +7,7 @@ val create:
   verbose:(int option) ->
   torrent_path:string ->
   download_path:string -> 
+  dht_port:(int option) ->
   unit Deferred.t
 
 val add_torrent : string -> Bt_hash.t

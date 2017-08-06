@@ -1,54 +1,76 @@
 open Core
 
-let block_size = 16384 
+type t = {
+  block_size : int;
+  max_block_size : int;
+  idle : Time.Span.t;
+  keep_alive : Time.Span.t;
+  mutable download_path : string Option.t;
+  mutable torrent_path : string Option.t;
+  mutable port : int Option.t;
+  mutable dht_port : int Option.t;
+  max_pending_request : int;
+  max_non_choking_peers : int;
+  bitset_ext : string;
+  torrent_ext : string;
+  peer_id : Peer_id.t;
+  routing_table_name : string;
+  mutable is_node : bool;
+  max_num_pieces : int;
+}
 
-let max_block_size = 131072
+let t = {
+  block_size = 16384;
+  max_block_size = 131072;
+  idle = sec 100.; (** Time before a host is considered idle *)
+  keep_alive = sec 180.;
+  download_path = None;
+  torrent_path = None;
+  port = None;
+  dht_port = None;
+  max_pending_request = 10;
+  max_non_choking_peers = 4;
+  bitset_ext = ".bitset";
+  torrent_ext = ".torrent";
+  peer_id = Peer_id.random ();
+  routing_table_name = "routing";
+  is_node = false;
+  max_num_pieces = 65536;
+}
 
-(** Time before a host is considered idle *)
-let idle = sec 100.
+let max_num_pieces = t.max_num_pieces
+let routing_table_name = t.routing_table_name
+let peer_id = t.peer_id
+let torrent_ext = t.torrent_ext
+let bitset_ext = t.bitset_ext
+let max_non_choking_peers = t.max_non_choking_peers
+let max_pending_request = t.max_pending_request
+let keep_alive = t.keep_alive
+let idle = t.idle 
+let max_block_size = t.max_block_size
+let block_size = t.block_size
 
-let keep_alive = sec 180. 
+let port_exn () = Option.value_exn t.port
 
-let download_path_ = ref None
+let dht_port_exn () = Option.value_exn t.dht_port
 
-let torrent_path_ = ref None
+let download_path () = Option.value_exn t.download_path
 
-let port_ = ref None
+let torrent_path () = Option.value_exn t.torrent_path
 
-let port_exn () = Option.value_exn !port_
+let set_port p = t.port <- Some p 
 
-let download_path () = Option.value_exn !download_path_
+let is_server () = Option.is_some t.port
 
-let torrent_path () = Option.value_exn !torrent_path_
+let set_dht_port p = t.dht_port <- Some p 
 
-let set_port p = port_ := Some p 
+let is_dht () = Option.is_some t.dht_port
 
-let set_download_path p = download_path_ := Some p
+let set_download_path p = t.download_path <- Some p
 
-let set_torrent_path p = torrent_path_ := Some p
+let set_torrent_path p = t.torrent_path <- Some p
 
-let is_server () = Option.is_some !port_
+let is_node () = t.is_node
 
-let max_pending_request = 10 
+let set_node b = t.is_node <- b
 
-let max_non_choking_peers = 4
-
-let bitset_ext = ".bitset"
-
-let torrent_ext = ".torrent"
-
-let peer_id = Peer_id.random ()
-
-let node_id = Node_id.random ()
-
-let routing_table_name = "routing"
-
-let krpc_timeout = sec 5.0
-
-let is_node_ = ref false
-
-let is_node () = !is_node_
-
-let set_node b = is_node_ := b
-
-let max_num_pieces = 65536

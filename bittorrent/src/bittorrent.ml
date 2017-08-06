@@ -14,7 +14,7 @@ let init_krpc () =
       info "Krpc: can't read %s. Using empty table" table_name;
       [] 
   in
-  Krpc.try_add_nis table 
+  if G.is_dht () then Krpc.try_add_nis table else Deferred.unit
 
 let terminate_dht () =
   let table_name = sprintf "%s/%s" (G.torrent_path ()) G.routing_table_name in 
@@ -36,11 +36,12 @@ let check_path p =
   | `Yes -> return ()
   | `No | `Unknown -> Em.terminate (Em.can't_open p)
 
-let create ~server_port ~verbose ~torrent_path ~download_path  = 
+let create ~server_port ~verbose ~torrent_path ~download_path ~dht_port = 
   set_level `Error;
 
   info !"Bittorrent: peer-id:%{Peer_id.to_string_hum}" G.peer_id;
 
+  Option.value_map dht_port ~default:() ~f:G.set_dht_port;
   Option.value_map verbose ~default:() ~f:set_verbose;
   G.set_download_path download_path;
   G.set_torrent_path torrent_path;
@@ -50,8 +51,11 @@ let create ~server_port ~verbose ~torrent_path ~download_path  =
   >>= fun () -> 
   if G.is_server () then 
     Server.start ~port:(G.port_exn ()) 
-    >>= 
-    init_krpc 
+  else 
+    Deferred.unit
+  >>= fun () -> 
+  if G.is_dht () then 
+    init_krpc () 
   else 
     Deferred.unit
 
@@ -65,7 +69,7 @@ let torrent_list () =
 let terminate () =
   Torrent_table.data () |> Deferred.List.iter ~f:Pwp.close
   >>= fun () ->
-  if G.is_server () then terminate_dht ();
+  if G.is_dht () then terminate_dht ();
   flushed () 
 
 let status h = 

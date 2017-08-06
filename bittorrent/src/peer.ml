@@ -245,7 +245,7 @@ let process_message t m : unit =
   | M.Port port -> 
     info !"Peer %{}: received port %d" t port;
     set_port t (Some port);
-    if G.is_node () then (
+    if G.is_dht () then (
       Addr.create (Peer_comm.addr t.peer) port |> 
       Krpc.try_add |> Deferred.ignore |> don't_wait_for )
 

@@ -25,6 +25,7 @@ let process
     ~torrent_path:path
     ~verbose
     ~server_port:port
+    ~dht_port:None
   >>= fun () ->
   Signal.handle Signal.terminating ~f:terminate;
 
