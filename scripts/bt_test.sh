@@ -13,24 +13,15 @@ for i in $(seq 1 $NUM_CLIENTS)
 do
     DIR=$TEST_PATH_PREFIX$i 
     LOG=$DIR/log
-    echo "start client $i"
-    $SCRIPTS_PREFIX/bt_client.sh $i &> $LOG & 
+    echo "start rpc_server $i"
+    # $SCRIPTS_PREFIX/bt_rpc_server.sh $i &> $LOG & 
+    $SCRIPTS_PREFIX/bt_rpc_server.sh $i & 
     sleep 0.05
 done
 sleep $WAITING
-echo pkill -f $EXEC_PREFIX/$CLIENT 
-echo pkill -f $EXEC_PREFIX/$TRACKER
-pkill -f $EXEC_PREFIX/$CLIENT 
-pkill -f $EXEC_PREFIX/$TRACKER
-grep "written 100%" download*/log
-RES=`grep "written 100%" download*/log | wc -l`
-if [ $RES = $NUM_CLIENTS ]
-then 
-  echo "OK"
-  exit 0
-else
-  echo "KO $RES != $NUM_CLIENTS "
-  exit 1
-fi
-
+FILE=$TORRENT_DIR/$TORRENT
+echo $EXEC_PREFIX/$RPC_CLIENT -r $BASE_RPC_PORT -n $NUM_CLIENTS $FILE
+$EXEC_PREFIX/$RPC_CLIENT -r $BASE_RPC_PORT -n $NUM_CLIENTS $FILE
+pkill -f tracker
+pkill -f rpc_server
 

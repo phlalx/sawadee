@@ -1,8 +1,16 @@
+(** Network file.
+
+  A network file contains:
+   - a sequence of [Piece.t]
+   - the state of each [Piece.t]
+   - info relative to persistence (where to save each piece). *)
 open Core
 open Async
 open Log.Global
 
 type t
+
+val create : Bt_hash.t -> Torrent.info -> t Deferred.t
 
 val get_piece : t -> int -> Piece.t  
 
@@ -25,11 +33,5 @@ val write_piece : t -> int -> unit
 
 val not_requested : t -> int list 
 
-val create : Bt_hash.t -> Torrent.info -> t Deferred.t
-
 val close : t -> unit Deferred.t 
-
-
-
-
 

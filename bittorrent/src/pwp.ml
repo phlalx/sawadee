@@ -8,10 +8,6 @@ module G = Global
 
 open Network_file
 
-type status = {
-  num_peers : int
-}
-
 type t = {
   info_hash : Bt_hash.t;
   has_nf : unit Ivar.t;
@@ -25,8 +21,7 @@ let set_nf t tinfo =
   t.nf <- Some nf;
   Ivar.fill t.has_nf ()
 
-let create info_hash =
-  { 
+let create info_hash = { 
     info_hash;
     peers = Hashtbl.Poly.create (); 
     nf = None;
@@ -70,7 +65,7 @@ and request_pieces t nf : unit =
 let rec process_events t p : unit Deferred.t = 
 
   let%bind e = P.read_event p in
-  info !"Pwp: EVENT %{P.event_to_string} from %{P}" e p;
+  info !"Pwp: event %{P.event_to_string} from %{P}" e p;
   match e with 
   | Bye -> 
     info !"Pwp: %{P} has left" p;
@@ -109,7 +104,6 @@ let init t p  =
   Ok () |> return
 
 let add_peer t p =
-
   info !"Pwp: %{Peer} added" p;
   let peer_id = P.id p in
 

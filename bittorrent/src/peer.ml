@@ -54,7 +54,17 @@ let create peer ~dht ~extension =
     nf = None
   }
 
-let request_metadata t ~len = assert false
+let request_metadata t  = assert false
+
+(*  let request_meta len = 
+    let open Extension in
+    t.info.state <- `Requested;
+    let f ~index ~off ~len =
+    Request index |> send_extended st `Metadata_ext 
+    in
+    let p = Piece.create ~index:0 (Bt_hash.random ()) ~len in 
+    Piece.iter ~f p
+*)
 
 let support_metadata t = 
   if t.extension then
@@ -166,15 +176,6 @@ let process_block t nf index bgn block =
       P.set_downloading t.peer;
       Ivar.fill ivar ()
 
-(*  let request_meta len = 
-    let open Extension in
-    t.info.state <- `Requested;
-    let f ~index ~off ~len =
-    Request index |> send_extended st `Metadata_ext 
-    in
-    let p = Piece.create ~index:0 (Bt_hash.random ()) ~len in 
-    Piece.iter ~f p
-*)
 
 let process_handshake t id s =
   let em = Extension.of_bin `Handshake s in 
@@ -236,9 +237,9 @@ let process_message t m : unit =
     Pipe.write_without_pushback t.wr Not_interested
 
   | M.Bitfield bits -> 
-  (* TODO info !"Peer %{}: has %d pieces" t (Bitset.card t.have)  *)
-  (* TODO validate this bitfield *)
-    info !"Peer %{}: received bitfield" t;
+    (* we should validate this bitfield but we may not know the num pieces at
+       that stage. *)
+    info !"Peer %{}: received bitfield (%d pieces)" t (Bitfield.card bits);
     Bitfield.copy ~src:bits ~dst:t.bitfield; 
     Pipe.write_without_pushback t.wr Bitfield
 
@@ -261,15 +262,16 @@ let process_message t m : unit =
 
   | M.Request (index, bgn, length) -> 
     info !"Peer %{}: peer requests %d" t index;
-    let nf = assert false in
+    assert (Option.is_some t.nf);
     if not (am_choking t) then 
-      process_request t nf index bgn length
+      process_request t (Option.value_exn t.nf) index bgn length
 
   | M.Block (index, bgn, block) -> 
-    let nf = assert false in
-    process_block t nf index bgn block
+    assert (Option.is_some t.nf);
+    process_block t (Option.value_exn t.nf) index bgn block
 
   | M.Cancel (index, bgn, length) -> 
+    assert (Option.is_some t.nf);
     failwith "not implemented yet"
 
 
@@ -277,7 +279,7 @@ let leaving t =
   let f x = Ivar.fill x () in
   Hashtbl.iter t.requested ~f; 
   (* TODO: fill ivars *)
-  Pipe.close t.wr; never ()
+  Pipe.close t.wr
 
 (* This is the main message processing loop. We consider two types of events.
    Timeout (idle peer), and message reception. *)
