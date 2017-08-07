@@ -14,8 +14,7 @@ val create : Bt_hash.t -> Torrent.info -> t Deferred.t
 
 val get_piece : t -> int -> Piece.t  
 
-val set_piece_status : t -> int -> [`Requested | `Not_requested | `Downloaded]
-  -> unit  
+val set_downloaded : t -> int -> unit
 
 val is_valid_piece_index : t -> int -> bool 
 
@@ -30,8 +29,6 @@ val downloaded : t -> Bitfield.t
 val num_downloaded_pieces : t -> int
 
 val write_piece : t -> int -> unit
-
-val not_requested : t -> int list 
 
 val close : t -> unit Deferred.t 
 

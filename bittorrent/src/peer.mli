@@ -39,6 +39,7 @@ type event =
   | Not_interested 
   | Have
   | Bitfield
+  | Piece of int
   | Bye  (** notify the termination of the remote peer *)
 
 val event_to_string : event -> string
@@ -50,7 +51,7 @@ val send_bitfield : t -> Bitfield.t -> unit
 val advertise_piece : t -> int -> unit
 
 (** request a piece and directly fill [Network_file.t] *)
-val request_piece : t -> int -> unit Deferred.t 
+val request_piece : t -> int -> unit
 
 val support_metadata : t -> int Deferred.Option.t
 
@@ -69,6 +70,8 @@ val am_choking : t -> bool
 val peer_choking : t -> bool
 
 val idle : t -> bool
+
+val set_idle : t -> bool -> unit
 
 (** assert a condition dependent on values received by a peer. For instance,
     if peer doesn't behave according to the protocol. raises if false 

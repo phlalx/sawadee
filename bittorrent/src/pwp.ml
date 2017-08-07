@@ -5,19 +5,18 @@ open Log.Global
 module M = Message
 module P = Peer
 module G = Global
-
-open Network_file
+module Nf = Network_file
 
 type t = {
   info_hash : Bt_hash.t;
   has_nf : unit Ivar.t;
-  mutable nf : Network_file.t Option.t;
+  mutable nf : Nf.t Option.t;
   peers : (Peer_id.t, P.t) Hashtbl.t;
-  mutable num_requested : int;
+  requested : (int, unit Ivar.t) Hashtbl.t;
 }
 
 let set_nf t tinfo = 
-  let%map nf = Network_file.create t.info_hash tinfo in
+  let%map nf = Nf.create t.info_hash tinfo in
   t.nf <- Some nf;
   Ivar.fill t.has_nf ()
 
@@ -26,7 +25,7 @@ let create info_hash = {
     peers = Hashtbl.Poly.create (); 
     nf = None;
     has_nf = Ivar.create ();
-    num_requested = 0;
+    requested = Hashtbl.Poly.create ();
   }
 
 let for_all_peers t ~f = Hashtbl.iter t.peers ~f
@@ -41,22 +40,39 @@ let send_have_messages t i =
 
 let rec request t nf (i, p): unit Deferred.t = 
   info !"Pwp: %{P} requesting piece %d" p i;
-  t.num_requested <- t.num_requested + 1;
-  P.request_piece p i
+
+  let on_ivar = function 
+    | `Timeout -> 
+      info !"Pwp: %{Peer} failed to provide piece %d" p i;
+      Peer.set_idle p true;
+    | `Result () -> 
+      info !"Pwp: %{Peer} gave us piece %d" p i;
+      Nf.set_downloaded nf i;
+      Nf.write_piece nf i;
+      send_have_messages t i;
+      request_pieces t nf
+  in 
+
+  let ivar = Ivar.create () in
+  Hashtbl.add_exn t.requested ~key:i ~data:ivar;
+  P.request_piece p i;
+  Ivar.read ivar |> Clock.with_timeout G.idle  
+  >>| 
+  on_ivar 
   >>| fun () ->
-  t.num_requested <- t.num_requested - 1;
-  send_have_messages t i;
-  request_pieces t nf;
-  assert false
+  Hashtbl.remove t.requested i;
 
-(* Request as many pieces as we can. 
-
-   If we reach this place, we have nf available. 
-   There should be no more than G.max_pending_request. *)
+(* Request as many pieces as we can. *)
 and request_pieces t nf : unit =
-  let n = G.max_pending_request - t.num_requested in
+  let num_requested = Hashtbl.length t.requested in
+  let n = G.max_pending_request - num_requested in
   if n > 0 then 
-    Strategy.next_requests nf t.peers n  
+    let peers = Hashtbl.to_alist t.peers |> List.map ~f:snd in
+    let l = List.range 0 (Nf.num_pieces nf) |> 
+            List.filter ~f:(fun i -> not (Nf.has_piece nf i)) |>
+            List.filter ~f:(fun i -> not (Hashtbl.mem t.requested i))
+          in
+    Strategy.next_requests l peers n  
     |> Deferred.List.iter ~how:`Parallel ~f:(request t nf) 
     |> don't_wait_for
 
@@ -70,6 +86,10 @@ let rec process_events t p : unit Deferred.t =
   | Bye -> 
     info !"Pwp: %{P} has left" p;
     P.id p |> Hashtbl.remove t.peers |> return 
+  | Piece i -> (
+    match Hashtbl.find t.requested i with 
+    | None -> return ()
+    | Some i -> Ivar.fill i (); return ())
   | _ -> 
     Option.value_map ~default:() t.nf ~f:(request_pieces t);
     process_events t p 
@@ -94,9 +114,9 @@ let init t p  =
   let nf = Option.value_exn t.nf in
   Peer.set_nf p nf;
 
-  if (Network_file.num_downloaded_pieces nf) > 0 then (
+  if (Nf.num_downloaded_pieces nf) > 0 then (
     info !"Pwp: %{Peer} sending bitfield" p;
-    Network_file.downloaded nf |> P.send_bitfield p 
+    Nf.downloaded nf |> P.send_bitfield p 
   );
 
   P.set_am_interested p true;
@@ -121,7 +141,7 @@ let add_peer t p =
 let close t = 
   match t.nf with 
   | None -> Deferred.unit  
-  | Some nf -> Network_file.close nf  
+  | Some nf -> Nf.close nf  
 
 let status t = Status.{
   num_peers = Hashtbl.length t.peers  

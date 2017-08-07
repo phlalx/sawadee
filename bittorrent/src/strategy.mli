@@ -5,5 +5,7 @@
 
 open Core
 
-val next_requests : Network_file.t -> (Peer_id.t, Peer.t) Hashtbl.t -> int -> 
-(int * Peer.t) list
+(** [next_requests l p n] returns a list of pieces to download from what peer.
+    [l] is the list of pieces not downloaded and not requested yet, and
+     p is the list of peers. [n] is the number of pieces we want to download *)
+val next_requests : int list -> Peer.t list -> int -> (int * Peer.t) list

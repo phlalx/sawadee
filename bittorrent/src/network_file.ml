@@ -10,7 +10,6 @@ type t = {
   total_length : int; 
   num_pieces : int; (** number of pieces to be downloaded *)
   downloaded : Bitfield.t;
-  requested : Bitfield.t; 
   piece_length : int; (** piece length of all pieces except possibly the last one *)
   pieces : Piece.t Array.t;
   pers : Pers.t;
@@ -23,12 +22,9 @@ let piece_init pieces_hash piece_length total_len i =
 
 let get_piece t i = t.pieces.(i)
 
-let set_piece_status t i s = 
+let set_downloaded t i = 
   assert (not (Bitfield.get t.downloaded i));
-  match s with
-  | `Requested -> Bitfield.set t.requested i true
-  | `Not_requested -> Bitfield.set t.requested i false
-  | `Downloaded -> Bitfield.set t.downloaded i true
+  Bitfield.set t.downloaded i true
 
 let is_valid_piece_index t i = i >=0 && i < t.num_pieces
 
@@ -48,17 +44,6 @@ let downloaded_to_string downloaded num_pieces =
   let percent = (100 * n) / num_pieces in
   sprintf "%d/%d pieces (%d%%)" n num_pieces percent
 
-(* TODO ugly... eventually we'll set up a proper structure to 
-   be used by module Strategy *)
-let not_requested t =
-  let rec range n = 
-    if n = 0 then [] else (n-1) :: (range (n-1)) 
-  in
-  let f i = 
-    (not (Bitfield.get t.downloaded i)) && (not (Bitfield.get t.requested i))
-
-  in List.filter ~f (range t.num_pieces)
-
 let create info_hash tinfo = 
   let { 
     Torrent.piece_length;
@@ -73,7 +58,6 @@ let create info_hash tinfo =
   (G.torrent_path ()) (Bt_hash.to_hex info_hash)  G.bitset_ext in 
 
   let%bind pers = Pers.create files_info num_pieces piece_length  in
-  let requested = Bitfield.empty num_pieces in
   let f = piece_init pieces_hash piece_length total_length in
   let pieces = Array.init num_pieces ~f  in
   info "Network_file: created network file (%d pieces)" num_pieces;
@@ -119,7 +103,6 @@ let create info_hash tinfo =
     total_length;
     num_pieces;
     downloaded;
-    requested;
     piece_length;
     pieces;
     pers;

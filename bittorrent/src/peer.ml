@@ -13,6 +13,7 @@ type event =
   | Not_interested 
   | Have
   | Bitfield
+  | Piece of int
   | Bye
 
 type t = {
@@ -28,7 +29,6 @@ type t = {
   bitfield : Bitfield.t;
   wr : event Pipe.Writer.t; 
   rd : event Pipe.Reader.t;
-  requested : (int, unit Ivar.t) Hashtbl.t;
   support_metadata : int Option.t Ivar.t;
   metadata_size : int Option.t Ivar.t;
   mutable nf : Network_file.t Option.t
@@ -46,7 +46,6 @@ let create peer ~dht ~extension =
     bitfield = Bitfield.empty G.max_num_pieces;
     rd;
     wr;
-    requested = Hashtbl.Poly.create ();
     extension;
     dht;
     support_metadata = Ivar.create ();
@@ -85,6 +84,7 @@ let event_to_string = function
   | Not_interested -> "Not_interested"
   | Bitfield -> "Bitfield"
   | Have -> "Have"
+  | Piece i -> "Piece " ^ (string_of_int i)
   | Bye -> "Bye"
 
 exception Incorrect_behavior
@@ -124,57 +124,27 @@ let set_am_choking t b =
    same time *)
 let request_piece t i =
   let nf = Option.value_exn t.nf in
-  let open Network_file in
-
-  let on_ivar = function 
-    | `Timeout -> 
-      info !"Peer %{}: cancelling request" t;
-      (* TODO better to do this in pwp? *)
-      (* don't forget to put peer to idle *)
-      Network_file.set_piece_status nf i `Not_requested;
-      set_idle t true
-    | `Result () -> 
-      (* TODO better to do this in pwp? *)
-      Network_file.set_piece_status nf i `Downloaded;
-      Network_file.write_piece nf i
-      (* TODO change interface of network file *)
-  in 
-
   info !"Peer %{}: we request %d" t i; 
-  (* TODO assert not requested *)
-  Network_file.set_piece_status nf i `Requested; 
   let f ~index ~off ~len =
     M.Request(index, off, len) |> P.send t.peer 
   in 
-  Network_file.get_piece nf i |> Piece.iter ~f;
-  let ivar = Ivar.create () in
-  Hashtbl.add_exn t.requested ~key:i ~data:ivar;
-  (* TODO error case, if hash is wrong *)
-  Ivar.read ivar |> Clock.with_timeout G.idle  
-  >>| 
-  on_ivar 
-  >>| fun () ->
-  Hashtbl.remove t.requested i
+  Network_file.get_piece nf i |> Piece.iter ~f
 
 let process_block t nf index bgn block =
-  match Hashtbl.find t.requested index with 
-  | None -> () (* probably means we already canceled this request *)
-  | Some ivar ->
-    let open Network_file in
-    let piece = Network_file.get_piece nf index in
-    let len = String.length block in
-    Network_file.is_valid_piece_index nf index |> validate t; 
-    Piece.is_valid_block piece bgn len |> validate t;
-    match Piece.update piece bgn block with 
-    | `Ok -> 
-      debug !"Peer %{}: got block - piece %d offset = %d" t index bgn
-    | `Hash_error -> 
-      info !"Peer %{}: hash error piece %d" t index
-    (* TODO write something else on ivar. Now it will just time out *)
-    | `Downloaded ->
-      info !"Peer %{}: got piece %d" t index; 
-      P.set_downloading t.peer;
-      Ivar.fill ivar ()
+  let piece = Network_file.get_piece nf index in
+  let len = String.length block in
+  Network_file.is_valid_piece_index nf index |> validate t; 
+  Piece.is_valid_block piece bgn len |> validate t;
+  match Piece.update piece bgn block with 
+  | `Ok -> 
+    debug !"Peer %{}: got block - piece %d offset = %d" t index bgn
+  | `Hash_error -> 
+    info !"Peer %{}: hash error piece %d" t index
+    (* TODO define some event *)
+  | `Downloaded ->
+    info !"Peer %{}: got piece %d" t index; 
+    P.set_downloading t.peer;
+    Pipe.write_without_pushback t.wr (Piece index)
 
 
 let process_handshake t id s =
@@ -276,9 +246,7 @@ let process_message t m : unit =
 
 
 let leaving t = 
-  let f x = Ivar.fill x () in
-  Hashtbl.iter t.requested ~f; 
-  (* TODO: fill ivars *)
+  (* TODO: fill other ivars? *)
   Pipe.close t.wr
 
 (* This is the main message processing loop. We consider two types of events.
@@ -286,11 +254,11 @@ let leaving t =
 let rec wait_and_process_message t : unit Deferred.t =
 
   let result = function
-    | `Ok m -> process_message t m |> return
-    | `Eof -> leaving t  
+    | `Ok m -> process_message t m
+    | `Eof -> leaving t 
   in
   P.receive t.peer |> Clock.with_timeout G.idle 
-  >>= function 
+  >>| function 
   | `Timeout -> leaving t
   | `Result r -> result r 
 
