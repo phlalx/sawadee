@@ -7,6 +7,7 @@ module P = Peer_comm
 module G = Global
 
 type event = 
+  | Join
   | Choke 
   | Unchoke
   | Interested
@@ -79,6 +80,7 @@ let request_metadata_size t =
 
 let event_to_string = function
   | Choke -> "Choke"
+  | Join -> "Join"
   | Unchoke -> "Unchoke"
   | Interested -> "Interested"
   | Not_interested -> "Not_interested"
@@ -140,7 +142,7 @@ let process_block t nf index bgn block =
     debug !"Peer %{}: got block - piece %d offset = %d" t index bgn
   | `Hash_error -> 
     info !"Peer %{}: hash error piece %d" t index
-    (* TODO define some event *)
+  (* TODO define some event *)
   | `Downloaded ->
     info !"Peer %{}: got piece %d" t index; 
     P.set_downloading t.peer;
@@ -245,29 +247,33 @@ let process_message t m : unit =
     failwith "not implemented yet"
 
 
-let leaving t =  
-  Pipe.write_without_pushback t.wr Bye
-  (* TODO: fill other ivars? *)
-  (* Pipe.close t.wr *)
 
 (* This is the main message processing loop. We consider two types of events.
    Timeout (idle peer), and message reception. *)
-let rec wait_and_process_message t : unit Deferred.t =
+let rec wait_and_process_message t =
+
+  let leaving t =  
+    Pipe.write_without_pushback t.wr Bye in 
+    (* TODO: fill other ivars? *)
+    (* Pipe.close t.wr *)
 
   let result = function
-    | `Ok m -> process_message t m
-    | `Eof -> leaving t 
+    | `Ok m -> process_message t m; `Repeat ()
+    | `Eof -> leaving t; `Finished ()
   in
   P.receive t.peer |> Clock.with_timeout G.idle 
   >>| function 
-  | `Timeout -> leaving t
+  | `Timeout -> leaving t; `Finished ()
   | `Result r -> result r 
 
 let set_nf t nf = t.nf <- Some nf
 
-let start t : unit =
+let start t =
   info !"Peer %{}: start message handler loop" t; 
-  Deferred.forever () (fun () -> wait_and_process_message t)
+  Pipe.write_without_pushback t.wr Join;
+  Deferred.repeat_until_finished () (fun () -> wait_and_process_message t)
+  |> don't_wait_for
+
 
 let send_bitfield t bf = M.Bitfield bf |> P.send t.peer
 

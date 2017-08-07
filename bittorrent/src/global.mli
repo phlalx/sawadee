@@ -27,6 +27,8 @@ val set_torrent_path : string -> unit
 
 val set_dht_port : int -> unit
 
+val set_port : int -> unit
+
 val max_pending_request : int 
 
 (** max number of peers we accept to serve *)

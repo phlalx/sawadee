@@ -23,9 +23,9 @@ let create_uri_with_parameters info_hash uri =
     ] 
   in
   let params = 
-    if Global.is_server () then
+    if Global.is_server () then (
       let port = Global.port_exn () |> string_of_int in
-      ("port", port) :: params_base
+      ("port", port) :: params_base )
     else
       params_base
   in 
@@ -79,6 +79,7 @@ let query_tracker (info_hash:Bt_hash.t) (uri:Uri.t) : sl Deferred.Option.t =
     >>= fun s ->
     return (Or_error.try_with (fun () -> Tracker_reply.of_bencode s))
     >>= fun t ->
+
     Ok t.Tracker_reply.peers |> return
   in
   reply_or_error >>| ignore_error

@@ -9,7 +9,7 @@ module Nf = Network_file
 
 type t = {
   info_hash : Bt_hash.t;
-  has_nf : unit Ivar.t;
+  has_nf : Torrent.info Ivar.t;
   mutable nf : Nf.t Option.t;
   peers : (Peer_id.t, P.t) Hashtbl.t;
   requested : (int, unit Ivar.t) Hashtbl.t;
@@ -18,10 +18,7 @@ type t = {
 }
 
 let set_nf t tinfo = 
-  let%map nf = Nf.create t.info_hash tinfo in
-  t.nf <- Some nf;
-  Ivar.fill t.has_nf ()
-
+  Ivar.fill_if_empty t.has_nf tinfo
 
 let for_all_peers t ~f = Hashtbl.iter t.peers ~f
 
@@ -57,7 +54,7 @@ let rec request t nf (i, p): unit Deferred.t =
   >>| fun () ->
   Hashtbl.remove t.requested i;
 
-(* Request as many pieces as we can. *)
+  (* Request as many pieces as we can. *)
 and request_pieces t nf : unit =
   let num_requested = Hashtbl.length t.requested in
   let n = G.max_pending_request - num_requested in
@@ -66,57 +63,48 @@ and request_pieces t nf : unit =
     let l = List.range 0 (Nf.num_pieces nf) |> 
             List.filter ~f:(fun i -> not (Nf.has_piece nf i)) |>
             List.filter ~f:(fun i -> not (Hashtbl.mem t.requested i))
-          in
+    in
     Strategy.next_requests l peers n  
     |> Deferred.List.iter ~how:`Parallel ~f:(request t nf) 
     |> don't_wait_for
 
-(*
-let init t p  = 
-
-  (* we need to start the event loop of p to get the possible extension 
-     message *)
-  P.start p;
-
-  (* at that stage we only care about event Bye *)
-  process_events t p |> don't_wait_for;
-
-  info !"Pwp: %{Peer} waiting for nf" p;
-  (* Ivar.read t.has_nf  *)
-  (* TODO *)
-  never ()
-  >>= fun () ->
-  info !"Pwp: %{Peer} yeah! can proceed" p;
-
-  (* TODO add some code that can request the missing nf *)
-  let nf = Option.value_exn t.nf in
-  Peer.set_nf p nf;
-
+let setup_download t nf p =
+  P.set_nf p nf;
   if (Nf.num_downloaded_pieces nf) > 0 then (
     info !"Pwp: %{Peer} sending bitfield" p;
     Nf.downloaded nf |> P.send_bitfield p 
   );
-
   P.set_am_interested p true;
-  P.set_am_choking p false;
-  Ok () |> return *)
+  P.set_am_choking p false
 
-let rec process_events t : unit Deferred.t = 
-  match%bind Pipe.read t.rd with
-  | `Eof -> return ()
-  | `Ok (e, p) -> (
+let rec process t f =
+  match%map Pipe.read t.rd with
+  | `Eof -> `Finished ()
+  | `Ok (e, p) -> f t e p
+
+let without_nf t e p = 
   info !"Pwp: event %{P.event_to_string} from %{P}" e p;
   match e with 
   | Bye -> 
     info !"Pwp: %{P} has left" p;
-    P.id p |> Hashtbl.remove t.peers |> return 
+    P.id p |> Hashtbl.remove t.peers; `Finished ()
+  | _ -> `Repeat ()
+
+let with_nf nf t e p = 
+  info !"Pwp: event %{P.event_to_string} from %{P}" e p;
+  match e with 
+  | Bye -> 
+    info !"Pwp: %{P} has left" p;
+    P.id p |> Hashtbl.remove t.peers; `Finished ()
   | Piece i -> (
-    match Hashtbl.find t.requested i with 
-    | None -> return ()
-    | Some i -> Ivar.fill i (); return ())
+      match Hashtbl.find t.requested i with 
+      | None -> `Repeat ()
+      | Some i -> Ivar.fill i (); `Repeat ())
+  | Join -> 
+    setup_download t nf p; `Repeat ()
   | _ -> 
-    Option.value_map ~default:() t.nf ~f:(request_pieces t);
-    process_events t)
+    request_pieces t nf; `Repeat ()
+
 
 let init t p =
   P.start p;
@@ -146,15 +134,24 @@ let close t =
   | Some nf -> Nf.close nf  
 
 let status t = Status.{
-  num_peers = Hashtbl.length t.peers  
-} 
+    num_peers = Hashtbl.length t.peers; 
+    num_downloaded_pieces = Option.value_exn t.nf |> Nf.num_downloaded_pieces
+  } 
 
+let start t = 
+  (info !"Pwp: start message handler loop"; 
+   (*   Deferred.repeat_until_finished () (fun () -> process t (without_nf))
+        >>= fun () ->
+   *)  
+
+   let%bind tinfo = Ivar.read t.has_nf in
+   let%bind nf = Nf.create t.info_hash tinfo in
+   t.nf <- Some nf;
+   Deferred.repeat_until_finished () (fun () -> process t (with_nf nf)))
+  |> don't_wait_for
 
 let create info_hash = 
-  let rd, wr = Pipe.create () in 
-
-  let t = 
-  { 
+  let rd, wr = Pipe.create () in { 
     info_hash;
     peers = Hashtbl.Poly.create (); 
     nf = None;
@@ -163,8 +160,5 @@ let create info_hash =
     rd;
     wr;
   }
-in
-don't_wait_for (process_events t);
-t
 
 

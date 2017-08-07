@@ -8,16 +8,11 @@ filename = sys.argv[1]
 num = int(sys.argv[2])
 assert(num < 1000)
 
-def f():
-  b = [random.random() > 0.5 for i in range(8)]
-  res = 0
-  for i in range(8):
-    res = 2*res + (1 if random.random() > 0.4 else 0)
-  return res
+bits = [ random.random() > 0.5 for i in range(num) ]
+b = bytearray( (num + 7) // 8)
 
-b = bytearray(num)
-for i in range(num):
-  b[i] = f()
+for i in range(len(bits)):
+  b[i // 8] = b[i // 8] | ( bits[i] << ((7 - i) % 8) )
 
 f = open(filename, "wb")
 f.write(b)

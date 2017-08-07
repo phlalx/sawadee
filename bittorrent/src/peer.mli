@@ -33,6 +33,7 @@ val set_nf : t -> Network_file.t -> unit
 val start : t -> unit
 
 type event = 
+  | Join
   | Choke 
   | Unchoke
   | Interested

@@ -38,11 +38,10 @@ let check_path p =
 
 let create ~server_port ~verbose ~torrent_path ~download_path ~dht_port = 
   set_level `Error;
-
-  info !"Bittorrent: peer-id:%{Peer_id.to_string_hum}" G.peer_id;
-
   Option.value_map dht_port ~default:() ~f:G.set_dht_port;
+  Option.value_map server_port ~default:() ~f:G.set_port;
   Option.value_map verbose ~default:() ~f:set_verbose;
+  info !"Bittorrent: peer-id:%{Peer_id.to_string_hum}" G.peer_id;
   G.set_download_path download_path;
   G.set_torrent_path torrent_path;
   check_path download_path 

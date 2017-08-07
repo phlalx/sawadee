@@ -47,10 +47,11 @@ let add_peers_from_dht pwp info_hash =
 let process_any ?uris ?tinfo info_hash : Bt_hash.t =
 
   let pwp = Pwp.create info_hash in 
+  Pwp.start pwp;
 
   let () = match tinfo with 
     | None -> ()
-    | Some tinfo -> Pwp.set_nf pwp tinfo |> don't_wait_for
+    | Some tinfo -> Pwp.set_nf pwp tinfo 
   in
   Option.value_map uris ~default:() ~f:(add_peers_from_tracker pwp info_hash);
   add_peers_from_dht pwp info_hash; 
@@ -65,7 +66,7 @@ let process_string s =
   let t = try 
       Torrent.from_string s
     with
-    | Failure s -> assert false (* TODO *)
+    | Failure _ -> failwith ("unable to decode" ^ s)
     | ex -> raise ex
   in 
 

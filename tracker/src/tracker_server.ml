@@ -16,7 +16,7 @@ let state = {
 }
 
 let callback ~body (addr : Addr.t) request = 
-  debug !"Tracker_server: %{Addr} request" addr;
+  info !"Tracker_server: %{Addr} request" addr;
   let `Inet (inet_addr, _) = addr in
 
   let uri = Request.uri request in
