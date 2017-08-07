@@ -13,6 +13,8 @@ type t = {
   mutable nf : Nf.t Option.t;
   peers : (Peer_id.t, P.t) Hashtbl.t;
   requested : (int, unit Ivar.t) Hashtbl.t;
+  wr : (Peer.event * Peer.t) Pipe.Writer.t; 
+  rd : (Peer.event * Peer.t) Pipe.Reader.t;
 }
 
 let set_nf t tinfo = 
@@ -20,13 +22,6 @@ let set_nf t tinfo =
   t.nf <- Some nf;
   Ivar.fill t.has_nf ()
 
-let create info_hash = { 
-    info_hash;
-    peers = Hashtbl.Poly.create (); 
-    nf = None;
-    has_nf = Ivar.create ();
-    requested = Hashtbl.Poly.create ();
-  }
 
 let for_all_peers t ~f = Hashtbl.iter t.peers ~f
 
@@ -76,24 +71,7 @@ and request_pieces t nf : unit =
     |> Deferred.List.iter ~how:`Parallel ~f:(request t nf) 
     |> don't_wait_for
 
-(* read events from the peers to see if we should request try to request
-   pieces *)
-let rec process_events t p : unit Deferred.t = 
-
-  let%bind e = P.read_event p in
-  info !"Pwp: event %{P.event_to_string} from %{P}" e p;
-  match e with 
-  | Bye -> 
-    info !"Pwp: %{P} has left" p;
-    P.id p |> Hashtbl.remove t.peers |> return 
-  | Piece i -> (
-    match Hashtbl.find t.requested i with 
-    | None -> return ()
-    | Some i -> Ivar.fill i (); return ())
-  | _ -> 
-    Option.value_map ~default:() t.nf ~f:(request_pieces t);
-    process_events t p 
-
+(*
 let init t p  = 
 
   (* we need to start the event loop of p to get the possible extension 
@@ -121,7 +99,30 @@ let init t p  =
 
   P.set_am_interested p true;
   P.set_am_choking p false;
-  Ok () |> return
+  Ok () |> return *)
+
+let rec process_events t : unit Deferred.t = 
+  match%bind Pipe.read t.rd with
+  | `Eof -> return ()
+  | `Ok (e, p) -> (
+  info !"Pwp: event %{P.event_to_string} from %{P}" e p;
+  match e with 
+  | Bye -> 
+    info !"Pwp: %{P} has left" p;
+    P.id p |> Hashtbl.remove t.peers |> return 
+  | Piece i -> (
+    match Hashtbl.find t.requested i with 
+    | None -> return ()
+    | Some i -> Ivar.fill i (); return ())
+  | _ -> 
+    Option.value_map ~default:() t.nf ~f:(request_pieces t);
+    process_events t)
+
+let init t p =
+  P.start p;
+  Pipe.transfer (Peer.event_reader p) t.wr ~f:(fun e -> (e, p)) 
+  >>| fun () -> 
+  Ok () 
 
 let add_peer t p =
   info !"Pwp: %{Peer} added" p;
@@ -139,6 +140,7 @@ let add_peer t p =
     |> return
 
 let close t = 
+  (* Pipe.close t.wr;  *)
   match t.nf with 
   | None -> Deferred.unit  
   | Some nf -> Nf.close nf  
@@ -148,6 +150,21 @@ let status t = Status.{
 } 
 
 
+let create info_hash = 
+  let rd, wr = Pipe.create () in 
 
+  let t = 
+  { 
+    info_hash;
+    peers = Hashtbl.Poly.create (); 
+    nf = None;
+    has_nf = Ivar.create ();
+    requested = Hashtbl.Poly.create ();
+    rd;
+    wr;
+  }
+in
+don't_wait_for (process_events t);
+t
 
 

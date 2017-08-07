@@ -245,9 +245,10 @@ let process_message t m : unit =
     failwith "not implemented yet"
 
 
-let leaving t = 
+let leaving t =  
+  Pipe.write_without_pushback t.wr Bye
   (* TODO: fill other ivars? *)
-  Pipe.close t.wr
+  (* Pipe.close t.wr *)
 
 (* This is the main message processing loop. We consider two types of events.
    Timeout (idle peer), and message reception. *)
@@ -272,15 +273,7 @@ let send_bitfield t bf = M.Bitfield bf |> P.send t.peer
 
 let advertise_piece t i = M.Have i |> P.send t.peer 
 
-let read_event t = 
-  match%map Pipe.read t.rd with
-  | `Eof -> Bye
-  | `Ok e ->  e
-
-
-
-
-
+let event_reader t = t.rd
 
 
 

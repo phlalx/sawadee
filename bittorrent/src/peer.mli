@@ -44,7 +44,7 @@ type event =
 
 val event_to_string : event -> string
 
-val read_event : t -> event Deferred.t 
+val event_reader : t -> event Pipe.Reader.t
 
 val send_bitfield : t -> Bitfield.t -> unit 
 
