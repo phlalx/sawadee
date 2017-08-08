@@ -10,7 +10,7 @@ let ignore_error addr : unit Or_error.t -> unit =
   function 
   | Ok () -> () 
   | Error err -> 
-    info !"Start: can't connect to %{Addr}" addr;
+    debug !"Start: can't connect to %{Addr}" addr; 
     debug !"Start: %{Error.to_string_hum}" err
 
 let add_peers pwp info_hash addrs : unit Deferred.t =
@@ -47,12 +47,12 @@ let add_peers_from_dht pwp info_hash =
 let process_any ?uris ?tinfo info_hash : Bt_hash.t =
 
   let pwp = Pwp.create info_hash in 
-  Pwp.start pwp;
 
   let () = match tinfo with 
-    | None -> ()
-    | Some tinfo -> Pwp.set_nf pwp tinfo 
+    | None -> Pwp.start pwp 
+    | Some tinfo -> Pwp.start pwp ~tinfo 
   in
+
   Option.value_map uris ~default:() ~f:(add_peers_from_tracker pwp info_hash);
   add_peers_from_dht pwp info_hash; 
   Torrent_table.add info_hash pwp; 

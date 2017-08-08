@@ -7,11 +7,13 @@ module Em = Error_msg
 
 let init_krpc () =
   let table_name = sprintf "%s/%s" (G.torrent_path ()) G.routing_table_name in 
+  info "Bittorrent: trying to read dht table %s" table_name;
   let table = 
     try
       In_channel.read_all table_name |> Node_info.list_of_string_exn 
-    with _ ->  (* TODO match on exn *)
-      info "Krpc: can't read %s. Using empty table" table_name;
+    with err ->  
+      info "Bittorrent: can't read %s. Using empty table" table_name;
+      debug !"Bittorrent: error processing %s. %{Exn}" table_name err;
       [] 
   in
   if G.is_dht () then Krpc.try_add_nis table else Deferred.unit
@@ -41,26 +43,27 @@ let create ~server_port ~verbose ~torrent_path ~download_path ~dht_port =
   Option.value_map dht_port ~default:() ~f:G.set_dht_port;
   Option.value_map server_port ~default:() ~f:G.set_port;
   Option.value_map verbose ~default:() ~f:set_verbose;
-  info !"Bittorrent: peer-id:%{Peer_id.to_string_hum}" G.peer_id;
   G.set_download_path download_path;
   G.set_torrent_path torrent_path;
   check_path download_path 
   >>= fun () -> 
   check_path torrent_path 
-  >>= fun () -> 
-  if G.is_server () then 
-    Server.start ~port:(G.port_exn ()) 
-  else 
-    Deferred.unit
-  >>= fun () -> 
-  if G.is_dht () then 
-    init_krpc () 
-  else 
-    Deferred.unit
+  >>= fun () -> ( 
+    if G.is_server () then 
+      Server.start ~port:(G.port_exn ()) 
+    else 
+      Deferred.unit )
+  >>= fun () ->  (
+    if G.is_dht () then 
+      init_krpc () 
+    else 
+      Deferred.unit)
 
 let add_torrent s = Start.process_string s 
 
-let add_magnet s = Bt_hash.of_string s |> Start.process_magnet 
+let add_magnet s = 
+  assert (G.is_dht ());
+  Bt_hash.of_hex s |> Start.process_magnet 
 
 let torrent_list () = 
   Torrent_table.keys ()

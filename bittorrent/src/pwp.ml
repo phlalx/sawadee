@@ -9,16 +9,12 @@ module Nf = Network_file
 
 type t = {
   info_hash : Bt_hash.t;
-  has_nf : Torrent.info Ivar.t;
   mutable nf : Nf.t Option.t;
   peers : (Peer_id.t, P.t) Hashtbl.t;
   requested : (int, unit Ivar.t) Hashtbl.t;
   wr : (Peer.event * Peer.t) Pipe.Writer.t; 
   rd : (Peer.event * Peer.t) Pipe.Reader.t;
 }
-
-let set_nf t tinfo = 
-  Ivar.fill_if_empty t.has_nf tinfo
 
 let for_all_peers t ~f = Hashtbl.iter t.peers ~f
 
@@ -79,23 +75,25 @@ let setup_download t nf p =
 
 let rec process t f =
   match%map Pipe.read t.rd with
-  | `Eof -> `Finished ()
+  | `Eof -> assert false
   | `Ok (e, p) -> f t e p
 
 let without_nf t e p = 
-  info !"Pwp: event %{P.event_to_string} from %{P}" e p;
+  info !"Pwp: event (no tinfo) %{P.event_to_string} from %{P}" e p;
   match e with 
+  | Tinfo tinfo -> `Finished tinfo
+  | Support_meta -> P.request_meta p; `Repeat ()
   | Bye -> 
     info !"Pwp: %{P} has left" p;
-    P.id p |> Hashtbl.remove t.peers; `Finished ()
+    P.id p |> Hashtbl.remove t.peers; `Repeat ()
   | _ -> `Repeat ()
 
 let with_nf nf t e p = 
-  info !"Pwp: event %{P.event_to_string} from %{P}" e p;
+  info !"Pwp: event (tinfo) %{P.event_to_string} from %{P}" e p;
   match e with 
   | Bye -> 
     info !"Pwp: %{P} has left" p;
-    P.id p |> Hashtbl.remove t.peers; `Finished ()
+    P.id p |> Hashtbl.remove t.peers; `Repeat ()
   | Piece i -> (
       match Hashtbl.find t.requested i with 
       | None -> `Repeat ()
@@ -138,24 +136,27 @@ let status t = Status.{
     num_downloaded_pieces = Option.value_exn t.nf |> Nf.num_downloaded_pieces
   } 
 
-let start t = 
-  (info !"Pwp: start message handler loop"; 
-   (*   Deferred.repeat_until_finished () (fun () -> process t (without_nf))
-        >>= fun () ->
-   *)  
+let start_tinfo t tinfo = 
+    info !"Pwp: start message handler 'with info' loop"; 
+    let%bind nf = Nf.create t.info_hash tinfo in
+    t.nf <- Some nf;
+    Deferred.repeat_until_finished () (fun () -> process t (with_nf nf))
 
-   let%bind tinfo = Ivar.read t.has_nf in
-   let%bind nf = Nf.create t.info_hash tinfo in
-   t.nf <- Some nf;
-   Deferred.repeat_until_finished () (fun () -> process t (with_nf nf)))
-  |> don't_wait_for
+let start ?tinfo t = 
+ (match tinfo with 
+  | None -> (
+    info !"Pwp: start message handler 'without info' loop"; 
+    Deferred.repeat_until_finished () (fun () -> process t without_nf)
+    >>= fun tinfo ->
+    (* notify everybody with init download *)
+    start_tinfo t tinfo)
+  | Some tinfo -> start_tinfo t tinfo ) |> don't_wait_for
 
 let create info_hash = 
   let rd, wr = Pipe.create () in { 
     info_hash;
     peers = Hashtbl.Poly.create (); 
     nf = None;
-    has_nf = Ivar.create ();
     requested = Hashtbl.Poly.create ();
     rd;
     wr;

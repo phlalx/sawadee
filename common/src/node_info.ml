@@ -23,7 +23,7 @@ let to_string (n, p) = sprintf !"%{Node_id.to_hex} %{Addr}" n p
 
 let of_string_exn s =
   match String.split s ~on:' ' with 
-  | [n; a] -> (Node_id.of_string n), (Addr.of_string a) 
+  | [n; a] -> (Node_id.of_hex n), (Addr.of_string a) 
   | _ -> failwith "wrong node info format"
 
 let list_to_string t =

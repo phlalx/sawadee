@@ -7,6 +7,8 @@ module P = Peer_comm
 module G = Global
 
 type event = 
+  | Support_meta
+  | Tinfo of Torrent.info
   | Join
   | Choke 
   | Unchoke
@@ -30,8 +32,7 @@ type t = {
   bitfield : Bitfield.t;
   wr : event Pipe.Writer.t; 
   rd : event Pipe.Reader.t;
-  support_metadata : int Option.t Ivar.t;
-  metadata_size : int Option.t Ivar.t;
+  mutable metadata : (int * int) Option.t; (* protocol id and metadata size *)
   mutable nf : Network_file.t Option.t
 } [@@deriving fields]
 
@@ -49,36 +50,13 @@ let create peer ~dht ~extension =
     wr;
     extension;
     dht;
-    support_metadata = Ivar.create ();
-    metadata_size = Ivar.create (); 
+    metadata = None;
     nf = None
   }
 
-let request_metadata t  = assert false
-
-(*  let request_meta len = 
-    let open Extension in
-    t.info.state <- `Requested;
-    let f ~index ~off ~len =
-    Request index |> send_extended st `Metadata_ext 
-    in
-    let p = Piece.create ~index:0 (Bt_hash.random ()) ~len in 
-    Piece.iter ~f p
-*)
-
-let support_metadata t = 
-  if t.extension then
-    Ivar.read t.support_metadata
-  else 
-    return None
-
-let request_metadata_size t = 
-  if t.extension then
-    Ivar.read t.metadata_size 
-  else 
-    return None
-
 let event_to_string = function
+  | Tinfo _ -> "Torrent info"
+  | Support_meta -> "Support_meta"
   | Choke -> "Choke"
   | Join -> "Join"
   | Unchoke -> "Unchoke"
@@ -148,31 +126,15 @@ let process_block t nf index bgn block =
     P.set_downloading t.peer;
     Pipe.write_without_pushback t.wr (Piece index)
 
-
-let process_handshake t id s =
-  let em = Extension.of_bin `Handshake s in 
-  info !"Peer %{}: extended message %d %{Extension}" t id em; 
+let process_extended t id s =
+  validate t (id = 0);
+  let em = Extension.of_bin s in 
+  info !"Peer %{}: process ext. message %{Extension}" t em; 
   match em with 
   | Extension.Handshake [`Metadata (id, s)] ->
-    Some id |> Ivar.fill t.support_metadata;
-    Some s |> Ivar.fill t.metadata_size;
-  | _ -> 
-    None |> Ivar.fill t.support_metadata;
-    None |> Ivar.fill t.metadata_size
-
-let process_metadata t id s =
-  match Ivar.peek t.support_metadata with
-  | None -> validate t false 
-  | Some (Some i) when i = id -> 
-    let em = Extension.of_bin `Metadata_ext s in 
-    info !"Peer %{}: extended message %d %{Extension}" t id em
-  | _ -> ()
-
-let process_extended t id s =
-  if id = 0 then 
-    process_handshake t id s  
-  else
-    process_metadata t id s 
+    t.metadata <- Some (id, s);
+    Pipe.write_without_pushback t.wr Support_meta
+  | _ -> info !"Peer %{}: extension not supported" t
 
 let process_request t nf index bgn length =
   let piece = Network_file.get_piece nf index in
@@ -246,8 +208,6 @@ let process_message t m : unit =
     assert (Option.is_some t.nf);
     failwith "not implemented yet"
 
-
-
 (* This is the main message processing loop. We consider two types of events.
    Timeout (idle peer), and message reception. *)
 let rec wait_and_process_message t =
@@ -274,12 +234,31 @@ let start t =
   Deferred.repeat_until_finished () (fun () -> wait_and_process_message t)
   |> don't_wait_for
 
-
 let send_bitfield t bf = M.Bitfield bf |> P.send t.peer
 
 let advertise_piece t i = M.Have i |> P.send t.peer 
 
 let event_reader t = t.rd
+
+let block_size = 16384
+
+let request_meta t = 
+  info !"Peer %{}: request meta" t;
+  match t.metadata with
+  | None -> assert false
+  | Some (id, len) -> 
+    let num_block = (len + block_size - 1) / block_size in
+    let f i = 
+      let em = Extension.Request i in
+      let m = M.Extended (id, Extension.to_bin em) in
+      info !"Peer %{}: sending ext. %{Extension}" t em;
+      P.send t.peer m
+    in
+    List.range 0 num_block 
+    |> List.iter ~f
+    
+
+
 
 
 

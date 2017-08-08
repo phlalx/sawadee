@@ -35,13 +35,14 @@ module type ID = sig
 end
 
 module Id = struct
+  open Core
 
   module B = Bencode_ext
 
   type t = string
   [@@deriving bin_io]
 
-  let of_string x = x 
+  let of_string x = assert ((String.length x) = 20); x 
 
   let to_string x = x
 

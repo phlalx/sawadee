@@ -32,7 +32,11 @@ val set_nf : t -> Network_file.t -> unit
 (* launches the main message loop. should be done before any other operation *)
 val start : t -> unit
 
+val request_meta : t -> unit
+
 type event = 
+  | Support_meta
+  | Tinfo of Torrent.info
   | Join
   | Choke 
   | Unchoke
@@ -53,12 +57,6 @@ val advertise_piece : t -> int -> unit
 
 (** request a piece and directly fill [Network_file.t] *)
 val request_piece : t -> int -> unit
-
-val support_metadata : t -> int Deferred.Option.t
-
-val request_metadata_size : t -> int Deferred.Option.t
-
-val request_metadata : t -> string Deferred.t
 
 val set_am_interested : t -> bool -> unit
 

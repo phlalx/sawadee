@@ -21,4 +21,4 @@ val split : t -> int -> t list
 
 (* decode first part of the string, and returns remainder.
    a little bit ad-hoc... *)
-val decode_beginning_exn : string -> t * string option 
+val decode_beginning_exn : string -> t * string 

@@ -74,7 +74,7 @@ let bin_read_payload buf ~pos_ref length =
     assert (port >= 0);
     Port port
   | 20 ->  
-    let b_len = length - 1 in
+    let b_len = length - 2 in
     let id = Read.bin_read_char buf pos_ref in
     let bencode = String.create b_len in
     Common.blit_buf_string ~src_pos:!pos_ref buf bencode ~len:b_len; 

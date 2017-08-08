@@ -39,4 +39,4 @@ let of_string s = String.split s ~on:':' |> function
  | [addr; p] -> create (Unix.Inet_addr.of_string addr) (int_of_string p)  
  | _ -> assert false
 
- let is_valid t = not (phys_equal 0 (port t))
+ let is_valid t = (port t) >= 1024

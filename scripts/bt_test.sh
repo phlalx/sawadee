@@ -13,7 +13,7 @@ do
     DIR=$TEST_PATH_PREFIX$i 
     LOG=$DIR/log
     $SCRIPTS_PREFIX/bt_rpc_server.sh $i &> $LOG & 
-    sleep 0.05
+    sleep 0.1
 done
 FILE=$TORRENT_DIR/$TORRENT
 $EXEC_PREFIX/$RPC_CLIENT -r $BASE_RPC_PORT -n $NUM_CLIENTS $FILE

@@ -20,12 +20,13 @@ let process
   = 
   set_level `Error;
 
+  (* we use same port for server and dht *)
   Bittorrent.create 
     ~download_path:path 
     ~torrent_path:path
     ~verbose
     ~server_port:port
-    ~dht_port:None
+    ~dht_port:port
   >>= fun () ->
   Signal.handle Signal.terminating ~f:terminate;
 

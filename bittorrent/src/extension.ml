@@ -43,30 +43,46 @@ let dict_get_suff_int_exn (d : B.t) ~suffix : int =
   | [(_, v) ] -> B.as_int_exn v
   |  _ -> raise Unknown_message  
 
-let metadata_ext_of_bin s =
-  let (bc, s) = B.decode_beginning_exn s in
-  debug !"Extension: decoding %{B.pretty_print}" bc; 
-  assert false
-
-let handshake_of_bin s =
-  let bc = `String s |> B.decode in
-  debug !"Extension: decoding %{B.pretty_print}" bc; 
+let handshake_of_bin b bm =
   try 
-    let metadata_size = dict_get_suff_int_exn bc ~suffix:"metadata_size" in
-    let metadata = 
-      B.dict_get_exn bc "m" |> dict_get_suff_int_exn ~suffix:"metadata"  in 
+    let metadata_size = dict_get_suff_int_exn b ~suffix:"metadata_size" in
+    let metadata = dict_get_suff_int_exn bm ~suffix:"metadata" in 
     Handshake [ `Metadata (metadata, metadata_size) ]
   with 
-    _ -> Handshake []
+    _ -> Unknown
 
-let of_bin kind s = 
-  match kind with 
-  | `Metadata_ext -> metadata_ext_of_bin s 
-  | `Handshake -> handshake_of_bin s
+let meta_of_bin b s =  
+  try
+    let msg_type = B.dict_get_int_exn b "msg_type" in
+    let piece = B.dict_get_int_exn b "piece" in
+    let n = String.length s in 
+    match msg_type with 
+    | 0 -> failwith "not implemented yet"
+    | 1 -> 
+      (* let total_size = B.dict_get_int_exn b "total_size" in *)
+      Data (piece, s)
+    | 2 -> 
+      Reject piece
+    | _ -> Unknown
+  with
+  | _ -> Unknown
+
+
+let of_bin s =
+  let (b, s') = B.decode_beginning_exn s in
+  let n = String.length s' in
+  info !"Extension: decoding message with %d trailing bytes" n;
+  debug  !"Extension: decoding %{B.pretty_print} " b;
+  match B.dict_get b "m" with
+  | None -> 
+    meta_of_bin b s'
+  | Some bm -> 
+    assert (n = 0);
+    handshake_of_bin b bm 
 
 let to_string = function
-  | Request i -> sprintf "request %d" i
-  | Reject i -> sprintf "reject %d" i
-  | Data (i, _) -> sprintf "data %d" i
+  | Request i -> sprintf "request(%d)" i
+  | Reject i -> sprintf "reject(%d)" i
+  | Data (i, s) -> sprintf "data(%d, %d)" i (String.length s)
   | Handshake ext -> sprintf !"Handshake [%{ext_to_string}]" ext 
   | Unknown -> "unknown"
