@@ -67,12 +67,11 @@ let meta_of_bin b s =
   with
   | _ -> Unknown
 
-
 let of_bin s =
   let (b, s') = B.decode_beginning_exn s in
   let n = String.length s' in
   info !"Extension: decoding message with %d trailing bytes" n;
-  debug  !"Extension: decoding %{B.pretty_print} " b;
+  debug !"Extension: decoding %{B.pretty_print} " b;
   match B.dict_get b "m" with
   | None -> 
     meta_of_bin b s'

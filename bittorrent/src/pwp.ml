@@ -140,6 +140,7 @@ let start_tinfo t tinfo =
     info !"Pwp: start message handler 'with info' loop"; 
     let%bind nf = Nf.create t.info_hash tinfo in
     t.nf <- Some nf;
+    for_all_peers t (setup_download t nf);
     Deferred.repeat_until_finished () (fun () -> process t (with_nf nf))
 
 let start ?tinfo t = 
@@ -148,7 +149,6 @@ let start ?tinfo t =
     info !"Pwp: start message handler 'without info' loop"; 
     Deferred.repeat_until_finished () (fun () -> process t without_nf)
     >>= fun tinfo ->
-    (* notify everybody with init download *)
     start_tinfo t tinfo)
   | Some tinfo -> start_tinfo t tinfo ) |> don't_wait_for
 

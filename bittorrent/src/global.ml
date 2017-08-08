@@ -17,9 +17,12 @@ type t = {
   routing_table_name : string;
   mutable is_node : bool;
   max_num_pieces : int;
+  meta_block_size : int;
+  log_name : string
 }
 
 let t = {
+  log_name = "log";
   block_size = 16384;
   max_block_size = 131072;
   idle = sec 100.; (** Time before a host is considered idle *)
@@ -36,8 +39,11 @@ let t = {
   routing_table_name = "routing";
   is_node = false;
   max_num_pieces = 65536;
+  meta_block_size = 16384
 }
 
+let log_name = t.log_name
+let meta_block_size = t.meta_block_size
 let max_num_pieces = t.max_num_pieces
 let routing_table_name = t.routing_table_name
 let peer_id = t.peer_id
@@ -74,3 +80,8 @@ let is_node () = t.is_node
 
 let set_node b = t.is_node <- b
 
+let with_torrent_path f= sprintf "%s/%s" (torrent_path ()) f 
+
+let with_download_path f= sprintf "%s/%s" (download_path ()) f 
+
+let bitset_name s = s ^ bitset_ext

@@ -14,7 +14,7 @@ let test file port  =
 
 let process port num_clients file : unit Deferred.t = 
   set_level `Info;
-  let l = List.range (port + 1) (port + num_clients + 1) in 
+  let l = List.range port (port + num_clients) in 
   let%bind res = Deferred.List.map l ~f:(test file) ~how:`Parallel in
   let s = List.to_string res ~f:string_of_int in
   info "res = %s" s;

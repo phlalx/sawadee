@@ -54,8 +54,8 @@ let create info_hash tinfo =
     Torrent.num_files;
   } = tinfo in 
 
-  let bitfield_name = sprintf "%s/%s%s"
-  (G.torrent_path ()) (Bt_hash.to_hex info_hash)  G.bitset_ext in 
+  let bitfield_name = 
+    Bt_hash.to_hex info_hash |> G.bitset_name |> G.with_torrent_path in
 
   let%bind pers = Pers.create files_info num_pieces piece_length  in
   let f = piece_init pieces_hash piece_length total_length in
@@ -78,7 +78,7 @@ let create info_hash tinfo =
     Pers.read_piece pers p 
     >>| fun () -> 
     if not (Piece.is_hash_ok p) then
-     info "Network_file: can't read piece %d from disk" i
+      info "Network_file: can't read piece %d from disk" i
   in
 
   Deferred.List.iter (Bitfield.to_list downloaded num_pieces) ~f:read_piece

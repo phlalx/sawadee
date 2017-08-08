@@ -6,7 +6,7 @@ module G = Global
 module Em = Error_msg
 
 let init_krpc () =
-  let table_name = sprintf "%s/%s" (G.torrent_path ()) G.routing_table_name in 
+  let table_name = G.with_torrent_path G.routing_table_name in
   info "Bittorrent: trying to read dht table %s" table_name;
   let table = 
     try
@@ -19,7 +19,8 @@ let init_krpc () =
   if G.is_dht () then Krpc.try_add_nis table else Deferred.unit
 
 let terminate_dht () =
-  let table_name = sprintf "%s/%s" (G.torrent_path ()) G.routing_table_name in 
+  let table_name = G.with_torrent_path G.routing_table_name in
+  info "Bittorrent: trying to read dht table %s" table_name;
   try 
     let data = Krpc.table () |> Node_info.list_to_string in 
     Out_channel.write_all table_name ~data;
@@ -49,6 +50,8 @@ let create ~server_port ~verbose ~torrent_path ~download_path ~dht_port =
   >>= fun () -> 
   check_path torrent_path 
   >>= fun () -> ( 
+    let f = Log.Output.file `Text (G.with_torrent_path G.log_name) in 
+    set_output [f; (Log.Output.stderr ())];
     if G.is_server () then 
       Server.start ~port:(G.port_exn ()) 
     else 

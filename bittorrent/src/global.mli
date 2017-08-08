@@ -3,6 +3,8 @@
 open Core
 open Async
 
+val meta_block_size : int 
+
 (** 16KB, we ignore other requests *)
 val block_size : int
 
@@ -14,10 +16,6 @@ val idle : Time.Span.t
 val keep_alive : Time.Span.t
 
 val is_server : unit -> bool 
-
-val download_path : unit -> string
-
-val torrent_path : unit -> string
 
 val port_exn : unit -> int
 
@@ -49,4 +47,13 @@ val dht_port_exn : unit -> int
 val is_dht : unit -> bool
 
 val max_num_pieces : int
+
+val log_name : string
+
+val with_torrent_path : string -> string
+
+val with_download_path : string -> string
+
+val bitset_name : string -> string
+
 

@@ -89,7 +89,7 @@ let read_from_pipe t =
 
 let open_file name ~len : Unix.Fd.t Deferred.Or_error.t = 
   let open Deferred.Or_error.Monad_infix in
-  let pname = (G.download_path ()) ^ "/" ^ name in
+  let pname = G.with_download_path name in
   info "Pers: open file %s with length %d" pname len;
 
   (* TODO tentative to catch possible exceptions raised by Unix functions. *)

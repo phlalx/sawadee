@@ -3,7 +3,7 @@
 WHEREAMI="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source $WHEREAMI/test_env.sh
 
-i=1
+i=0
 if test $1 
 then
     i=$1

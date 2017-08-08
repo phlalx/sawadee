@@ -4,7 +4,7 @@ source $WHEREAMI/test_env.sh
 
 echo "setting up tests"
 
-for i in $(seq 1 $NUM_CLIENTS)
+for (( i=0; i<$NUM_CLIENTS; i++ ))
 do
     DIR=$TEST_PATH_PREFIX$i 
     echo "setting up dir $DIR"
