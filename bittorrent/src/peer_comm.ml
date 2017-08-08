@@ -84,7 +84,7 @@ let extract (s : string) : Bt_hash.t * Peer_id.t * bool * bool =
   Bt_hash.of_string hash, Peer_id.of_string pid, dht, extension
 
 let rec send_handshake t hash ~initiate : handshake_info Deferred.Or_error.t = 
-  info !"Peer_comm %{}: sends handshake" t;
+  debug !"Peer_comm %{}: sends handshake" t;
   let hs = hs hash G.peer_id in
   Writer.write t.writer hs ~len:hs_len;
   match initiate with 
@@ -95,7 +95,7 @@ let rec send_handshake t hash ~initiate : handshake_info Deferred.Or_error.t =
     receive_handshake t has_hash ~initiate:`Non_initiator
 
 and receive_handshake t (has_hash : Bt_hash.t -> bool) ~initiate : handshake_info Deferred.Or_error.t =
-  info !"Peer_comm %{}: waits handshake" t;
+  debug !"Peer_comm %{}: waits handshake" t;
   let buf = String.create hs_len in
   Reader.really_read t.reader buf ~len:hs_len
   >>= function

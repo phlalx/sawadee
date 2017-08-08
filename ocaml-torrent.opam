@@ -6,7 +6,6 @@ authors: ["phlalx@users.noreply.github.com"]
 homepage: "https://github.com/phlalx/ocaml-torrent"
 bug-reports: "https://github.com/phlalx/ocaml-torrent/issues"
 dev-repo: "https://github.com/phlalx/ocaml-torrent.git"
-license: "LGPL-3.0"
 build: [
   ["jbuilder" "build" "-p" name "-j" jobs]
 ]

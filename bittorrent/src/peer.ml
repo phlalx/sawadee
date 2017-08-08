@@ -92,20 +92,20 @@ let bitfield t = t.bitfield
 let is_or_not b = if b then "" else "not"
 
 let set_peer_interested t b = 
-  info !"Peer %{}: is %{is_or_not} interested" t b;
+  debug !"Peer %{}: is %{is_or_not} interested" t b;
   t.peer_interested <- b
 
 let set_peer_choking t b = 
-  info !"Peer %{}: is %{is_or_not} choking" t b;
+  debug !"Peer %{}: is %{is_or_not} choking" t b;
   t.peer_choking <- b
 
 let set_am_interested t b = 
-  info !"Peer %{}: I am %{is_or_not} interested" t b;
+  debug !"Peer %{}: I am %{is_or_not} interested" t b;
   t.am_interested <- b;
   (if b then M.Interested else M.Not_interested) |> P.send t.peer
 
 let set_am_choking t b = 
-  info !"Peer %{}: I am %{is_or_not} choking" t b;
+  debug !"Peer %{}: I am %{is_or_not} choking" t b;
   t.am_choking <- b;
   (if b then M.Choke else M.Unchoke) |> P.send t.peer
 
@@ -113,7 +113,7 @@ let set_am_choking t b =
    same time *)
 let request_piece t i =
   let nf = Option.value_exn t.nf in
-  info !"Peer %{}: we request %d" t i; 
+  debug !"Peer %{}: we request %d" t i; 
   let f ~index ~off ~len =
     M.Request(index, off, len) |> P.send t.peer 
   in 
@@ -128,15 +128,15 @@ let process_block t nf index bgn block =
   | `Ok -> 
     debug !"Peer %{}: got block - piece %d offset = %d" t index bgn
   | `Hash_error -> 
-    info !"Peer %{}: hash error piece %d" t index
+    debug !"Peer %{}: hash error piece %d" t index
   (* TODO define some event *)
   | `Downloaded ->
-    info !"Peer %{}: got piece %d" t index; 
+    debug !"Peer %{}: got piece %d" t index; 
     P.set_downloading t.peer;
     Pipe.write_without_pushback t.wr (Piece index)
 
 let update_data t i s = 
-  info !"Peer %{}: received piece %d" t i; 
+  debug !"Peer %{}: received piece %d" t i; 
   let { received ; total_length; data } = Option.value_exn t.meta in
   received.(i) <- true;
   let off = i * G.meta_block_size in
@@ -144,7 +144,7 @@ let update_data t i s =
   String.blit ~src:s ~dst:data ~src_pos:0 ~dst_pos:off ~len;
   match Array.fold ~init:true ~f:(fun acc b -> acc && b) received  with
   | true ->
-    info !"Peer %{}: data complete" t; 
+    debug !"Peer %{}: data complete" t; 
 
     let tinfo = `String data |> B.decode |> Torrent.info_of_bencode in
     Tinfo tinfo |> Pipe.write_without_pushback t.wr  
@@ -153,7 +153,7 @@ let update_data t i s =
 let process_extended t id s =
   validate t (id = 0);
   let em = Extension.of_bin s in 
-  info !"Peer %{}: process ext. message %{Extension}" t em; 
+  debug !"Peer %{}: process ext. message %{Extension}" t em; 
   match em with 
   | Extension.Handshake [`Metadata (id, total_length)] ->
     let num_block = (total_length + G.meta_block_size - 1) / 
@@ -202,12 +202,12 @@ let process_message t m : unit =
   | M.Bitfield bits -> 
     (* we should validate this bitfield but we may not know the num pieces at
        that stage. *)
-    info !"Peer %{}: received bitfield (%d pieces)" t (Bitfield.card bits);
+    debug !"Peer %{}: received bitfield (%d pieces)" t (Bitfield.card bits);
     Bitfield.copy ~src:bits ~dst:t.bitfield; 
     Pipe.write_without_pushback t.wr Bitfield
 
   | M.Port port -> 
-    info !"Peer %{}: received port %d" t port;
+    debug !"Peer %{}: received port %d" t port;
     set_port t (Some port);
     if G.is_dht () then (
       Addr.create (Peer_comm.addr t.peer) port |> 
@@ -217,14 +217,14 @@ let process_message t m : unit =
     process_extended t id b 
 
   | M.Have index -> 
-    info !"Peer %{}: received have %d" t index;
+    debug !"Peer %{}: received have %d" t index;
     Bitfield.set t.bitfield index true;
     Pipe.write_without_pushback t.wr Have 
 
   (* the following messages must have nf set *)
 
   | M.Request (index, bgn, length) -> 
-    info !"Peer %{}: peer requests %d" t index;
+    debug !"Peer %{}: peer requests %d" t index;
     assert (Option.is_some t.nf);
     if not (am_choking t) then 
       process_request t (Option.value_exn t.nf) index bgn length
@@ -258,7 +258,7 @@ let rec wait_and_process_message t =
 let set_nf t nf = t.nf <- Some nf
 
 let start t =
-  info !"Peer %{}: start message handler loop" t; 
+  debug !"Peer %{}: start message handler loop" t; 
   Pipe.write_without_pushback t.wr Join;
   Deferred.repeat_until_finished () (fun () -> wait_and_process_message t)
   |> don't_wait_for
@@ -270,14 +270,14 @@ let advertise_piece t i = M.Have i |> P.send t.peer
 let event_reader t = t.rd
 
 let request_meta t = 
-  info !"Peer %{}: request meta" t;
+  debug !"Peer %{}: request meta" t;
   match t.meta with
   | None -> assert false
   | Some {id; total_length; num_block } -> 
     let f i = 
       let em = Extension.Request i in
       let m = M.Extended (id, Extension.to_bin em) in
-      info !"Peer %{}: sending ext. %{Extension}" t em;
+      debug !"Peer %{}: sending ext. %{Extension}" t em;
       P.send t.peer m
     in
     List.range 0 num_block 

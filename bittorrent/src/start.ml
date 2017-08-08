@@ -59,8 +59,16 @@ let process_any ?uris ?tinfo info_hash : Bt_hash.t =
   info_hash
 
 let process_magnet hash = 
-  info !"Start: processing magnet %{Bt_hash.to_hex}" hash;
-  process_any hash
+  let h = Bt_hash.to_hex hash in
+  info "Start: processing magnet %s" h;
+  let n = h |> G.torrent_name |> G.with_torrent_path in
+  match Option.try_with (fun () -> Torrent.info_from_file n) with
+  | None -> 
+    info "Start: didn't find any meta-info from previous session";
+    process_any hash 
+  | Some tinfo -> 
+    info "Start: found meta-info from previous session";
+    process_any hash ~tinfo
 
 let process_string s = 
   let t = try 

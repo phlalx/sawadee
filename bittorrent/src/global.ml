@@ -25,7 +25,7 @@ let t = {
   log_name = "log";
   block_size = 16384;
   max_block_size = 131072;
-  idle = sec 100.; (** Time before a host is considered idle *)
+  idle = sec 10.; (** Time before a host is considered idle *)
   keep_alive = sec 180.;
   download_path = None;
   torrent_path = None;
@@ -85,3 +85,5 @@ let with_torrent_path f= sprintf "%s/%s" (torrent_path ()) f
 let with_download_path f= sprintf "%s/%s" (download_path ()) f 
 
 let bitset_name s = s ^ bitset_ext
+
+let torrent_name s = s ^ torrent_ext

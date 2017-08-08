@@ -86,6 +86,20 @@ let decode bc =
 
 let decode_channel c = `Channel c |> B.decode |> decode 
 
+let decode_info_channel c = `Channel c |> B.decode |> info_of_bencode
+
+let info_from_file file = In_channel.with_file file ~f:decode_info_channel
+
 let from_file file = In_channel.with_file file ~f:decode_channel
 
 let from_string s = `String s |> B.decode |> decode
+
+let info_to_file s tinfo = info "Torrent: info_to_file not implemented yet"
+
+
+
+
+
+
+
+

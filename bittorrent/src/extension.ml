@@ -55,11 +55,9 @@ let meta_of_bin b s =
   try
     let msg_type = B.dict_get_int_exn b "msg_type" in
     let piece = B.dict_get_int_exn b "piece" in
-    let n = String.length s in 
     match msg_type with 
     | 0 -> failwith "not implemented yet"
     | 1 -> 
-      (* let total_size = B.dict_get_int_exn b "total_size" in *)
       Data (piece, s)
     | 2 -> 
       Reject piece
@@ -70,8 +68,7 @@ let meta_of_bin b s =
 let of_bin s =
   let (b, s') = B.decode_beginning_exn s in
   let n = String.length s' in
-  info !"Extension: decoding message with %d trailing bytes" n;
-  debug !"Extension: decoding %{B.pretty_print} " b;
+  debug !"Extension: decoding %{B.pretty_print} (%d trailing bytes)" b n;
   match B.dict_get b "m" with
   | None -> 
     meta_of_bin b s'

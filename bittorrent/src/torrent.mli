@@ -17,6 +17,10 @@ type info = {
 
 val info_of_bencode : Bencode_ext.t -> info
 
+val info_from_file : string -> info
+
+val info_to_file : string -> info -> unit
+
 type t = {
   info_hash : Bt_hash.t; 
   announce : Uri.t;

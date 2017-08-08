@@ -32,12 +32,6 @@ val max_pending_request : int
 (** max number of peers we accept to serve *)
 val max_non_choking_peers : int
 
-(** extension to serialize bitfield ".bitset" *)
-val bitset_ext : string
-
-(** extension to save torrents ".torrent" *)
-val torrent_ext : string
-
 val peer_id : Peer_id.t
 
 val routing_table_name : string
@@ -55,5 +49,7 @@ val with_torrent_path : string -> string
 val with_download_path : string -> string
 
 val bitset_name : string -> string
+
+val torrent_name : string -> string
 
 
