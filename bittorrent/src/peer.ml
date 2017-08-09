@@ -261,10 +261,10 @@ let start t =
   info !"Peer %{}: quit message handler loop" t; 
   Pipe.close t.wr
 
-(* let close t = 
-  info !"Peer %{}: we close this peer" t; 
-  Peer_comm.close t.peer 
- *)
+let close t = 
+  info !"Peer %{}: we close this peer." t;
+  Peer_comm.close t.peer
+
 let send_bitfield t bf = M.Bitfield bf |> P.send t.peer
 
 let advertise_piece t i = M.Have i |> P.send t.peer 

@@ -35,7 +35,7 @@ val set_nf : t -> Network_file.t -> unit
      - we call [close] *)
 val start : t -> unit Deferred.t
 
-(* val close : t -> unit Deferred.t *)
+val close : t -> unit Deferred.t 
 
 val request_meta : t -> unit
 

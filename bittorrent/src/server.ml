@@ -24,9 +24,9 @@ let handler addr r w =
     info !"Server: %{P.to_string} handshake" p;
     let pwp = Torrent_table.find_exn info_hash in
     let peer = Peer.create p ~dht ~extension in
-    Pwp.add_peer pwp peer 
+    Pwp.add_peer pwp peer |> Deferred.ok
     >>= fun () ->
-    P.close p |> Deferred.ok
+    Peer.close peer |> Deferred.ok
 
   in  handler_or_error () >>| ignore_error addr
 

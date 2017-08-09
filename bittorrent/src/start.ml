@@ -22,9 +22,9 @@ let add_peers pwp info_hash addrs : unit Deferred.t =
     P.initiate_handshake p info_hash 
     >>= fun { extension; dht } -> 
     let peer = Peer.create p ~extension ~dht in 
-    Pwp.add_peer pwp peer 
+    Pwp.add_peer pwp peer |> Deferred.ok
     >>= fun () -> 
-    P.close p |> Deferred.ok
+    Peer.close peer |> Deferred.ok
   in
 
   let f addr = add_peer addr >>| ignore_error addr in
@@ -48,10 +48,7 @@ let process_any ?uris ?tinfo info_hash : Bt_hash.t =
 
   let pwp = Pwp.create info_hash in 
 
-  let () = match tinfo with 
-    | None -> Pwp.start pwp |> don't_wait_for
-    | Some tinfo -> Pwp.start pwp ~tinfo  |> don't_wait_for
-  in
+  Pwp.start pwp tinfo |> don't_wait_for;
 
   Option.value_map uris ~default:() ~f:(add_peers_from_tracker pwp info_hash);
   add_peers_from_dht pwp info_hash; 

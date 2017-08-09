@@ -21,7 +21,7 @@ type t
 
 val create: Bt_hash.t -> t
 
-val start: ?tinfo : Torrent.info -> t -> unit Deferred.t
+val start: t -> Torrent.info Option.t -> unit Deferred.t
 
 (* Peers can come from three sources:
   - querying the tracker
@@ -33,7 +33,7 @@ val start: ?tinfo : Torrent.info -> t -> unit Deferred.t
 
   This function returns when [Peer.t] is not needed anymore. Resource freeing
   is then done by the caller. *)
-val add_peer: t -> Peer.t -> unit Deferred.Or_error.t 
+val add_peer: t -> Peer.t -> unit Deferred.t 
 
 (* close the network file if there is one *)
 val close: t -> unit Deferred.t
