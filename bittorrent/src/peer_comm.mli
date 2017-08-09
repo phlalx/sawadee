@@ -30,6 +30,7 @@ type handshake_info = {
     extension : bool;
     dht : bool;
     info_hash : Bt_hash.t;
+    peer_id : Peer_id.t
 }
 
 (** Communication functions *)

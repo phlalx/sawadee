@@ -80,12 +80,11 @@ let setup_download t nf p =
 
 let rec process t f =
   match%map Pipe.read t.rd with
-  | `Eof -> assert false
+  | `Eof -> 
+    info "Pwp: ********* PWP pipe closed **********";
+    `Repeat ()
   | `Ok (e, p) -> f t e p
 
-let leave t p =
-  info !"Pwp: %{P} has left (%d remaining)" p (Hashtbl.length t.peers);
-  P.id p |> Hashtbl.remove t.peers
 
 let without_nf t e p = 
   let open Peer in
@@ -97,11 +96,6 @@ let without_nf t e p =
   | Support_meta -> 
     P.request_meta p; 
     `Repeat ()
-  | Bye -> 
-    leave t p; 
-    `Repeat ()
-  | Join -> 
-    `Repeat ()
   | _ -> 
     `Repeat ()
 
@@ -110,7 +104,6 @@ let with_nf nf t e p =
   debug !"Pwp: event (tinfo) %{P.event_to_string} from %{P}" e p;
   match e with 
   | Bye -> 
-    leave t p; 
     `Repeat ()
   | Join -> 
     setup_download t nf p; `Repeat ()
@@ -135,39 +128,35 @@ let with_nf nf t e p =
     request_pieces t nf; 
     `Repeat ()
 
-let init t p =
-  info !"Pwp: %{Peer} added (#%d)" p (Hashtbl.length t.peers);
-  P.start p;
-  Pipe.transfer (Peer.event_reader p) t.wr ~f:(fun e -> (e, p)) 
-  >>| fun () -> 
-  Ok () 
-
 let add_peer t p =
   let peer_id = P.id p in
-
   match Hashtbl.add t.peers ~key:peer_id ~data:p with 
   | `Ok  -> 
-    init t p   
+    info !"Pwp: %{Peer} added (%d in)" p (Hashtbl.length t.peers);
+    P.start p |> don't_wait_for;
+    Pipe.transfer (Peer.event_reader p) t.wr ~f:(fun e -> (e, p)) 
+    >>| fun () -> 
+    P.id p |> Hashtbl.remove t.peers;
+    info !"Pwp: %{P} has left (%d left)" p (Hashtbl.length t.peers);
+    Ok () 
   | `Duplicate -> 
-    (* we ignore all peers already connected, and ourselves. It may be the case
-       that the calling layers try to add twice the same peer. For instance,
-       the tracker can return our own address and we may try to connect to 
-       ourselves  *)
-    Error (Error.of_string "ignore peers (already added or ourselves)") 
-    |> return
-
-let close t = 
-  (* Pipe.close t.wr;  *)
-  match t.nf with 
-  | None -> Deferred.unit  
-  | Some nf -> Nf.close nf  
+    Error (Error.of_string "already added") |> return 
 
 let status t = Status.{
     num_peers = Hashtbl.length t.peers; 
     num_downloaded_pieces = Option.value_exn t.nf |> Nf.num_downloaded_pieces
   } 
 
-let start_tinfo t tinfo = 
+let start ?tinfo t = 
+
+  let%bind tinfo = 
+    match tinfo with 
+    | None -> 
+      info !"Pwp: start message handler 'without info' loop"; 
+      Deferred.repeat_until_finished () (fun () -> process t without_nf)
+    | Some tinfo -> return tinfo
+  in 
+
   let n = t.info_hash |> Bt_hash.to_hex |> G.torrent_name 
           |> G.with_torrent_path in
   info "Pwp: saving meta-info to file %s" n; 
@@ -178,16 +167,11 @@ let start_tinfo t tinfo =
   info "Pwp: start message handler 'with info' loop"; 
   Deferred.repeat_until_finished () (fun () -> process t (with_nf nf))
 
-let start ?tinfo t = 
-  (match tinfo with 
-   | None -> (
-       info !"Pwp: start message handler 'without info' loop"; 
-       Deferred.repeat_until_finished () (fun () -> process t without_nf)
-       >>= fun tinfo ->
-       start_tinfo t tinfo)
-   | Some tinfo -> 
-     start_tinfo t tinfo
-  ) |> don't_wait_for
+let close t = 
+  (* Pipe.close t.wr; *)
+  match t.nf with 
+  | None -> Deferred.unit  
+  | Some nf -> Nf.close nf  
 
 let create info_hash = 
   let rd, wr = Pipe.create () in { 

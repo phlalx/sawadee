@@ -52,4 +52,6 @@ val bitset_name : string -> string
 
 val torrent_name : string -> string
 
+val client_id : string
+
 

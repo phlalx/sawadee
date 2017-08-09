@@ -224,7 +224,7 @@ let process_message t m : unit =
   (* the following messages must have nf set *)
 
   | M.Request (index, bgn, length) -> 
-    debug !"Peer %{}: peer requests %d" t index;
+    info !"Peer %{}: *** peer requests %d ***" t index;
     assert (Option.is_some t.nf);
     if not (am_choking t) then 
       process_request t (Option.value_exn t.nf) index bgn length
@@ -241,28 +241,30 @@ let process_message t m : unit =
    Timeout (idle peer), and message reception. *)
 let rec wait_and_process_message t =
 
-  let leaving t =  
-    Pipe.write_without_pushback t.wr Bye in 
-    (* TODO: fill other ivars? *)
-    (* Pipe.close t.wr *)
-
   let result = function
     | `Ok m -> process_message t m; `Repeat ()
-    | `Eof -> leaving t; `Finished ()
+    | `Eof -> `Finished ()
   in
-  P.receive t.peer |> Clock.with_timeout G.idle 
+  P.receive t.peer |> Clock.with_timeout G.keep_alive
   >>| function 
-  | `Timeout -> leaving t; `Finished ()
+  | `Timeout -> `Finished ()
   | `Result r -> result r 
 
 let set_nf t nf = t.nf <- Some nf
 
 let start t =
-  debug !"Peer %{}: start message handler loop" t; 
+  info !"Peer %{}: start message handler loop" t; 
   Pipe.write_without_pushback t.wr Join;
   Deferred.repeat_until_finished () (fun () -> wait_and_process_message t)
-  |> don't_wait_for
+  >>| fun () -> 
+  Pipe.write_without_pushback t.wr Bye;
+  info !"Peer %{}: quit message handler loop" t; 
+  Pipe.close t.wr
 
+(* let close t = 
+  info !"Peer %{}: we close this peer" t; 
+  Peer_comm.close t.peer 
+ *)
 let send_bitfield t bf = M.Bitfield bf |> P.send t.peer
 
 let advertise_piece t i = M.Have i |> P.send t.peer 

@@ -14,7 +14,7 @@ module type ID = sig
 
   val dummy : t 
 
-  val random : unit -> t
+  val random : ?prefix:string -> unit -> t
 
   val length : int
 
@@ -50,8 +50,10 @@ module Id = struct
 
   let _ = Random.self_init ()
 
-  let random () = 
-    String.init length ~f:(fun _ -> char_of_int (Random.int 256))
+  let random ?prefix:(prefix="") () = 
+    let len = length - (String.length prefix) in
+    let suffix = String.init len ~f:(fun _ -> char_of_int (Random.int 256)) in 
+    prefix ^ suffix
 
   let dummy = "????????????????????"
 

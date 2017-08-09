@@ -29,8 +29,13 @@ val bitfield : t -> Bitfield.t
 
 val set_nf : t -> Network_file.t -> unit
 
-(* launches the main message loop. should be done before any other operation *)
-val start : t -> unit
+(* launches the main message loop. should be done before any other 
+   operation. This terminates either when:
+     - remote peers closes connection
+     - we call [close] *)
+val start : t -> unit Deferred.t
+
+(* val close : t -> unit Deferred.t *)
 
 val request_meta : t -> unit
 

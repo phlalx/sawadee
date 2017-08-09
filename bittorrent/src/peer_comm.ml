@@ -23,6 +23,7 @@ type handshake_info = {
   extension : bool;
   dht : bool;
   info_hash : Bt_hash.t;
+  peer_id : Peer_id.t
 }
 
 let buffer_size = Message.max_size
@@ -103,7 +104,7 @@ and receive_handshake t (has_hash : Bt_hash.t -> bool) ~initiate : handshake_inf
     begin
       let hash, pid, extension, dht = extract buf in
       t.id <- pid;
-      let hi = { info_hash = hash; dht; extension } in
+      let hi = { info_hash = hash; dht; extension; peer_id = pid } in
       match initiate, has_hash hash with 
       | `Initiator, true ->
         let initiate = `Non_initiator hi in
@@ -114,9 +115,21 @@ and receive_handshake t (has_hash : Bt_hash.t -> bool) ~initiate : handshake_inf
     end
   | `Eof _ -> Error (Error.of_string "handshake error") |> return
 
-let initiate_handshake t hash = send_handshake t hash ~initiate:`Initiator
+let not_ourselves hinfo = 
+  if hinfo.peer_id = G.peer_id then (
+    Error (Error.of_string "trying to handshake with ourselves") |> return
+  ) else 
+    Ok hinfo |> return
 
-let wait_handshake t has_hash = receive_handshake t has_hash ~initiate:`Initiator
+let initiate_handshake t hash = 
+  let open Deferred.Or_error.Monad_infix in
+  send_handshake t hash ~initiate:`Initiator
+  >>= not_ourselves
+
+let wait_handshake t has_hash = 
+  let open Deferred.Or_error.Monad_infix in
+  receive_handshake t has_hash ~initiate:`Initiator
+  >>= not_ourselves
 
 let receive t =
   let buf = t.receive_buffer in 
@@ -172,4 +185,7 @@ let create_with_connect addr =
   >>| fun (_, r, w) ->
   create addr r w 
 
-let close t = Writer.close t.writer >>= fun () -> Reader.close t.reader
+let close t = 
+  Writer.close t.writer
+  >>= fun () -> 
+  Reader.close t.reader

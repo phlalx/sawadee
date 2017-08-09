@@ -49,8 +49,8 @@ let process_any ?uris ?tinfo info_hash : Bt_hash.t =
   let pwp = Pwp.create info_hash in 
 
   let () = match tinfo with 
-    | None -> Pwp.start pwp 
-    | Some tinfo -> Pwp.start pwp ~tinfo 
+    | None -> Pwp.start pwp |> don't_wait_for
+    | Some tinfo -> Pwp.start pwp ~tinfo  |> don't_wait_for
   in
 
   Option.value_map uris ~default:() ~f:(add_peers_from_tracker pwp info_hash);

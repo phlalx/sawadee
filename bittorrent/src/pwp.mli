@@ -21,7 +21,7 @@ type t
 
 val create: Bt_hash.t -> t
 
-val start: ?tinfo : Torrent.info -> t -> unit
+val start: ?tinfo : Torrent.info -> t -> unit Deferred.t
 
 (* Peers can come from three sources:
   - querying the tracker

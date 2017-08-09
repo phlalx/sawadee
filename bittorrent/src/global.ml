@@ -13,12 +13,12 @@ type t = {
   max_non_choking_peers : int;
   bitset_ext : string;
   torrent_ext : string;
-  peer_id : Peer_id.t;
   routing_table_name : string;
   mutable is_node : bool;
   max_num_pieces : int;
   meta_block_size : int;
-  log_name : string
+  log_name : string;
+  client_id : string
 }
 
 let t = {
@@ -35,18 +35,18 @@ let t = {
   max_non_choking_peers = 4;
   bitset_ext = ".bitset";
   torrent_ext = ".torrent";
-  peer_id = Peer_id.random ();
   routing_table_name = "routing";
   is_node = false;
   max_num_pieces = 65536;
-  meta_block_size = 16384
+  meta_block_size = 16384;
+  client_id = "-AB0010"
 }
 
 let log_name = t.log_name
 let meta_block_size = t.meta_block_size
 let max_num_pieces = t.max_num_pieces
 let routing_table_name = t.routing_table_name
-let peer_id = t.peer_id
+let peer_id = Peer_id.random ~prefix:t.client_id  ()
 let torrent_ext = t.torrent_ext
 let bitset_ext = t.bitset_ext
 let max_non_choking_peers = t.max_non_choking_peers
@@ -87,3 +87,5 @@ let with_download_path f= sprintf "%s/%s" (download_path ()) f
 let bitset_name s = s ^ bitset_ext
 
 let torrent_name s = s ^ torrent_ext
+
+let client_id = t.client_id
