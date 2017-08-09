@@ -63,11 +63,11 @@ let info_to_bencode i =
 
 let info_to_string i : string = 
   let b = info_to_bencode i in
-  info !"Torrent: info_to_bencode %{B.pretty_print}" b;
+  debug !"Torrent: info_to_bencode %{B.pretty_print}" b;
   B.encode_to_string b
 
 let info_of_bencode b : info = 
-  info !"Torrent: info_of_bencode %{B.pretty_print}" b;
+  debug !"Torrent: info_of_bencode %{B.pretty_print}" b;
   let pieces = B.dict_get_exn b "pieces" in
   let piece_length = B.dict_get_int_exn b "piece length" in
 

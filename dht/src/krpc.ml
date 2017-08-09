@@ -26,6 +26,8 @@ let try_add addr : unit Deferred.Or_error.t =
 let try_add_nis nis =
   let f (_, p) = try_add p |> Deferred.ignore in
   Deferred.List.iter ~how:`Parallel nis ~f
+  >>| fun () ->
+  info "Krpc: %d nodes added to table" (List.length t.routing)
 
 let lookup_info_hash info_hash (_, addr) = 
   let n = Node.connect addr in 
@@ -38,36 +40,35 @@ let k = 8
 let trim_nodes_info info_hash (nis : Node_info.t list) : Node_info.t list = 
   let cmp (id1, _) (id2, _) = Node_id.compare info_hash id1 id2 in
   let l = List.sort nis ~cmp in 
-  let l' = List.take l 4 in
-  let f (n,_) = debug "Krpc: distance %d" (Node_id.distance_hash n info_hash) in
-  List.iter ~f l';
-  l'
+  List.take l k
 
-let rec lookup_info_hash' (nis:Node_info.t list) info_hash ~depth : 
-  Addr.t list Deferred.Option.t =
+let rec lookup_info_hash' (nis:Node_info.t list) info_hash ~depth : ((Node_info.t list) * (Addr.t list)) Deferred.t =
+
   if depth = 0 then
-    return None 
-  else (
-    let%bind l = Deferred.List.filter_map nis ~f:(lookup_info_hash info_hash) in 
+    (nis, []) |> return
+  else 
+    let%bind l = Deferred.List.filter_map nis ~f:(lookup_info_hash info_hash) ~how:`Parallel in 
     let f = function 
       | `Values x -> `Fst x 
       | `Nodes x -> `Snd x 
     in
-    let values, nodes = List.partition_map l ~f in
-    let combined_values = values |> List.concat in 
-    let combined_nis = nodes |> List.concat |> trim_nodes_info info_hash in 
-    match combined_values with 
-    | [] -> lookup_info_hash' combined_nis info_hash ~depth:(depth - 1)
-    |  _  -> return (Some combined_values))
+    let values, nis = List.partition_map l ~f in
+    let all_values = values |> List.concat in 
+    let closest_nis = nis |> List.concat |> trim_nodes_info info_hash in 
+    let%map better_nis, more_values = lookup_info_hash' closest_nis info_hash ~depth:(depth - 1) in
+    better_nis, (more_values @ all_values)
 
-let max_depth = 3 
+let max_depth = 4 
 
 let lookup info_hash = 
-  let nis = t.routing |> trim_nodes_info info_hash in
+  let nis = trim_nodes_info info_hash t.routing in
   info "Krpc: querying %d closest peers" (List.length nis);
-  match%bind lookup_info_hash' nis info_hash ~depth:max_depth with  
-  | Some x -> return x 
-  | None -> return []
+  match%map lookup_info_hash' nis info_hash ~depth:max_depth with  
+  | nis, l -> 
+    let f (n, _) = Node_id.distance_hash n info_hash in
+    let dist = List.map nis ~f |> List.to_string ~f:string_of_int in
+    info "Krpc: lookup. %d best distances %s" k dist;
+    l 
 
 (******************************)
 
@@ -90,7 +91,7 @@ let populate_from_hash info_hash =
         populate_aux new_nis info_hash ~depth:(depth - 1) (new_nis @ acc)
       end    
   in
-  let nis = List.take t.routing 4 in 
+  let nis = List.take t.routing 3 in 
   populate_aux nis info_hash ~depth:2 []
 
 let populate () = 

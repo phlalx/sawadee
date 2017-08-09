@@ -253,16 +253,16 @@ let rec wait_and_process_message t =
 let set_nf t nf = t.nf <- Some nf
 
 let start t =
-  info !"Peer %{}: start message handler loop" t; 
+  debug !"Peer %{}: start message handler loop" t; 
   Pipe.write_without_pushback t.wr Join;
   Deferred.repeat_until_finished () (fun () -> wait_and_process_message t)
   >>| fun () -> 
   Pipe.write_without_pushback t.wr Bye;
-  info !"Peer %{}: quit message handler loop" t; 
+  debug !"Peer %{}: quit message handler loop" t; 
   Pipe.close t.wr
 
 let close t = 
-  info !"Peer %{}: we close this peer." t;
+  debug !"Peer %{}: we close this peer." t;
   Peer_comm.close t.peer
 
 let send_bitfield t bf = M.Bitfield bf |> P.send t.peer

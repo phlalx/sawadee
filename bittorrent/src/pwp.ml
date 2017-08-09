@@ -194,7 +194,7 @@ let start t tinfo =
   start_opt t tinfo |> Deferred.ignore
 
 let close t = 
-  info !"Pwp: closing %{Bt_hash.to_string_hum}" t.info_hash;
+  info !"Pwp: closing %{Bt_hash.to_hex}" t.info_hash;
   Set.to_list t.peers |> Deferred.List.iter ~f:Peer.close
   >>= fun () ->
   Pipe.close t.wr; 
@@ -203,7 +203,7 @@ let close t =
   | Some nf -> Nf.close nf  
 
 let create info_hash = 
-  info !"Pwp: create %{Bt_hash.to_string_hum}" info_hash;
+  info !"Pwp: create %{Bt_hash.to_hex}" info_hash;
   let rd, wr = Pipe.create () in { 
     info_hash;
     peers = Set.Poly.empty; (* TODO use a set based on peer-id *)

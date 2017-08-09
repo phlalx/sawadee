@@ -186,7 +186,7 @@ let create_with_connect addr =
   create addr r w 
 
 let close t = 
-  info !"Peer_comm %{Addr}: closing fd" t.peer_addr;
+  debug !"Peer_comm %{Addr}: closing fd" t.peer_addr;
   Writer.close t.writer
   >>= fun () -> 
   Reader.close t.reader
