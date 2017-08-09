@@ -14,7 +14,7 @@ type t = {
   peers : Addr.t list
 }
 
-val of_bencode : string -> t
+val of_string : string -> t
 
-val to_bencode : t -> string
+val to_string : t -> string
  

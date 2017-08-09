@@ -77,7 +77,7 @@ let query_tracker (info_hash:Bt_hash.t) (uri:Uri.t) : sl Deferred.Option.t =
     >>= fun () ->
     Cohttp_async.Body.to_string body |> Deferred.ok
     >>= fun s ->
-    return (Or_error.try_with (fun () -> Tracker_reply.of_bencode s))
+    return (Or_error.try_with (fun () -> Tracker_reply.of_string s))
     >>= fun t ->
 
     Ok t.Tracker_reply.peers |> return

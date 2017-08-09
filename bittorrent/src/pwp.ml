@@ -183,7 +183,7 @@ let start_opt t tinfo =
   let n = t.info_hash |> Bt_hash.to_hex |> G.torrent_name 
           |> G.with_torrent_path in
   info "Pwp: saving meta-info to file %s" n; 
-  Torrent.info_to_file n tinfo;
+  Torrent.info_to_string tinfo |> Out_channel.write_all n;
   let%bind nf = Nf.create t.info_hash tinfo in
   t.nf <- Some nf;
   setup_download t nf |> for_all_peers t;

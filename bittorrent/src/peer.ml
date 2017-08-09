@@ -146,7 +146,7 @@ let update_data t i s =
   | true ->
     debug !"Peer %{}: data complete" t; 
 
-    let tinfo = `String data |> B.decode |> Torrent.info_of_bencode in
+    let tinfo = Torrent.info_of_string data in
     Tinfo tinfo |> Pipe.write_without_pushback t.wr  
   | false -> ()
 

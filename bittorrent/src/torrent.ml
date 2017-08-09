@@ -5,9 +5,21 @@ open Log.Global
 module B = Bencode_ext
 module G = Global
 
-type file_info = string * int (* name and length of each individual files *)
+(* name and length of each individual files *)
+type file_info = string * int
+
+let filename_of_bencode b = 
+  B.as_list_exn b |> List.map ~f:B.as_string_exn |> Filename.of_parts 
+
+let filename_to_bencode f = 
+  match Filename.parts f with
+  | [] -> assert false
+  | x :: l -> 
+    assert (x = ".");
+    B.List (List.map ~f:(fun s -> B.String s) l)
 
 type info = {
+  (* TODO name? *)
   piece_length : int;
   pieces_hash : Bt_hash.t Array.t;
   files_info : file_info list; 
@@ -23,9 +35,41 @@ type t = {
   tinfo : info;
 }
 
-let info_of_bencode (info_dict_bc : B.t) : info = 
-  let pieces = B.dict_get_exn info_dict_bc "pieces" in
-  let piece_length = B.dict_get_int_exn info_dict_bc "piece length" in
+let info_to_bencode i = 
+  let pieces = Array.map i.pieces_hash ~f:Bt_hash.to_string |> 
+               Array.to_list |> String.concat in
+  match i.files_info with
+  | [name, len] -> 
+    B.Dict [
+      ("piece length", B.Integer i.piece_length);
+      ("pieces", B.String pieces);
+      ("length", B.Integer len);
+      ("name", B.String name )
+    ] 
+  | [] -> failwith "bad torrent info"
+  | fi -> 
+    let f (n,l) =
+      let a1 = "path", (filename_to_bencode n) in
+      let a2 = "length", B.Integer l in
+      B.Dict [ a1; a2 ] 
+    in
+    let l = List.map fi ~f in
+    let files = B.List l in  
+    B.Dict [
+      ("piece length", B.Integer i.piece_length);
+      ("pieces", B.String pieces);
+      ("files", files)
+    ] 
+
+let info_to_string i : string = 
+  let b = info_to_bencode i in
+  info !"Torrent: info_to_bencode %{B.pretty_print}" b;
+  B.encode_to_string b
+
+let info_of_bencode b : info = 
+  info !"Torrent: info_of_bencode %{B.pretty_print}" b;
+  let pieces = B.dict_get_exn b "pieces" in
+  let piece_length = B.dict_get_int_exn b "piece length" in
 
   let pieces_hash = B.split pieces Bt_hash.length in
   let pieces_hash = List.map pieces_hash ~f:Bt_hash.of_bencode in
@@ -33,18 +77,14 @@ let info_of_bencode (info_dict_bc : B.t) : info =
   let num_pieces = Array.length pieces_hash in
 
   let files_info = 
-    match B.dict_get info_dict_bc "length" with
+    match B.dict_get b "length" with
     | Some length_bc ->
       let length = B.as_int_exn length_bc in
-      let name = B.dict_get_string_exn info_dict_bc "name" in [name, length]
+      let name = B.dict_get_string_exn b "name" in [name, length]
     | None -> 
-      let files = B.dict_get_list_exn info_dict_bc "files" in
+      let files = B.dict_get_list_exn b "files" in
       let f (file_info_bc: B.t) : string * int =
-        let names = 
-          B.dict_get_list_exn file_info_bc "path"  
-          |> List.map ~f:B.as_string_exn
-          |> Filename.of_parts 
-        in
+        let names = B.dict_get_exn file_info_bc "path" |> filename_of_bencode in
         let length = B.dict_get_int_exn file_info_bc "length" in
         names, length
       in
@@ -60,9 +100,11 @@ let info_of_bencode (info_dict_bc : B.t) : info =
   info "Torrent: piece length = %d" piece_length;
   { piece_length; pieces_hash; files_info; total_length; num_pieces; num_files }
 
+let info_of_string s = `String s |> B.decode |> info_of_bencode
+
 let bencode_to_uri x = x |> B.as_string_exn |> Uri.of_string
 
-let decode bc =
+let of_bencode bc =
   debug !"Torrent: bc = %{B.pretty_print}" bc;
   let announce_bc = B.dict_get_exn bc "announce" in
   let announce = bencode_to_uri announce_bc in
@@ -84,17 +126,8 @@ let decode bc =
   List.concat announce_list |>  List.iter ~f:(debug !"Torrent: announce %{Uri}"); 
   { announce; announce_list; info_hash; tinfo }
 
-let decode_channel c = `Channel c |> B.decode |> decode 
 
-let decode_info_channel c = `Channel c |> B.decode |> info_of_bencode
-
-let info_from_file file = In_channel.with_file file ~f:decode_info_channel
-
-let from_file file = In_channel.with_file file ~f:decode_channel
-
-let from_string s = `String s |> B.decode |> decode
-
-let info_to_file s tinfo = info "Torrent: info_to_file not implemented yet"
+let of_string s = `String s |> B.decode |> of_bencode
 
 
 

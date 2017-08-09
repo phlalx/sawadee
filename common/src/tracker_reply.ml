@@ -9,7 +9,7 @@ type t = {
   peers : Addr.t list
 }
 
-let to_bencode r =
+let to_string r =
   B.Dict [
     ("complete", B.Integer r.complete);
     ("incomplete", B.Integer r.incomplete);
@@ -17,7 +17,7 @@ let to_bencode r =
     ("peers", Addr.list_to_bencode r.peers)
   ] |> B.encode_to_string
 
-let of_bencode s =
+let of_string s =
   let bc = `String s |> B.decode in 
   (* let complete = B.dict_get_int_exn bc "complete" in *)
   (* let incomplete = B.dict_get_int_exn bc "incomplete" in *)

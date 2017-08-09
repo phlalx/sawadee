@@ -37,7 +37,7 @@ let callback ~body (addr : Addr.t) request =
     state.peers <- List.dedup (peer_addr :: state.peers)
   in
   Option.value_map port ~default:() ~f:set_port;
-  Tracker_reply.to_bencode reply |>
+  Tracker_reply.to_string reply |>
   Server.respond_string ~flush:true
 
 let server () =

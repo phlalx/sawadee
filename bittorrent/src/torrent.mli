@@ -15,24 +15,17 @@ type info = {
   num_files : int;
 }
 
-val info_of_bencode : Bencode_ext.t -> info
+val info_of_string : string -> info
 
-val info_from_file : string -> info
-
-val info_to_file : string -> info -> unit
+val info_to_string : info -> string
 
 type t = {
   info_hash : Bt_hash.t; 
   announce : Uri.t;
   announce_list : Uri.t list list;
-  tinfo : info; (* TODO can't we call it info? *)
+  tinfo : info; 
 }
 
-(** [from_file f] try to open file [f] and decode it
+val of_string : string -> t
 
-  Raises: 
-    - Sys_error
-    - Failure  *)
-val from_file : string -> t
-
-val from_string : string -> t
+(* val to_string : t -> info -> string *)

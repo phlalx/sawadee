@@ -59,7 +59,9 @@ let process_magnet hash =
   let h = Bt_hash.to_hex hash in
   info "Start: processing magnet %s" h;
   let n = h |> G.torrent_name |> G.with_torrent_path in
-  match Option.try_with (fun () -> Torrent.info_from_file n) with
+  match Option.try_with
+          (fun () -> In_channel.read_all n |> Torrent.info_of_string) 
+  with
   | None -> 
     info "Start: didn't find any meta-info from previous session";
     process_any hash 
@@ -69,7 +71,7 @@ let process_magnet hash =
 
 let process_string s = 
   let t = try 
-      Torrent.from_string s
+      Torrent.of_string s
     with
     | Failure _ -> failwith ("unable to decode" ^ s)
     | ex -> raise ex
