@@ -47,8 +47,8 @@ type event =
   | Unchoke
   | Interested
   | Not_interested 
-  | Have
-  | Bitfield
+  | Have of int
+  | Bitfield of Bitfield.t
   | Piece of int
   | Bye  (** notify the termination of the remote peer *)
 

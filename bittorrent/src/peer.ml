@@ -15,8 +15,8 @@ type event =
   | Unchoke
   | Interested
   | Not_interested 
-  | Have
-  | Bitfield
+  | Have of int
+  | Bitfield of Bitfield.t
   | Piece of int
   | Bye
 
@@ -71,8 +71,8 @@ let event_to_string = function
   | Unchoke -> "Unchoke"
   | Interested -> "Interested"
   | Not_interested -> "Not_interested"
-  | Bitfield -> "Bitfield"
-  | Have -> "Have"
+  | Bitfield _ -> "Bitfield"
+  | Have _ -> "Have"
   | Piece i -> "Piece " ^ (string_of_int i)
   | Bye -> "Bye"
 
@@ -204,7 +204,7 @@ let process_message t m : unit =
        that stage. *)
     info !"Peer %{}: received bitfield (%d pieces)" t (Bitfield.card bits);
     Bitfield.copy ~src:bits ~dst:t.bitfield; 
-    Pipe.write_without_pushback t.wr Bitfield
+    Pipe.write_without_pushback t.wr (Bitfield bits)
 
   | M.Port port -> 
     debug !"Peer %{}: received port %d" t port;
@@ -219,7 +219,7 @@ let process_message t m : unit =
   | M.Have index -> 
     debug !"Peer %{}: received have %d" t index;
     Bitfield.set t.bitfield index true;
-    Pipe.write_without_pushback t.wr Have 
+    Pipe.write_without_pushback t.wr (Have index)
 
   (* the following messages must have nf set *)
 

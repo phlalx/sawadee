@@ -1,19 +1,23 @@
+open Core
 
 type t = (int, Peer.t list) Hashtbl.t
 
 (* create with the list of pieces I want *)
-let create _ = assert false
+let create () = Hashtbl.Poly.create ()
 
-(* peer i has piece i*)  
-let add i p = assert false
+let init t l max_pending = ()
 
-(* )
+let remove_piece t i = ()
 
-(* peer p leaves or choke *)
-let leave p = assert false
+let set_peer_choking t p b = ()
 
-(* give me at most n requests *)
-let take n = assert false 
+(* peer i has pieces l *)  
+let add t l p = ()
+
+let get_request () = assert false 
+
+let remove_peer t p = ()
+
 
 
 
