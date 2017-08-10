@@ -6,7 +6,6 @@ module M = Message
 module P = Peer
 module G = Global
 module Nf = Network_file
-module Rq = Request_queue
 
 type t = {
   info_hash : Bt_hash.t;
@@ -15,7 +14,6 @@ type t = {
   requested : (int, unit Ivar.t) Hashtbl.t;
   wr : (Peer.event * Peer.t) Pipe.Writer.t; 
   rd : (Peer.event * Peer.t) Pipe.Reader.t;
-  rq : Request_queue.t;
   sigpiece_wr : unit Pipe.Writer.t; 
   sigpiece_rd : unit Pipe.Reader.t; 
 }
@@ -114,7 +112,6 @@ let with_nf nf t e p =
   debug !"Pwp: event (tinfo) %{P.event_to_string} from %{P}" e p;
   match e with 
   | Bye -> 
-    Rq.remove_peer t.rq p;
     `Repeat ()
   | Join -> 
     setup_download t nf p; `Repeat ()
@@ -130,28 +127,23 @@ let with_nf nf t e p =
         Ivar.fill iv (); 
         Nf.set_downloaded nf i;
         Nf.write_piece nf i;
-        Rq.remove_piece t.rq i;
         send_have_messages t i
     end; 
     `Repeat ()
   | Choke -> 
-    Rq.set_peer_choking t.rq p true;
     `Repeat ()
   | Support_meta | Tinfo _ | Interested | Not_interested -> 
     `Repeat ()
   | Unchoke ->
     info !"Pwp: %{P} unchoked us" p;
 
-    Rq.set_peer_choking t.rq p false;
     signal_piece t;
     `Repeat ()
   | Bitfield bf ->
     let l = Bitfield.to_list bf (Nf.num_pieces nf) in
-    Rq.add t.rq l p;
     signal_piece t;
     `Repeat ()
   | Have i ->
-    Rq.add t.rq [i] p;
     signal_piece t;
     `Repeat ()
 
@@ -193,16 +185,6 @@ let start_opt t tinfo =
     List.range 0 (Nf.num_pieces nf)   
     |> List.filter ~f:(fun i -> not (Nf.has_piece nf i)) 
   in
-  Request_queue.init t.rq to_download G.max_pending_request;
-
-
-  (* initialize Request_queue *)
-  let f p =
-    let l = Bitfield.to_list (Peer.bitfield p) (Nf.num_pieces nf) in
-    Rq.add t.rq l p;
-    Rq.set_peer_choking t.rq p (Peer.peer_choking p) 
-  in
-  for_all_peers t ~f;
 
   info "Pwp: start piece_signal loop"; 
   Deferred.repeat_until_finished () (fun () -> request_pieces t nf)
@@ -210,9 +192,6 @@ let start_opt t tinfo =
 
   info "Pwp: start message handler 'with info' loop"; 
   Deferred.repeat_until_finished () (fun () -> process t (with_nf nf))
-
-
-
 
 let start t tinfo = 
   start_opt t tinfo |> Deferred.ignore
@@ -239,7 +218,6 @@ let create info_hash =
     requested = Hashtbl.Poly.create ();
     rd;
     wr;
-    rq = Rq.create ();
     sigpiece_rd;
     sigpiece_wr;
   }
