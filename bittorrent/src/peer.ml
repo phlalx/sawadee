@@ -10,7 +10,6 @@ module B = Bencode_ext
 type event = 
   | Support_meta
   | Tinfo of Torrent.info
-  | Join
   | Choke 
   | Unchoke
   | Interested
@@ -18,7 +17,6 @@ type event =
   | Have of int
   | Bitfield of Bitfield.t
   | Piece of int
-  | Bye
 
 type meta = {
   id : int;
@@ -42,7 +40,8 @@ type t = {
   wr : event Pipe.Writer.t; 
   rd : event Pipe.Reader.t;
   mutable meta : meta Option.t; (* protocol id and metadata size *)
-  mutable nf : Network_file.t Option.t
+  mutable nf : Network_file.t Option.t;
+  mutable sent_bitfield : bool
 } [@@deriving fields]
 
 let create peer ~dht ~extension =
@@ -60,21 +59,20 @@ let create peer ~dht ~extension =
     extension;
     dht;
     meta = None;
-    nf = None
+    nf = None;
+    sent_bitfield = false;
   }
 
 let event_to_string = function
   | Tinfo _ -> "Torrent info"
   | Support_meta -> "Support_meta"
   | Choke -> "Choke"
-  | Join -> "Join"
   | Unchoke -> "Unchoke"
   | Interested -> "Interested"
   | Not_interested -> "Not_interested"
   | Bitfield _ -> "Bitfield"
   | Have _ -> "Have"
   | Piece i -> "Piece " ^ (string_of_int i)
-  | Bye -> "Bye"
 
 exception Incorrect_behavior
 
@@ -126,12 +124,12 @@ let process_block t nf index bgn block =
   Piece.is_valid_block piece bgn len |> validate t;
   match Piece.update piece bgn block with 
   | `Ok -> 
-    debug !"Peer %{}: got block - piece %d offset = %d" t index bgn
+    info !"Peer %{}: got block - piece %d offset = %d" t index bgn
   | `Hash_error -> 
     debug !"Peer %{}: hash error piece %d" t index
   (* TODO define some event *)
   | `Downloaded ->
-    debug !"Peer %{}: got piece %d" t index; 
+    info !"Peer %{}: got piece %d" t index; 
     P.set_downloading t.peer;
     Pipe.write_without_pushback t.wr (Piece index)
 
@@ -157,7 +155,7 @@ let process_extended t id s =
   match em with 
   | Extension.Handshake [`Metadata (id, total_length)] ->
     let num_block = (total_length + G.meta_block_size - 1) / 
-    G.meta_block_size in
+                    G.meta_block_size in
     let data = String.create total_length in
     let received = Array.create num_block false in
     t.meta <- Some {id; total_length; num_block; data; received};
@@ -174,6 +172,7 @@ let process_request t nf index bgn length =
   let piece = Network_file.get_piece nf index in
   (* TODO: we could avoid a string allocation by using a substring 
      for the block in M.Piece *)
+
   let block = Piece.get_content piece ~off:bgn ~len:length in
   Message.Block (index, bgn, block) |> P.send t.peer
 
@@ -254,10 +253,8 @@ let set_nf t nf = t.nf <- Some nf
 
 let start t =
   debug !"Peer %{}: start message handler loop" t; 
-  Pipe.write_without_pushback t.wr Join;
   Deferred.repeat_until_finished () (fun () -> wait_and_process_message t)
   >>| fun () -> 
-  Pipe.write_without_pushback t.wr Bye;
   debug !"Peer %{}: quit message handler loop" t; 
   Pipe.close t.wr
 
@@ -265,7 +262,12 @@ let close t =
   debug !"Peer %{}: we close this peer." t;
   Peer_comm.close t.peer
 
-let send_bitfield t bf = M.Bitfield bf |> P.send t.peer
+let send_bitfield t bf = 
+  assert (not t.sent_bitfield);
+  M.Bitfield bf |> P.send t.peer
+
+let send_keep_alive t = 
+  P.send t.peer M.KeepAlive 
 
 let advertise_piece t i = M.Have i |> P.send t.peer 
 
@@ -284,7 +286,7 @@ let request_meta t =
     in
     List.range 0 num_block 
     |> List.iter ~f
-    
+
 
 
 

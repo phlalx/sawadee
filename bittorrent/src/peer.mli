@@ -42,7 +42,6 @@ val request_meta : t -> unit
 type event = 
   | Support_meta
   | Tinfo of Torrent.info
-  | Join
   | Choke 
   | Unchoke
   | Interested
@@ -50,11 +49,12 @@ type event =
   | Have of int
   | Bitfield of Bitfield.t
   | Piece of int
-  | Bye  (** notify the termination of the remote peer *)
 
 val event_to_string : event -> string
 
 val event_reader : t -> event Pipe.Reader.t
+
+val send_keep_alive : t -> unit
 
 val send_bitfield : t -> Bitfield.t -> unit 
 

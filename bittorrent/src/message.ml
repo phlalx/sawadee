@@ -154,7 +154,7 @@ let to_string m =
   | Not_interested -> "Not_interested"
   | Have i -> sprintf "Have i = %d" i
   | Bitfield s -> "Bitfield"
-  | Request (i,b,l) -> sprintf "Request i = %d" i
+  | Request (i,b,l) -> sprintf "Request i = %d, off = %d" i b
   | Block (i,off,_) -> sprintf "Block i = %d, off = %d "  i off
   | Cancel _ -> "Cancel"
   | Port i -> sprintf "Port %d" i

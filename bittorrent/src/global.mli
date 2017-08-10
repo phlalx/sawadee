@@ -54,4 +54,6 @@ val torrent_name : string -> string
 
 val client_id : string
 
+val max_unchoke : int
+
 

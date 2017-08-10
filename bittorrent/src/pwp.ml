@@ -38,7 +38,10 @@ let request t nf (i, p): unit Deferred.t =
     | `Timeout -> 
       info !"Pwp: %{Peer} failed to provide piece %d" p i;
       Peer.set_idle p true 
-    | `Result () -> () 
+    | `Result () -> 
+      info !"Pwp: %{Peer} this ivar has been filled %d" p i;
+
+      () 
   in 
 
   let ivar = Ivar.create () in
@@ -52,7 +55,7 @@ let request t nf (i, p): unit Deferred.t =
   signal_piece t
 
 (* Request as many pieces as we can. *)
-let request_pieces t nf =
+let request_pieces t nf () =
 
   let try_request () =
     let num_requested = Hashtbl.length t.requested in
@@ -64,16 +67,15 @@ let request_pieces t nf =
               List.filter ~f:(fun i -> not (Nf.has_piece nf i)) |>
               List.filter ~f:(fun i -> not (Hashtbl.mem t.requested i))
       in
-      Strategy.next_requests l peers n  
-      |> Deferred.List.iter ~how:`Parallel ~f:(request t nf))
-      |> don't_wait_for
+      let r = Strategy.next_requests l peers n in
+      Deferred.List.iter ~how:`Parallel ~f:(request t nf) r
+      |> don't_wait_for)
   in
 
   match%map Pipe.read' t.sigpiece_rd with
   | `Eof -> 
     `Finished () 
-  | `Ok _q -> 
-    (* info "Pwp: trying to request (%d signals)" (Queue.length q); *)
+  | `Ok _ -> 
     try_request ();
     `Repeat () 
 
@@ -81,75 +83,77 @@ let setup_download t nf p =
   P.set_nf p nf;
   if (Nf.num_downloaded_pieces nf) > 0 then (
     info !"Pwp: sending bitfield %{Peer}"  p;
-    Nf.downloaded nf |> P.send_bitfield p 
-  );
-  info !"Pwp: interested in %{Peer}" p;
-  P.set_am_interested p true;
-  info !"Pwp: unchoking %{Peer}" p;
-  P.set_am_choking p false
+    Nf.downloaded nf |> P.send_bitfield p;
+    info !"Pwp: interested in %{Peer}" p;
+    P.set_am_interested p true
+  )
 
-let rec process t f =
+let event_loop_no_tinfo t () = 
+
+  let process_event e p = 
+    let open Peer in
+    debug !"Pwp: event (no tinfo) %{P.event_to_string} from %{P}" e p;
+    match e with 
+    | Tinfo tinfo -> 
+      info !"Pwp: got tinfo from %{P}" p;
+      `Finished (Some tinfo)
+    | Support_meta -> 
+      P.request_meta p; 
+      `Repeat ()
+    | _ -> 
+      `Repeat ()
+  in 
+
+  match%map Pipe.read t.rd with
+  | `Eof -> `Finished None
+  | `Ok (e, p) -> process_event e p
+
+let event_loop_tinfo t nf () = 
+
+  let process_event t nf e p = 
+    let open Peer in
+    debug !"Pwp: process event %{P.event_to_string} from %{P}" e p;
+    match e with 
+    | Piece i -> 
+      begin
+        match Hashtbl.find t.requested i with 
+        | None -> 
+          info !"Pwp: %{P} downloaded piece %d AGAIN" p i;
+          P.set_idle p false 
+        | Some iv -> 
+          info !"Pwp: %{P} downloaded piece %d" p i;
+          Ivar.fill iv (); 
+          Nf.set_downloaded nf i;
+          Nf.write_piece nf i;
+          send_have_messages t i
+      end; 
+    | Choke | Support_meta | Tinfo _  -> ()
+
+    | Interested -> 
+      info !"Pwp: unchoking %{Peer}" p;
+      P.set_am_choking p false
+
+    | Not_interested -> ()
+    | Unchoke ->
+      info !"Pwp: %{P} unchoked us" p;
+      signal_piece t;
+    | Bitfield _ ->
+      signal_piece t;
+    | Have _ ->
+      signal_piece t;
+
+  in
   match%map Pipe.read t.rd with
   | `Eof -> 
-    `Finished None
-  | `Ok (e, p) -> f t e p
-
-let without_nf t e p = 
-  let open Peer in
-  debug !"Pwp: event (no tinfo) %{P.event_to_string} from %{P}" e p;
-  match e with 
-  | Tinfo tinfo -> 
-    info !"Pwp: got tinfo from %{P}" p;
-    `Finished (Some tinfo)
-  | Support_meta -> 
-    P.request_meta p; 
-    `Repeat ()
-  | _ -> 
-    `Repeat ()
-
-let with_nf nf t e p = 
-  let open Peer in
-  debug !"Pwp: event (tinfo) %{P.event_to_string} from %{P}" e p;
-  match e with 
-  | Bye -> 
-    `Repeat ()
-  | Join -> 
-    setup_download t nf p; `Repeat ()
-  | Piece i -> 
-    begin
-      info !"Pwp: %{P} downloaded piece %d" p i;
-      match Hashtbl.find t.requested i with 
-      | None -> 
-        (* TODO keep the piece anyway *)
-        info !"Pwp: %{P} downloaded piece %d - for nothing" p i
-      | Some iv -> 
-        info !"Pwp: %{P} downloaded piece %d" p i;
-        Ivar.fill iv (); 
-        Nf.set_downloaded nf i;
-        Nf.write_piece nf i;
-        send_have_messages t i
-    end; 
-    `Repeat ()
-  | Choke -> 
-    `Repeat ()
-  | Support_meta | Tinfo _ | Interested | Not_interested -> 
-    `Repeat ()
-  | Unchoke ->
-    info !"Pwp: %{P} unchoked us" p;
-
-    signal_piece t;
-    `Repeat ()
-  | Bitfield bf ->
-    let l = Bitfield.to_list bf (Nf.num_pieces nf) in
-    signal_piece t;
-    `Repeat ()
-  | Have i ->
-    signal_piece t;
+    `Finished ()
+  | `Ok (e, p) -> 
+    process_event t nf e p;
     `Repeat ()
 
 let add_peer t p =
   t.peers <- Set.add t.peers p;
   info !"Pwp: %{Peer} added (%d in)" p (Set.length t.peers);
+  Option.iter t.nf (fun nf -> setup_download t nf p);
   P.start p |> don't_wait_for;
   Pipe.transfer (Peer.event_reader p) t.wr ~f:(fun e -> (e, p)) 
   >>| fun () -> 
@@ -161,40 +165,43 @@ let status t = Status.{
     num_downloaded_pieces = Option.value_exn t.nf |> Nf.num_downloaded_pieces
   } 
 
-let start_opt t tinfo = 
-  let open Deferred.Option.Monad_infix in
-  (match tinfo with 
-   | None ->
-     info !"Pwp: start message handler 'without info' loop"; 
-     Deferred.repeat_until_finished () (fun () -> process t without_nf)
-   | Some tinfo -> Some tinfo |> return )
-  >>= fun tinfo ->
+let start_without_info t : Torrent.info Deferred.Option.t = 
+  info !"Pwp: start peer events loop - without tinfo"; 
+  Deferred.repeat_until_finished () (event_loop_no_tinfo t)
 
-  let n = t.info_hash |> Bt_hash.to_hex |> G.torrent_name 
-          |> G.with_torrent_path in
+let broadcast_keep_alive t () =
+  info "Pwp: broadcast keep alive";
+  Clock.after G.keep_alive 
+  >>| fun () ->
+  for_all_peers t ~f:P.send_keep_alive 
+
+let start_with_tinfo t (tinfo : Torrent.info) : unit Deferred.t =
+
+  let n = Bt_hash.to_hex t.info_hash |> G.torrent_name |> G.with_torrent_path in
   info "Pwp: saving meta-info to file %s" n; 
   Torrent.info_to_string tinfo |> Out_channel.write_all n;
 
   let%bind nf = Nf.create t.info_hash tinfo in
-  t.nf <- Some nf;
 
-  (* TODO this is done twice for peers that haven't joined yet *)
+  t.nf <- Some nf;
   setup_download t nf |> for_all_peers t;
 
-  let to_download = 
-    List.range 0 (Nf.num_pieces nf)   
-    |> List.filter ~f:(fun i -> not (Nf.has_piece nf i)) 
+  info "Pwp: start pieces requesting loop"; 
+  Deferred.repeat_until_finished () (request_pieces t nf) |> don't_wait_for;
+
+  Deferred.forever () (broadcast_keep_alive t);
+
+  info "Pwp: start peer events loop - with tinfo"; 
+  Deferred.repeat_until_finished () (event_loop_tinfo t nf)
+
+let start t tinfo_opt =
+  let tinfo : Torrent.info Deferred.Option.t =
+    match tinfo_opt with 
+    | None -> start_without_info t
+    | Some tinfo -> Some tinfo |> return 
   in
-
-  info "Pwp: start piece_signal loop"; 
-  Deferred.repeat_until_finished () (fun () -> request_pieces t nf)
-  |> don't_wait_for;
-
-  info "Pwp: start message handler 'with info' loop"; 
-  Deferred.repeat_until_finished () (fun () -> process t (with_nf nf))
-
-let start t tinfo = 
-  start_opt t tinfo |> Deferred.ignore
+  Deferred.Option.Monad_infix.(tinfo >>| start_with_tinfo t)
+  |> Deferred.ignore
 
 let close t = 
   info !"Pwp: closing %{Bt_hash.to_hex}" t.info_hash;
@@ -209,9 +216,8 @@ let close t =
 let create info_hash = 
   info !"Pwp: create %{Bt_hash.to_hex}" info_hash;
   let rd, wr = Pipe.create () in 
-  let sigpiece_rd, sigpiece_wr = Pipe.create () in 
-
-  { 
+  let sigpiece_rd, sigpiece_wr = Pipe.create () 
+  in { 
     info_hash;
     peers = Set.Poly.empty; (* TODO use a set based on peer-id *)
     nf = None;
@@ -221,5 +227,4 @@ let create info_hash =
     sigpiece_rd;
     sigpiece_wr;
   }
-
 
