@@ -26,6 +26,9 @@ let next_requests l p n : (int * P.t) list =
     | h :: _ -> Some (i, h, n)   
   in
   let l2 = List.filter_map l ~f:peers_having_piece in
-  let cmp (_,_,c) (_,_,c') =  compare c c' in (* rarest first *)
+(*   let cmp (_,_,c) (_,_,c') =  compare c c' in rarest first
   let l3 = List.permute l2 |> List.sort ~cmp in 
-  List.take l3 n |> List.map ~f:(fun (a,b,_) -> (a, b)) 
+ *)  
+
+ let l3 = List.permute l2 in 
+ List.take l3 n |> List.map ~f:(fun (a,b,_) -> (a, b)) 

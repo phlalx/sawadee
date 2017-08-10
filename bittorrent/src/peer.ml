@@ -202,7 +202,7 @@ let process_message t m : unit =
   | M.Bitfield bits -> 
     (* we should validate this bitfield but we may not know the num pieces at
        that stage. *)
-    debug !"Peer %{}: received bitfield (%d pieces)" t (Bitfield.card bits);
+    info !"Peer %{}: received bitfield (%d pieces)" t (Bitfield.card bits);
     Bitfield.copy ~src:bits ~dst:t.bitfield; 
     Pipe.write_without_pushback t.wr Bitfield
 

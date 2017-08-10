@@ -6,38 +6,7 @@ module M = Message
 module P = Peer
 module G = Global
 module Nf = Network_file
-
-type table = (int, Peer.t list) Hashtbl.t
-(* 
-let add_peer_pieces table p =
-  let bf = Peer.bitfield p |> (Bitfield.to_list 4444) in
-  let upd = function 
-    | None -> [p]
-    | Some l -> p :: l 
-  in
-  List.iter bf ~f:(fun i -> Hashtbl.update table i ~f:upd)
-
- *)
-(*
-
-  pour chaque piece que je n'ai pas encore :
-  liste des peers non choking qui l'ont 
-
-  piece 1 -> [p0]
-        2 -> [p1; p2]
-        3 -> [p0]
-
-initialement : vide
-
-mise a jour quand :
- je reçois une piece : on vire une ligne
- un peer part ou choke : on l'enleve de partout
- un peer unchoke
- un peer envoie un bitfield ou have
-
-on garde cette liste ordonnée par rarité first
-
-*)
+module Rq = Request_queue
 
 type t = {
   info_hash : Bt_hash.t;
@@ -46,7 +15,7 @@ type t = {
   requested : (int, unit Ivar.t) Hashtbl.t;
   wr : (Peer.event * Peer.t) Pipe.Writer.t; 
   rd : (Peer.event * Peer.t) Pipe.Reader.t;
-  mutable available : table;
+  available : Request_queue.t;
 }
 
 let for_all_peers t ~f = Set.iter t.peers ~f
@@ -88,7 +57,7 @@ and request_pieces t nf : unit =
   let num_requested = Hashtbl.length t.requested in
   let n = G.max_pending_request - num_requested in
   if n > 0 then ( 
-    info "Pwp: try to request up to %d pieces." n;
+    debug "Pwp: try to request up to %d pieces." n;
     let peers = Set.to_list t.peers in
     let l = List.range 0 (Nf.num_pieces nf) |> 
             List.filter ~f:(fun i -> not (Nf.has_piece nf i)) |>
@@ -211,7 +180,7 @@ let create info_hash =
     requested = Hashtbl.Poly.create ();
     rd;
     wr;
-    available = Hashtbl.Poly.create ();
+    available = Rq.create ();
   }
 
 
