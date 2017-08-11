@@ -6,6 +6,7 @@ module Em = Error_msg
 module G = Global
 
 type t = {
+  content : Bigstring.t;
   bitfield_name : string; 
   total_length : int; 
   num_pieces : int; (** number of pieces to be downloaded *)
@@ -15,10 +16,10 @@ type t = {
   pers : Pers.t;
 }
 
-let piece_init pieces_hash piece_length total_len i = 
-  let adjusted_piece_length = min (total_len - i * piece_length) piece_length in
-  let p = Piece.create i pieces_hash.(i) adjusted_piece_length in
-  p
+let piece_init bs pos pieces_hash piece_length total_len i = 
+  let len = min (total_len - i * piece_length) piece_length in
+  Piece.create ~pos ~index:i ~len pieces_hash.(i) bs
+  
 
 let get_piece t i = t.pieces.(i)
 
@@ -54,11 +55,13 @@ let create info_hash tinfo =
     Torrent.num_files;
   } = tinfo in 
 
+  let content = Bigstring.create total_length in
+
   let bitfield_name = 
     Bt_hash.to_hex info_hash |> G.bitset_name |> G.with_torrent_path in
 
   let%bind pers = Pers.create files_info num_pieces piece_length  in
-  let f = piece_init pieces_hash piece_length total_length in
+  let f i = piece_init content (i * piece_length) pieces_hash piece_length total_length i in
   let pieces = Array.init num_pieces ~f  in
   info "Network_file: created network file (%d pieces)" num_pieces;
   let downloaded = 
@@ -100,6 +103,7 @@ let create info_hash tinfo =
   Pers.init_write_pipe pers ~finally |> don't_wait_for;
 
   {
+    content;
     total_length;
     num_pieces;
     downloaded;

@@ -13,7 +13,8 @@ type t
 
 (** [create i h ~len pfs] creates a piece at index [i] in the file with hash [h]
     and length [len]. *)
-val create : index:int -> Bt_hash.t -> len:int -> t
+val create :  pos:int -> index:int ->  len:int ->
+Bt_hash.t -> Bigstring.t -> t
 
 val get_index : t -> int
 

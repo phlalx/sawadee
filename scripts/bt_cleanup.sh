@@ -9,3 +9,4 @@ do
     echo rm -rf $DIR
     rm -rf $DIR
 done
+pkill -f $CLIENT $RPC_CLIENT $RPC_SERVER $TRACKER

@@ -7,14 +7,16 @@ type t = {
   index : int;
   hash : Bt_hash.t;
   length : int;
+  content2 : Bigsubstring.t;
   content : Bigstring.t; 
   blocks : Bitset.t;
 } 
 
-let create ~index hash ~len = 
+let create ~pos ~index ~len hash bs = 
   let num_blocks = (len + G.block_size - 1) / G.block_size in
   { index; length = len; hash; content = Bigstring.create len; 
-    blocks = Bitset.empty num_blocks }
+    blocks = Bitset.empty num_blocks; 
+    content2 = Bigsubstring.create ~pos ~len bs; }
 
 let get_content t ~off ~len = Bigstring.to_string ~pos:off ~len t.content
 
