@@ -20,7 +20,7 @@ let init_krpc () =
 
 let terminate_dht () =
   let table_name = G.with_torrent_path G.routing_table_name in
-  info "Bittorrent: trying to read dht table %s" table_name;
+  info "Bittorrent: trying to write dht table %s" table_name;
   try 
     let data = Krpc.table () |> Node_info.list_to_string in 
     Out_channel.write_all table_name ~data;

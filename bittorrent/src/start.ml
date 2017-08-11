@@ -9,9 +9,7 @@ module Em = Error_msg
 let ignore_error addr : unit Or_error.t -> unit =
   function 
   | Ok () -> () 
-  | Error err -> 
-    debug !"Start: can't connect to %{Addr}" addr; 
-    debug !"Start: %{Error.to_string_hum}" err
+  | Error err -> debug !"Start: can't connect to %{Addr}" addr
 
 let add_peers pwp info_hash addrs : unit Deferred.t =
 

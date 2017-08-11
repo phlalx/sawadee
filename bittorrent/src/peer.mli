@@ -61,7 +61,7 @@ val send_bitfield : t -> Bitfield.t -> unit
 val advertise_piece : t -> int -> unit
 
 (** request a piece and directly fill [Network_file.t] *)
-val request_piece : t -> int -> unit
+val request_piece : t -> int -> max:int -> unit
 
 val set_am_interested : t -> bool -> unit
 
@@ -76,6 +76,9 @@ val peer_choking : t -> bool
 val idle : t -> bool
 
 val set_idle : t -> bool -> unit
+
+(* has this peer more than what is downloaded *)
+val is_interesting : t -> bool
 
 (** assert a condition dependent on values received by a peer. For instance,
     if peer doesn't behave according to the protocol. raises if false 

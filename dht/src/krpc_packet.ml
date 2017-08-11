@@ -193,17 +193,20 @@ let content_of_bencode b =
   | _ -> raise (Krpc_exception (B.pretty_print b))
 
 let t_of_bencode b = 
-  let transaction_id = B.dict_get_string_exn b "t" in
-  let content = content_of_bencode b in
-  { transaction_id; content }
+  try 
+    let transaction_id = B.dict_get_string_exn b "t" in
+    let content = content_of_bencode b in
+    { transaction_id; content }
+  with
+  | _ -> failwith (Bencode_ext.pretty_print b)
 
-(******************)
+    (******************)
 
-let bin_read_t len buf ~pos_ref = 
-  let s = String.create len in
-  Common.blit_buf_string buf s ~len;
-  let b = B.decode (`String s) in
-  t_of_bencode b
+    let bin_read_t len buf ~pos_ref = 
+      let s = String.create len in
+      Common.blit_buf_string buf s ~len;
+      let b = B.decode (`String s) in
+      t_of_bencode b
 
 let bin_write_t (buf:Common.buf) ~(pos:Common.pos) (x:t) = 
   let b = bencode_of_t x in

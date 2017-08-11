@@ -8,6 +8,7 @@ type file_info = string * int (* name and length of each individual files *)
  [@@deriving bin_io, sexp]
 
 type info = {
+  name : string;
   piece_length : int;
   pieces_hash : Bt_hash.t Array.t sexp_opaque;
   files_info : file_info list; 
@@ -19,6 +20,8 @@ type info = {
 val info_of_string : string -> info
 
 val info_to_string : info -> string
+
+val info_to_string_hum : info -> string
 
 type t = {
   info_hash : Bt_hash.t; 

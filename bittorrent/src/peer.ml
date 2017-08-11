@@ -2,6 +2,8 @@ open Core
 open Async
 open Log.Global
 
+module Nf = Network_file
+
 module Conn_stat = 
 struct
 
@@ -162,14 +164,14 @@ let set_am_choking t b =
   (if b then M.Choke else M.Unchoke) |> P.send t.peer
 
 (* we always request all blocks from a piece to the same peer at the 
-   same time *)
-let request_piece t i =
+   same time (max_block) *)
+let request_piece t i ~max =
   let nf = Option.value_exn t.nf in
   debug !"Peer %{}: we request %d" t i; 
   let f ~index ~off ~len =
     M.Request(index, off, len) |> P.send t.peer 
   in 
-  Network_file.get_piece nf i |> Piece.iter ~f
+  Network_file.get_piece nf i |> Piece.iter ~f ~max
 
 let process_block t nf index bgn block =
   let piece = Network_file.get_piece nf index in
@@ -346,12 +348,16 @@ let status t = Status.{
     ul = t.conn_stat.total_ul;
     dl_speed = t.conn_stat.dl_speed;
     ul_speed = t.conn_stat.ul_speed;
-    client = "toto";
+    client = Peer_id.client (id t);
     addr = Peer_comm.addr t.peer;
   }
 
-
-
+let is_interesting t = 
+  let nf = Option.value_exn t.nf in
+  let downloaded = Nf.downloaded nf in 
+  let num_pieces = Nf.num_pieces nf in
+  let bf = t.bitfield in
+  not (Bitfield.is_subset num_pieces bf downloaded)
 
 
 

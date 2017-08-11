@@ -23,15 +23,20 @@ type t_option = t option[@@deriving bin_io]
 
 let peer_status_to_string ps = 
   let addr = Unix.Inet_addr.to_string ps.addr in
-  sprintf "%-16s %s: dl/ul %dB %dB, dl/ul speed %.2fB/s %.2fB/s." 
-  addr ps.client ps.dl ps.ul ps.dl_speed ps.ul_speed
+  sprintf "%-16s %-10s: dl/ul %dB %dB, dl/ul speed %.1fB/s %.1fB/s" 
+    addr ps.client ps.dl ps.ul ps.dl_speed ps.ul_speed
 
 let torrent_status_to_string ts =
-  sprintf "downloaded = %d" (Bitfield.card ts.downloaded) 
+  sprintf !"%{Torrent.info_to_string_hum}downloaded = %d\n" ts.tinfo 
+    (Bitfield.card ts.downloaded) 
 
 let to_string t = 
-  let p = List.map t.peers ~f:peer_status_to_string |> String.concat ~sep:"\n" in
+  let p = 
+    match t.peers with
+    | [] -> "waiting for peers"
+    | peers -> List.map peers ~f:peer_status_to_string |> String.concat ~sep:"\n" 
+  in
 
   match t.torrent with 
-  | Some torrent -> sprintf !"%{torrent_status_to_string}\n%s\n" torrent p
-  | None -> sprintf "don't know about this torrent\n"
+  | Some torrent -> sprintf !"%{torrent_status_to_string}%s\n" torrent p
+  | None -> sprintf "waiting to retrieve metainfo\n%s\n" p

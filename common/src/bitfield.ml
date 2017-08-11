@@ -71,6 +71,17 @@ let to_compl_list t n =
 
 let to_string_hum t n =  to_list t n |> List.to_string ~f:string_of_int 
 
+let is_subset n t1 t2 = 
+  let n = length_from_size n in
+  let i = ref 0 in
+  let cond = ref true in
+  while !i < n && !cond do
+    let x1 = int_of_char t1.[!i] in
+    let x2 = int_of_char t2.[!i] in
+    cond := x1 land x2 = x1;
+    incr i 
+  done;
+  !cond
 
 
 

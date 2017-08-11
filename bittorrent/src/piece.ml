@@ -40,11 +40,18 @@ let is_valid_block t ~off ~len =
 let is_valid_block_request t ~off ~len = 
   off + len <= t.length && len <= G.max_block_size
 
-let iter t ~f = 
+let iter t ~f ~max = 
+  assert (max > 0);
+  let m = ref max in
   for i = 0 to (num_blocks t) - 1 do 
     let off = i * G.block_size in
     let len = block_length t off in
-    f ~index:t.index ~off ~len 
+    if not (Bitset.belongs t.blocks i) && !m >= 1 then (
+      f ~index:t.index ~off ~len;
+      decr m;
+    )else (
+      info "Piece: Good, don't request same block again"
+    )
   done
 
 let is_hash_ok t =

@@ -69,6 +69,34 @@ let test9 test_ctxt =
   let y = Bitfield.to_string x in
   assert_equal y "\128\000" 
 
+let test10 test_ctxt = 
+  let s1 = "\205\198" in
+  let s2 = "\255\255" in
+  let b1 = Bitfield.of_string s1 in
+  let b2 = Bitfield.of_string s2 in
+  assert_equal true (Bitfield.is_subset 2 b1 b2)
+
+let test11 test_ctxt = 
+  let s1 = "\205\198" in
+  let s2 = "\255\255" in
+  let b1 = Bitfield.of_string s1 in
+  let b2 = Bitfield.of_string s2 in
+  assert_equal true (Bitfield.is_subset 1 b1 b2)
+
+let test12 test_ctxt = 
+  let s1 = "\205\198" in
+  let s2 = "\255\255" in
+  let b1 = Bitfield.of_string s1 in
+  let b2 = Bitfield.of_string s2 in
+  assert_equal false (Bitfield.is_subset 2 b2 b1)
+
+let test13 test_ctxt = 
+  let s1 = "\205\198" in
+  let s2 = "\255\255" in
+  let b1 = Bitfield.of_string s1 in
+  let b2 = Bitfield.of_string s2 in
+  assert_equal false (Bitfield.is_subset 1 b2 b1)
+
 let suite =
   "suite">:::
   [
@@ -81,6 +109,10 @@ let suite =
     "test7">:: test7;
     "test8">:: test8;
     "test9">:: test9;
+    "test10">:: test10;
+    "test11">:: test11;
+    "test12">:: test12;
+    "test13">:: test13;
   ]
 
 let () = 

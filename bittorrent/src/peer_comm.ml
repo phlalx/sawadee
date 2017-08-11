@@ -55,7 +55,8 @@ let check_bit s i =
   let bf = Bitfield.of_string s in 
   Bitfield.get bf i  
 
-let status_bytes = "\000\000\000\000\000\016\000\001"  
+(* let status_bytes = "\000\000\000\000\000\016\000\001"   *)
+let status_bytes = "\000\000\000\000\000\000\000\000"  
 
 let dht_bit = 63
 let extension_bit = 43
@@ -85,7 +86,6 @@ let extract (s : string) : Bt_hash.t * Peer_id.t * bool * bool =
   Bt_hash.of_string hash, Peer_id.of_string pid, dht, extension
 
 let rec send_handshake t hash ~initiate : handshake_info Deferred.Or_error.t = 
-  debug !"Peer_comm %{}: sends handshake" t;
   let hs = hs hash G.peer_id in
   Writer.write t.writer hs ~len:hs_len;
   match initiate with 
@@ -96,7 +96,6 @@ let rec send_handshake t hash ~initiate : handshake_info Deferred.Or_error.t =
     receive_handshake t has_hash ~initiate:`Non_initiator
 
 and receive_handshake t (has_hash : Bt_hash.t -> bool) ~initiate : handshake_info Deferred.Or_error.t =
-  debug !"Peer_comm %{}: waits handshake" t;
   let buf = String.create hs_len in
   Reader.really_read t.reader buf ~len:hs_len
   >>= function
@@ -115,21 +114,23 @@ and receive_handshake t (has_hash : Bt_hash.t -> bool) ~initiate : handshake_inf
     end
   | `Eof _ -> Error (Error.of_string "handshake error") |> return
 
-let not_ourselves hinfo = 
+let not_ourselves t hinfo = 
   if hinfo.peer_id = G.peer_id then (
     Error (Error.of_string "trying to handshake with ourselves") |> return
-  ) else 
+  ) else (
+    debug !"Peer_comm %{}: handshake ok" t;
     Ok hinfo |> return
+  )
 
 let initiate_handshake t hash = 
   let open Deferred.Or_error.Monad_infix in
   send_handshake t hash ~initiate:`Initiator
-  >>= not_ourselves
+  >>= not_ourselves t
 
 let wait_handshake t has_hash = 
   let open Deferred.Or_error.Monad_infix in
   receive_handshake t has_hash ~initiate:`Initiator
-  >>= not_ourselves
+  >>= not_ourselves t
 
 let receive t =
   let buf = t.receive_buffer in 

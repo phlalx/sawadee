@@ -11,7 +11,7 @@ type t = {
   info_hash : Bt_hash.t;
   mutable nf : Nf.t option;
   mutable peers : P.t Set.Poly.t;
-  requested : (int, unit Ivar.t) Hashtbl.t;
+  mutable requested : int Set.Poly.t;
   wr : (Peer.event * Peer.t) Pipe.Writer.t; 
   rd : (Peer.event * Peer.t) Pipe.Reader.t;
   sigpiece_wr : unit Pipe.Writer.t; 
@@ -33,39 +33,25 @@ let signal_piece t =
 
 let request t nf (i, p): unit Deferred.t = 
   info !"Pwp: %{P} requesting piece %d" p i;
-
-  let on_ivar = function 
-    | `Timeout -> 
-      info !"Pwp: %{Peer} failed to provide piece %d" p i;
-      Peer.set_idle p true 
-    | `Result () -> 
-      info !"Pwp: %{Peer} this ivar has been filled %d" p i;
-
-      () 
-  in 
-
-  let ivar = Ivar.create () in
-  Hashtbl.add_exn t.requested ~key:i ~data:ivar;
-  P.request_piece p i;
-  Ivar.read ivar |> Clock.with_timeout G.idle  
-  >>| 
-  on_ivar 
-  >>| fun () ->
-  Hashtbl.remove t.requested i;
-  signal_piece t
+  assert (not (Set.mem t.requested i));
+  t.requested <- Set.add t.requested i;
+  P.request_piece p i 100; 
+  Clock.after G.idle
+  >>| fun () ->  
+  t.requested <- Set.remove t.requested i
 
 (* Request as many pieces as we can. *)
 let request_pieces t nf () =
 
   let try_request () =
-    let num_requested = Hashtbl.length t.requested in
+    let num_requested = assert false in
     let n = G.max_pending_request - num_requested in
     if n > 0 then ( 
       info "Pwp: try to request up to %d pieces." n;
       let peers = Set.to_list t.peers in
       let l = List.range 0 (Nf.num_pieces nf) |> 
               List.filter ~f:(fun i -> not (Nf.has_piece nf i)) |>
-              List.filter ~f:(fun i -> not (Hashtbl.mem t.requested i))
+              List.filter ~f:(fun i -> not (Set.mem t.requested i))
       in
       let r = Strategy.next_requests l peers n in
       Deferred.List.iter ~how:`Parallel ~f:(request t nf) r
@@ -84,8 +70,10 @@ let setup_download t nf p =
   if (Nf.num_downloaded_pieces nf) > 0 then (
     info !"Pwp: sending bitfield %{Peer}"  p;
     Nf.downloaded nf |> P.send_bitfield p;
-    info !"Pwp: interested in %{Peer}" p;
-    P.set_am_interested p true
+  );
+  if P.is_interesting p then (
+    assert (not (P.am_interested p)); (* can't be interested before knowing nf *)
+    P.set_am_interested p true 
   )
 
 let event_loop_no_tinfo t () = 
@@ -115,18 +103,11 @@ let event_loop_tinfo t nf () =
     debug !"Pwp: process event %{P.event_to_string} from %{P}" e p;
     match e with 
     | Piece i -> 
-      begin
-        match Hashtbl.find t.requested i with 
-        | None -> 
-          info !"Pwp: %{P} downloaded piece %d AGAIN" p i;
-          P.set_idle p false 
-        | Some iv -> 
-          info !"Pwp: %{P} downloaded piece %d" p i;
-          Ivar.fill iv (); 
-          Nf.set_downloaded nf i;
-          Nf.write_piece nf i;
-          send_have_messages t i
-      end; 
+      info !"Pwp: %{P} downloaded piece %d" p i;
+      Nf.set_downloaded nf i;
+      Nf.write_piece nf i;
+      send_have_messages t i
+
     | Choke | Support_meta | Tinfo _  -> ()
 
     | Interested -> 
@@ -138,9 +119,20 @@ let event_loop_tinfo t nf () =
       info !"Pwp: %{P} unchoked us" p;
       signal_piece t;
     | Bitfield _ ->
-      signal_piece t;
-    | Have _ ->
-      signal_piece t;
+      (* TODO need to check we don't receive bitfield twice *)
+      if (P.is_interesting p)  then (
+        assert (not (P.am_interested p)); (* can't be interested before his bitfield *)
+        P.set_am_interested p true
+      )
+    | Have i ->
+      if not (Nf.has_piece nf i) then (
+        if not (P.am_interested p) then (
+          P.set_am_interested p true;
+        );
+        if not (P.peer_choking p) then (
+          signal_piece t;
+        )
+      )
 
   in
   match%map Pipe.read t.rd with
@@ -186,7 +178,6 @@ let start_with_tinfo t (tinfo : Torrent.info) : unit Deferred.t =
 
   info "Pwp: start pieces requesting loop"; 
   Deferred.repeat_until_finished () (request_pieces t nf) |> don't_wait_for;
-
   Clock.every G.keep_alive (fun () -> for_all_peers t ~f:P.send_keep_alive);
 
   info "Pwp: start peer events loop - with tinfo"; 
@@ -219,7 +210,7 @@ let create info_hash =
     info_hash;
     peers = Set.Poly.empty; (* TODO use a set based on peer-id *)
     nf = None;
-    requested = Hashtbl.Poly.create ();
+    requested = Set.Poly.empty;
     rd;
     wr;
     sigpiece_rd;

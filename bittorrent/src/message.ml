@@ -10,13 +10,13 @@ type t =
   | Interested
   | Not_interested
   | Have of int 
-  | Bitfield of Bitfield.t
+  | Bitfield of Bitfield.t sexp_opaque
   | Request of int * int  * int
-  | Block of int * int * string
+  | Block of int * int * string sexp_opaque
   | Cancel of int * int * int
   | Port of int
   (* TODO better to have Bencode.t instead of string *)
-  | Extended of int * string 
+  | Extended of int * string sexp_opaque
 [@@deriving sexp]
 
 let max_size = Global.max_block_size + 13
@@ -145,21 +145,7 @@ let bin_write_t (buf:Common.buf) ~(pos:Common.pos) (x:t) =
     Common.blit_string_buf b ~dst_pos:pos buf ~len;
     pos + len
 
-let to_string m =
-  match m with 
-  | KeepAlive -> "KeepAlive"
-  | Choke -> "Choke"
-  | Unchoke -> "Unchoke"
-  | Interested -> "Interested"
-  | Not_interested -> "Not_interested"
-  | Have i -> sprintf "Have i = %d" i
-  | Bitfield s -> "Bitfield"
-  | Request (i,b,l) -> sprintf "Request i = %d, off = %d" i b
-  | Block (i,off,_) -> sprintf "Block i = %d, off = %d "  i off
-  | Cancel _ -> "Cancel"
-  | Port i -> sprintf "Port %d" i
-  | Extended (i,b) -> "Extended" 
-
+let to_string m = sexp_of_t m |> Sexp.to_string 
 
 
 

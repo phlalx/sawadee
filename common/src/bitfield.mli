@@ -30,3 +30,5 @@ val to_string_hum : t -> int -> string
 
 val to_list : t -> int -> int list 
 
+val is_subset : int -> t -> t -> bool
+

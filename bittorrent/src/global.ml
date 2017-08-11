@@ -27,12 +27,12 @@ let t = {
   block_size = 16384;
   max_block_size = 131072;
   idle = sec 50.; (** Time before a host is considered idle *)
-  keep_alive = sec 180.;
+  keep_alive = sec 10.;
   download_path = None;
   torrent_path = None;
   port = None;
   dht_port = None;
-  max_pending_request = 2;
+  max_pending_request = 1;
   max_non_choking_peers = 4;
   bitset_ext = ".bitset";
   torrent_ext = ".torrent";
@@ -40,7 +40,7 @@ let t = {
   is_node = false;
   max_num_pieces = 65536;
   meta_block_size = 16384;
-  client_id = "-AB0010";
+  client_id = "-sW0010";
   max_unchoke = 4;
 }
 

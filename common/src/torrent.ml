@@ -1,3 +1,5 @@
+(* http://www.bittorrent.org/beps/bep_0003.html - see metainfo files *)
+
 open Core
 open Async
 open Log.Global
@@ -6,7 +8,7 @@ module B = Bencode_ext
 
 (* name and length of each individual files *)
 type file_info = string * int
- [@@deriving bin_io, sexp]
+[@@deriving bin_io, sexp]
 
 let filename_of_bencode b = 
   B.as_list_exn b |> List.map ~f:B.as_string_exn |> Filename.of_parts 
@@ -19,7 +21,7 @@ let filename_to_bencode f =
     B.List (List.map ~f:(fun s -> B.String s) l)
 
 type info = {
-  (* TODO name? *)
+  name : string;
   piece_length : int;
   pieces_hash : Bt_hash.t Array.t sexp_opaque;
   files_info : file_info list; 
@@ -38,15 +40,16 @@ type t = {
 let info_to_bencode i = 
   let pieces = Array.map i.pieces_hash ~f:Bt_hash.to_string |> 
                Array.to_list |> String.concat in
+  let com =
+    [("piece length", B.Integer i.piece_length);
+     ("pieces", B.String pieces); 
+     ("name", B.String i.name ) ]
+  in
   match i.files_info with
+  | [] -> assert false
   | [name, len] -> 
-    B.Dict [
-      ("piece length", B.Integer i.piece_length);
-      ("pieces", B.String pieces);
-      ("length", B.Integer len);
-      ("name", B.String name )
-    ] 
-  | [] -> failwith "bad torrent info"
+    assert (name = i.name);
+    B.Dict (("length", B.Integer len) :: com)
   | fi -> 
     let f (n,l) =
       let a1 = "path", (filename_to_bencode n) in
@@ -55,19 +58,29 @@ let info_to_bencode i =
     in
     let l = List.map fi ~f in
     let files = B.List l in  
-    B.Dict [
-      ("piece length", B.Integer i.piece_length);
-      ("pieces", B.String pieces);
-      ("files", files)
-    ] 
+    B.Dict (("files", files) :: com)
 
 let info_to_string i : string = 
   let b = info_to_bencode i in
   debug !"Torrent: info_to_bencode %{B.pretty_print}" b;
   B.encode_to_string b
 
+let info_to_string_hum i : string =
+  let fi =
+    match i.files_info with
+    | [] -> ""
+    | _ :: [] -> "" 
+    | fis ->
+      let s = List.map fis ~f:(fun (n,i) -> sprintf "%s %d" n i)
+      in (String.concat ~sep:"\n" s) ^ "\n"
+  in
+
+  sprintf "%s\npiece_length: %d\ntotal_length: %d\n%s" 
+    i.name i.piece_length i.total_length fi
+
 let info_of_bencode b : info = 
   debug !"Torrent: info_of_bencode %{B.pretty_print}" b;
+  let name = B.dict_get_string_exn b "name" in
   let pieces = B.dict_get_exn b "pieces" in
   let piece_length = B.dict_get_int_exn b "piece length" in
 
@@ -80,7 +93,7 @@ let info_of_bencode b : info =
     match B.dict_get b "length" with
     | Some length_bc ->
       let length = B.as_int_exn length_bc in
-      let name = B.dict_get_string_exn b "name" in [name, length]
+      [name, length]
     | None -> 
       let files = B.dict_get_list_exn b "files" in
       let f (file_info_bc: B.t) : string * int =
@@ -98,7 +111,8 @@ let info_of_bencode b : info =
   info "Torrent: %d files" num_files;
   info "Torrent: %d pieces" num_pieces;
   info "Torrent: piece length = %d" piece_length;
-  { piece_length; pieces_hash; files_info; total_length; num_pieces; num_files }
+  { name; piece_length; pieces_hash; files_info; total_length; num_pieces; 
+    num_files }
 
 let info_of_string s = `String s |> B.decode |> info_of_bencode
 
