@@ -2,7 +2,7 @@ open Core
 (* open Sexplib.Std *)
 
 type t = string
-[@@deriving sexp]
+[@@deriving sexp, bin_io] 
 
 let length = String.length
 

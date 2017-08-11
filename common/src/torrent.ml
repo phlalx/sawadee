@@ -6,6 +6,7 @@ module B = Bencode_ext
 
 (* name and length of each individual files *)
 type file_info = string * int
+ [@@deriving bin_io, sexp]
 
 let filename_of_bencode b = 
   B.as_list_exn b |> List.map ~f:B.as_string_exn |> Filename.of_parts 
@@ -20,12 +21,12 @@ let filename_to_bencode f =
 type info = {
   (* TODO name? *)
   piece_length : int;
-  pieces_hash : Bt_hash.t Array.t;
+  pieces_hash : Bt_hash.t Array.t sexp_opaque;
   files_info : file_info list; 
   total_length : int;
   num_pieces : int;
   num_files : int;
-}
+} [@@deriving bin_io, sexp]
 
 type t = {
   info_hash : Bt_hash.t;

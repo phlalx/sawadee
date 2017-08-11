@@ -25,6 +25,7 @@ let eval_add s =
       | `Invalid_magnet | `Other -> raise Invalid
     in
     Print.printf !"Added %{Bt_hash.to_hex}.\n" handler
+
   with 
   | Invalid -> Print.printf "Can't add %s: not a magnet.\n" s
   | Sys_error _ -> Print.printf "Can't open file %s.\n" s
@@ -41,16 +42,12 @@ let help () =
   Print.printf " quit\n";
   Print.printf " help\n"
 
-let status_to_string st =
-  let open Status in 
-  sprintf "num_peers = %d\n" st.num_peers 
-
 let eval_status t : unit =
   match Option.try_with (fun () -> Bt_hash.of_hex t) with 
   | None -> Print.printf "Bad handler. Not a hex hash.\n"
   | Some t -> 
     match Bittorrent.status t with
-    | Some st -> Print.printf !"%{status_to_string}" st
+    | Some st -> Print.printf !"%{Status}" st
     | None -> Print.printf "Not in table\n."
 
 let eval = function 
@@ -67,11 +64,8 @@ let rec repl stdin =
   | `Ok l -> parse l |> eval >>= fun () -> repl stdin 
   | `Eof -> terminate ()
 
-let process 
-    (port : int option) 
-    (path : string) 
-    (verbose : int option)
-    (node : bool) : unit Deferred.t
+let process (path : string) (port : int option)  (verbose : int option) 
+    (uris : string list) () : unit Deferred.t
   = 
   set_level `Error;
 
@@ -80,27 +74,24 @@ let process
     ~torrent_path:path
     ~verbose:None
     ~server_port:port
-    ~dht_port:None
+    ~dht_port:port
   >>= fun () ->
 
   Signal.handle Signal.terminating ~f:(fun _ -> terminate () |> don't_wait_for);
+
+  List.iter uris ~f:eval_add; 
 
   let stdin = Lazy.force Reader.stdin in 
   repl stdin
 
 let () = 
   let spec =
-    let open Command.Spec in
-    empty +> 
-    flag "-p" (required string) ~doc:" set download path" +> 
-    flag "-l" (optional int) ~doc:" set server mode with port" +> 
-    flag "-v" (optional int) ~doc:" verbose (level = 1 or 2)" +> 
-    flag "-n" no_arg ~doc:" Enable DHT"  
+    Command.Spec.(
+      empty +> 
+      flag "-p" (required string) ~doc:" set download path" +> 
+      flag "-l" (optional int) ~doc:" set server mode with port" +> 
+      flag "-v" (optional int) ~doc:" verbose (level = 1 or 2)" +> 
+      anon (sequence ("URI/FILEs" %: string)))
   in
-  let command =
-    Command.async ~summary:"Download torrent file" spec
-      (fun path port verbose node () -> 
-         process port path verbose node)
-  in
-  Command.run command
+  Command.async ~summary:"Download torrent file" spec process |> Command.run
 

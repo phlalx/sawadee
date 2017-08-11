@@ -160,20 +160,18 @@ let add_peer t p =
   t.peers <- Set.remove t.peers p;
   info !"Pwp: %{P} has left (%d left)" p (Set.length t.peers)
 
-let status t = Status.{
-    num_peers = Set.length t.peers; 
-    num_downloaded_pieces = Option.value_exn t.nf |> Nf.num_downloaded_pieces
+let status t = 
+  let f nf = {
+    Status.tinfo = Nf.tinfo nf;
+    Status.downloaded = Nf.downloaded nf;
+  } in {
+    Status.peers = Set.to_list t.peers |> List.map ~f:Peer.status;
+    Status.torrent = Option.map t.nf ~f;
   } 
 
 let start_without_info t : Torrent.info Deferred.Option.t = 
   info !"Pwp: start peer events loop - without tinfo"; 
   Deferred.repeat_until_finished () (event_loop_no_tinfo t)
-
-let broadcast_keep_alive t () =
-  info "Pwp: broadcast keep alive";
-  Clock.after G.keep_alive 
-  >>| fun () ->
-  for_all_peers t ~f:P.send_keep_alive 
 
 let start_with_tinfo t (tinfo : Torrent.info) : unit Deferred.t =
 
@@ -189,7 +187,7 @@ let start_with_tinfo t (tinfo : Torrent.info) : unit Deferred.t =
   info "Pwp: start pieces requesting loop"; 
   Deferred.repeat_until_finished () (request_pieces t nf) |> don't_wait_for;
 
-  Deferred.forever () (broadcast_keep_alive t);
+  Clock.every G.keep_alive (fun () -> for_all_peers t ~f:P.send_keep_alive);
 
   info "Pwp: start peer events loop - with tinfo"; 
   Deferred.repeat_until_finished () (event_loop_tinfo t nf)

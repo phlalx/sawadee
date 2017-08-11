@@ -6,7 +6,7 @@
 open Core
 
 type t
-[@@deriving sexp]
+[@@deriving sexp, bin_io]
 
 (* length of string *)
 val length : t -> int 

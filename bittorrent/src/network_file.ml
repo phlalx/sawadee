@@ -6,6 +6,7 @@ module Em = Error_msg
 module G = Global
 
 type t = {
+  tinfo : Torrent.info;
   content : Bigstring.t;
   bitfield_name : string; 
   total_length : int; 
@@ -19,7 +20,6 @@ type t = {
 let piece_init bs pos pieces_hash piece_length total_len i = 
   let len = min (total_len - i * piece_length) piece_length in
   Piece.create ~pos ~index:i ~len pieces_hash.(i) bs
-  
 
 let get_piece t i = t.pieces.(i)
 
@@ -103,6 +103,7 @@ let create info_hash tinfo =
   Pers.init_write_pipe pers ~finally |> don't_wait_for;
 
   {
+    tinfo;
     content;
     total_length;
     num_pieces;
@@ -112,6 +113,8 @@ let create info_hash tinfo =
     pers;
     bitfield_name;
   }
+
+let tinfo t = t.tinfo
 
 let close t = 
   Pers.close_pipe t.pers |> return

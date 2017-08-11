@@ -30,5 +30,7 @@ val num_downloaded_pieces : t -> int
 
 val write_piece : t -> int -> unit
 
+val tinfo : t -> Torrent.info
+
 val close : t -> unit Deferred.t 
 

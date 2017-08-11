@@ -5,9 +5,8 @@ open Core
 module type ID = sig
 
   type t
-
-  val bin_t : t Bin_prot.Type_class.t
-
+  [@@deriving bin_io, sexp]
+  
   val of_string : string -> t
 
   val to_string : t -> string
@@ -40,7 +39,7 @@ module Id = struct
   module B = Bencode_ext
 
   type t = string
-  [@@deriving bin_io]
+  [@@deriving bin_io, sexp]
 
   let of_string x = assert ((String.length x) = 20); x 
 

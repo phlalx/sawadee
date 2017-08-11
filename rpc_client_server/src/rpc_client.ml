@@ -8,11 +8,15 @@ let test file port  =
     Wrapper.add_torrent f port in
   let%bind () = Clock.after (sec 1.0) in 
   let%bind status = Wrapper.status hash port in 
-  let res = (Option.value_exn status).Status.num_downloaded_pieces in
+  let res = 
+    match status with
+    | Some { torrent = Some { downloaded }} ->  Bitfield.card downloaded 
+    | _ -> assert false 
+  in
   let%map () = Wrapper.terminate port in
   res
 
-let process port num_clients file : unit Deferred.t = 
+let process port num_clients file () : unit Deferred.t = 
   set_level `Info;
   let l = List.range port (port + num_clients) in 
   let%bind res = Deferred.List.map l ~f:(test file) ~how:`Parallel in
@@ -22,18 +26,15 @@ let process port num_clients file : unit Deferred.t =
   >>| fun () ->
   List.iter res ~f:(fun x -> assert (x = 66))
 
-
 let () = 
   let spec =
-    let open Command.Spec in
+    Command.Spec.(
     empty +> 
     flag "-r" (required int) ~doc:"set base port"  +>  
     flag "-n" (required int) ~doc:"set num clients" +>  
-    anon ("URI/FILE" %: string) 
+    anon ("URI/FILE" %: string))
   in
   let command =
-    Command.async ~summary:"Download torrent file" spec
-      (fun port num_clients file () -> 
-         process port num_clients file)
+    Command.async ~summary:"Download torrent file" spec process
   in
   Command.run command

@@ -5,15 +5,16 @@
 open Core
 
 type file_info = string * int (* name and length of each individual files *)
+ [@@deriving bin_io, sexp]
 
 type info = {
   piece_length : int;
-  pieces_hash : Bt_hash.t Array.t;
+  pieces_hash : Bt_hash.t Array.t sexp_opaque;
   files_info : file_info list; 
   total_length : int;
   num_pieces : int;
   num_files : int;
-}
+} [@@deriving bin_io, sexp]
 
 val info_of_string : string -> info
 
