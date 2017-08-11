@@ -18,5 +18,5 @@ val torrent_list : unit -> Bt_hash.t list
 
 val terminate : unit -> unit Deferred.t
 
-val status : Bt_hash.t -> Status.t Option.t
+val status : Bt_hash.t -> Status.t option
 

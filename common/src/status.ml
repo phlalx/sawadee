@@ -16,10 +16,10 @@ type torrent_status = {
 
 type t = {
   peers : peer_status list;
-  torrent : torrent_status Option.t
+  torrent : torrent_status option
 } [@@deriving bin_io]
 
-type t_option = t Option.t [@@deriving bin_io]
+type t_option = t option[@@deriving bin_io]
 
 let peer_status_to_string ps = 
   let addr = Unix.Inet_addr.to_string ps.addr in

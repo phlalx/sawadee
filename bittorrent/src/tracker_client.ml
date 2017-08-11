@@ -52,7 +52,7 @@ let check_scheme uri =
     info "Tracker_client: uri scheme not http";
   return (Result.ok_if_true is_scheme_http ~error)
 
-let ignore_error : 'a Or_error.t -> 'a Option.t = 
+let ignore_error : 'a Or_error.t -> 'a option= 
   function 
   | Ok x -> Some x
   | Error err -> 

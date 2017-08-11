@@ -5,10 +5,10 @@ type t = {
   max_block_size : int;
   idle : Time.Span.t;
   keep_alive : Time.Span.t;
-  mutable download_path : string Option.t;
-  mutable torrent_path : string Option.t;
-  mutable port : int Option.t;
-  mutable dht_port : int Option.t;
+  mutable download_path : string option;
+  mutable torrent_path : string option;
+  mutable port : int option;
+  mutable dht_port : int option;
   max_pending_request : int;
   max_non_choking_peers : int;
   bitset_ext : string;

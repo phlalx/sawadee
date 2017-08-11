@@ -9,7 +9,7 @@ module Nf = Network_file
 
 type t = {
   info_hash : Bt_hash.t;
-  mutable nf : Nf.t Option.t;
+  mutable nf : Nf.t option;
   mutable peers : P.t Set.Poly.t;
   requested : (int, unit Ivar.t) Hashtbl.t;
   wr : (Peer.event * Peer.t) Pipe.Writer.t; 

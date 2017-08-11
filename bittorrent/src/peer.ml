@@ -87,12 +87,12 @@ type t = {
   mutable am_choking : bool;
   mutable am_interested : bool; 
   mutable idle : bool;
-  mutable port : int Option.t;
+  mutable port : int option;
   bitfield : Bitfield.t;
   wr : event Pipe.Writer.t; 
   rd : event Pipe.Reader.t;
-  mutable meta : meta Option.t; (* protocol id and metadata size *)
-  mutable nf : Network_file.t Option.t;
+  mutable meta : meta option; (* protocol id and metadata size *)
+  mutable nf : Network_file.t option;
   mutable sent_bitfield : bool;
   conn_stat : Conn_stat.t
 } [@@deriving fields]
