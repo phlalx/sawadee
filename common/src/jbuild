@@ -2,7 +2,7 @@
 
 (library
   ((name common)
-      (libraries (core core_extended ppx_jane hex async bencode uri)) 
+      (libraries (core core_extended ppx_jane hex async bencode uri sha)) 
       (preprocess (pps (ppx_jane)))
       (wrapped false) ))
   

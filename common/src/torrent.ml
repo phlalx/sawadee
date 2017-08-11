@@ -3,7 +3,6 @@ open Async
 open Log.Global
 
 module B = Bencode_ext
-module G = Global
 
 (* name and length of each individual files *)
 type file_info = string * int
