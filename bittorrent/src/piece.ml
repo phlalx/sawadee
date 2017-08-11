@@ -7,18 +7,20 @@ type t = {
   index : int;
   hash : Bt_hash.t;
   length : int;
-  content2 : Bigsubstring.t;
-  content : Bigstring.t; 
+  content : Bigsubstring.t;
   blocks : Bitset.t;
 } 
 
 let create ~pos ~index ~len hash bs = 
   let num_blocks = (len + G.block_size - 1) / G.block_size in
-  { index; length = len; hash; content = Bigstring.create len; 
+  { index; length = len; hash;  
     blocks = Bitset.empty num_blocks; 
-    content2 = Bigsubstring.create ~pos ~len bs; }
+    content = Bigsubstring.create ~pos ~len bs; }
 
-let get_content t ~off ~len = Bigstring.to_string ~pos:off ~len t.content
+let get_content t ~off ~len = 
+  let b = Bigsubstring.base t.content in
+  let p = Bigsubstring.pos t.content in
+  Bigstring.to_string b ~pos:(p + off) ~len
 
 let get_bigstring_content t = t.content
 
@@ -47,14 +49,16 @@ let iter t ~f =
 
 let is_hash_ok t =
   (* TODO see if there is a Sha1.bigstring *)
-  let hash_piece = Sha1.to_bin (Sha1.string (Bigstring.to_string t.content)) in 
+  let hash_piece = Sha1.to_bin (Sha1.string (Bigsubstring.to_string t.content)) in 
   hash_piece = Bt_hash.to_string t.hash
 
 let update t ~off (block:string) = 
   let index = off / G.block_size in
   let len = String.length block in
   Bitset.insert t.blocks index;
-  Bigstring.From_string.blit ~src:block ~src_pos:0 ~dst:t.content ~dst_pos:off 
+  let base = Bigsubstring.base t.content in 
+  let off = off + Bigsubstring.pos t.content in
+  Bigstring.From_string.blit ~src:block ~src_pos:0 ~dst:base ~dst_pos:off 
     ~len;
   if Bitset.is_full t.blocks then ( 
     if is_hash_ok t then 

@@ -14,4 +14,4 @@ export NUM_PIECES=66
 export NUM_CLIENTS=10
 export BASE_PORT=6000
 export BASE_RPC_PORT=7000
-export VERBOSE="-v 1"
+export VERBOSE="-v 2"

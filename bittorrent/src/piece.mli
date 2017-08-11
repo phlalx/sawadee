@@ -13,8 +13,7 @@ type t
 
 (** [create i h ~len pfs] creates a piece at index [i] in the file with hash [h]
     and length [len]. *)
-val create :  pos:int -> index:int ->  len:int ->
-Bt_hash.t -> Bigstring.t -> t
+val create :  pos:int -> index:int ->  len:int -> Bt_hash.t -> Bigstring.t -> t
 
 val get_index : t -> int
 
@@ -29,7 +28,7 @@ val is_valid_block_request : t -> off:int -> len:int -> bool
 val get_content : t -> off:int -> len:int  -> string 
 
 (* use for R/W. Doesn't allocate a new bigstring *)
-val get_bigstring_content : t -> Bigstring.t
+val get_bigstring_content : t -> Bigsubstring.t
 
 (** Iter through the blocks of the piece. Typically to send them to the peers.
 
