@@ -18,7 +18,9 @@ struct
     mutable ul_speed : float;
     mutable last_tick_dl : int;
     mutable last_tick_ul : int;
-  }
+  } [@@deriving sexp]
+
+  let to_string t = Sexp.to_string (sexp_of_t t)
 
   let incr_dl t i = t.last_tick_dl <- t.last_tick_dl + i
 
@@ -69,9 +71,11 @@ type event =
   | Interested
   | Not_interested 
   | Have of int
-  | Bitfield of Bitfield.t
+  | Bitfield of Bitfield.t sexp_opaque
   | Piece of int
   | Fail of int
+  | More
+[@@deriving sexp]
 
 type meta = {
   id : int;
@@ -103,7 +107,8 @@ type t = {
   block_wr : block Pipe.Writer.t;
   block_rd : block Pipe.Reader.t;
   mutable pending : block Set.Poly.t;
-  few_pending : unit Condition.t
+  few_pending : unit Condition.t;
+  received_bitfield : bool
 } [@@deriving fields]
 
 let create peer ~dht ~extension =
@@ -130,19 +135,10 @@ let create peer ~dht ~extension =
     block_wr;
     pending = Set.Poly.empty;
     few_pending = Condition.create ();
+    received_bitfield = false;
   }
 
-let event_to_string = function
-  | Tinfo _ -> "Torrent info"
-  | Support_meta -> "Support_meta"
-  | Choke -> "Choke"
-  | Unchoke -> "Unchoke"
-  | Interested -> "Interested"
-  | Not_interested -> "Not_interested"
-  | Bitfield _ -> "Bitfield"
-  | Have _ -> "Have"
-  | Piece i -> "Piece " ^ (string_of_int i)
-  | Fail i -> "Fail " ^ (string_of_int i)
+let event_to_string e = Sexp.to_string (sexp_of_event e)
 
 exception Incorrect_behavior
 
@@ -268,6 +264,7 @@ let process_request t nf index bgn length =
      for the block in M.Piece *)
 
   let block = Piece.get_content piece ~off:bgn ~len:length in
+  Conn_stat.incr_ul t.conn_stat length;
   Message.Block (index, bgn, block) |> P.send t.peer
 
 let process_message t m : unit =
@@ -293,11 +290,11 @@ let process_message t m : unit =
     Pipe.write_without_pushback t.wr Not_interested
 
   | M.Bitfield bits -> 
-    (* we should validate this bitfield but we may not know the num pieces at
-       that stage. *)
     info !"Peer %{}: received bitfield (%d pieces)" t (Bitfield.card bits);
     Bitfield.copy ~src:bits ~dst:t.bitfield; 
-    Pipe.write_without_pushback t.wr (Bitfield bits)
+    validate t (not t.received_bitfield);
+    if Option.is_some t.nf then
+      Pipe.write_without_pushback t.wr (Bitfield bits)
 
   | M.Port port -> 
     debug !"Peer %{}: received port %d" t port;
@@ -307,12 +304,14 @@ let process_message t m : unit =
       Krpc.try_add |> Deferred.ignore |> don't_wait_for )
 
   | M.Extended (id, b) -> 
-    process_extended t id b 
+    if Option.is_none t.nf then 
+      process_extended t id b 
 
   | M.Have index -> 
     debug !"Peer %{}: received have %d" t index;
     Bitfield.set t.bitfield index true;
-    Pipe.write_without_pushback t.wr (Have index)
+    if Option.is_some t.nf then
+      Pipe.write_without_pushback t.wr (Have index)
 
   (* the following messages must have nf set *)
 
@@ -324,6 +323,7 @@ let process_message t m : unit =
 
   | M.Block (index, bgn, block) -> 
     assert (Option.is_some t.nf);
+    Conn_stat.incr_dl t.conn_stat (String.length block);
     process_block t (Option.value_exn t.nf) index bgn block
 
   | M.Cancel (index, bgn, length) -> 
@@ -354,7 +354,10 @@ let rec wait_and_process_message t () =
     `Finished ()
   | `Result r -> result r 
 
-let set_nf t nf = t.nf <- Some nf
+let set_nf t nf = 
+  t.nf <- Some nf;
+  if t.received_bitfield then
+    Bitfield t.bitfield |> Pipe.write_without_pushback t.wr 
 
 let start t =
   debug !"Peer %{}: start requesting loop" t; 
@@ -410,8 +413,12 @@ let is_interesting t =
   let downloaded = Nf.downloaded nf in 
   let num_pieces = Nf.num_pieces nf in
   let bf = t.bitfield in
-(*   let s = Bitfield.to_list bf num_pieces |> List.to_string ~f:string_of_int in info "bitfield %s"  s; *)  
- not (Bitfield.is_subset num_pieces bf downloaded)
+  (*   let s = Bitfield.to_list bf num_pieces |> List.to_string ~f:string_of_int in info "bitfield %s"  s; *)  
+  not (Bitfield.is_subset num_pieces bf downloaded)
+
+let take_request t = (Pipe.length t.block_wr) <= 2 * G.max_pending_request
+
+let validate_bitfield t = ()
 
 
 

@@ -7,12 +7,9 @@
  
 open Core
 
-type t = {
-  complete : int;
-  incomplete : int;
-  interval : int;
-  peers : Addr.t list
-}
+type ok = { interval : int; peers : Addr.t list }
+
+type t = (ok, string) Result.t
 
 val of_string : string -> t
 

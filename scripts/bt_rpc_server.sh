@@ -12,4 +12,4 @@ DIR=$TEST_PATH_PREFIX$i
 PORT=$((BASE_PORT+i))
 RPC_PORT=$((BASE_RPC_PORT+i))
 echo "starting rpc server on port -l $PORT -r $RPC_PORT" 
-$EXEC_PREFIX/$RPC_SERVER -l $PORT -p $DIR $VERBOSE -r $RPC_PORT
+$EXEC_PREFIX/$RPC_SERVER -l $PORT -p $DIR $VERBOSE -r $RPC_PORT &> /dev/null

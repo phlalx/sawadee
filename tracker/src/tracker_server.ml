@@ -23,12 +23,10 @@ let callback ~body (addr : Addr.t) request =
   let port = Uri.get_query_param uri "port"  in
 
   let reply = 
-    Tracker_reply.{
-      complete = 0;
-      incomplete = 0;
-      interval = 0;
-      peers = state.peers; 
-    } 
+    let open Tracker_reply in 
+    match port with
+    | Some _ -> Ok { interval = 2000; peers = state.peers }
+    | None -> Error "missing port"
   in
   let set_port p =
     let port = int_of_string p in
@@ -37,6 +35,7 @@ let callback ~body (addr : Addr.t) request =
     state.peers <- List.dedup (peer_addr :: state.peers)
   in
   Option.value_map port ~default:() ~f:set_port;
+  info !"Tracker_server: %{Addr} responded" addr;
   Tracker_reply.to_string reply |>
   Server.respond_string ~flush:true
 

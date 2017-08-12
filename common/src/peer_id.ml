@@ -18,6 +18,7 @@ let client s =
   | "-BL" -> "bitblinder"
   | "-lt" -> "libtorrent"
   | "-LT" -> "libtorrent"
+  | "-UM" -> "utorrent mac"
   | "-SD" -> "thunder"
   | "TIX" -> "tixati"
   | _ -> "unknown" ^ p

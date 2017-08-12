@@ -50,6 +50,7 @@ type event =
   | Bitfield of Bitfield.t
   | Piece of int
   | Fail of int
+  | More
 
 val event_to_string : event -> string
 
@@ -72,6 +73,8 @@ val am_interested : t -> bool
 
 val am_choking : t -> bool
 
+val take_request : t -> bool
+
 val peer_choking : t -> bool
 
 val idle : t -> bool
@@ -86,6 +89,8 @@ val is_interesting : t -> bool
 
     TODO: terminate peer silently instead (monitor?). *) 
 val validate : t -> bool -> unit
+
+val validate_bitfield : t -> unit
 
 val status : t -> Status.peer_status
 

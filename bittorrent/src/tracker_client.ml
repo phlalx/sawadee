@@ -57,7 +57,7 @@ let ignore_error : 'a Or_error.t -> 'a option=
   | Ok x -> Some x
   | Error err -> 
     info "Tracker_client: can't connect";
-    debug !"Error connecting %{Error.to_string_hum}" err;
+    debug !"Tracker_client: Error connecting %{Error.to_string_hum}" err;
     None
 
 (*  Error can come from
@@ -78,9 +78,9 @@ let query_tracker (info_hash:Bt_hash.t) (uri:Uri.t) : sl Deferred.Option.t =
     Cohttp_async.Body.to_string body |> Deferred.ok
     >>= fun s ->
     return (Or_error.try_with (fun () -> Tracker_reply.of_string s))
-    >>= fun t ->
-
-    Ok t.Tracker_reply.peers |> return
+    >>= function
+    | Ok t -> Ok t.Tracker_reply.peers |> return
+    | Error s -> Error (Error.of_string s) |> return
   in
   reply_or_error >>| ignore_error
 

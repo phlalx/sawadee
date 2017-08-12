@@ -11,8 +11,8 @@ let next_requests l p n : (int * P.t) list =
 
   let peers_having_piece i : (int * P.t) option= 
     let f p = 
-      (P.has_piece p i) &&   
-      not (P.peer_choking p) && not (P.idle p) && (P.am_interested p)
+      (P.has_piece p i) &&  not (P.peer_choking p) && not (P.idle p) 
+        && (P.am_interested p) && (P.take_request p)
     in 
     match List.filter p ~f |> List.permute with
     | [] -> None
