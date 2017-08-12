@@ -49,6 +49,7 @@ type event =
   | Have of int
   | Bitfield of Bitfield.t
   | Piece of int
+  | Fail of int
 
 val event_to_string : event -> string
 
@@ -61,7 +62,7 @@ val send_bitfield : t -> Bitfield.t -> unit
 val advertise_piece : t -> int -> unit
 
 (** request a piece and directly fill [Network_file.t] *)
-val request_piece : t -> int -> max:int -> unit
+val request_piece : t -> int -> unit
 
 val set_am_interested : t -> bool -> unit
 

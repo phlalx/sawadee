@@ -30,14 +30,9 @@ val get_content : t -> off:int -> len:int  -> string
 (* use for R/W. Doesn't allocate a new bigstring *)
 val get_bigstring_content : t -> Bigsubstring.t
 
-(** Iter through the blocks of the piece. Typically to send them to the peers.
+type block = { b_index : int; off: int; len: int }
 
-    In this implementation, we always request all blocks at the same time
-    to the same peer. In function [f], [index] is bound the the index of the 
-    piece and is thus constant, [off] is the offset of the block, and [len]
-    its length. Note that all blocks have the same length except possibly the
-    last one *)
-val iter : t -> f:(index:int -> off:int -> len:int -> unit) -> max:int -> unit
+val blocks : t -> block list 
 
 (** Updates a piece with downloaded block.
 

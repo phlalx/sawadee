@@ -13,14 +13,13 @@ let equal x y = Node_id.to_string x = Node_id.to_string y
 let find () = List.Assoc.find t.routing ~equal 
 
 let try_add addr : unit Deferred.Or_error.t =
-  debug !"Krpc: %{Addr} try_reaching_node" addr;
   let open Deferred.Or_error.Monad_infix in
   let n = Node.connect addr in
   Node.ping n 
   >>| fun id -> 
   if Option.is_none (find () id) then (
     t.routing <- (id, addr) :: t.routing;
-    debug !"Krpc: %{Addr} = %{Node_id.to_string_hum} added" addr id
+    (* debug !"Krpc: %{Addr} = %{Node_id.to_string_hum} added" addr id *)
   ) 
 
 let try_add_nis nis =

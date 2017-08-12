@@ -71,6 +71,7 @@ type event =
   | Have of int
   | Bitfield of Bitfield.t
   | Piece of int
+  | Fail of int
 
 type meta = {
   id : int;
@@ -79,6 +80,8 @@ type meta = {
   data : string;
   received : bool Array.t
 }
+
+type block = Piece.block
 
 type t = {
   peer : Peer_comm.t;
@@ -96,11 +99,17 @@ type t = {
   mutable meta : meta option; (* protocol id and metadata size *)
   mutable nf : Network_file.t option;
   mutable sent_bitfield : bool;
-  conn_stat : Conn_stat.t
+  conn_stat : Conn_stat.t;
+  block_wr : block Pipe.Writer.t;
+  block_rd : block Pipe.Reader.t;
+  mutable pending : block Set.Poly.t;
+  few_pending : unit Condition.t
 } [@@deriving fields]
 
 let create peer ~dht ~extension =
-  let rd, wr = Pipe.create () in {
+  let rd, wr = Pipe.create () in 
+  let block_rd, block_wr = Pipe.create () in
+  {
     peer;
     peer_interested = false; 
     peer_choking = true; 
@@ -117,6 +126,10 @@ let create peer ~dht ~extension =
     nf = None;
     sent_bitfield = false;
     conn_stat = Conn_stat.create ();
+    block_rd;
+    block_wr;
+    pending = Set.Poly.empty;
+    few_pending = Condition.create ();
   }
 
 let event_to_string = function
@@ -129,6 +142,7 @@ let event_to_string = function
   | Bitfield _ -> "Bitfield"
   | Have _ -> "Have"
   | Piece i -> "Piece " ^ (string_of_int i)
+  | Fail i -> "Fail " ^ (string_of_int i)
 
 exception Incorrect_behavior
 
@@ -163,21 +177,45 @@ let set_am_choking t b =
   t.am_choking <- b;
   (if b then M.Choke else M.Unchoke) |> P.send t.peer
 
-(* we always request all blocks from a piece to the same peer at the 
-   same time (max_block) *)
-let request_piece t i ~max =
+let request_piece t i =
   let nf = Option.value_exn t.nf in
-  debug !"Peer %{}: we request %d" t i; 
-  let f ~index ~off ~len =
-    M.Request(index, off, len) |> P.send t.peer 
+  debug !"Peer %{}: we request %d (pipe has currently %d blocks) " t i (Pipe.length t.wr); 
+  Network_file.get_piece nf i |> Piece.blocks
+  |> List.iter ~f:(Pipe.write_without_pushback_if_open t.block_wr)
+
+let requesting_loop t () =
+
+  let process_block b =
+    let { Piece.b_index; Piece.off; Piece.len } = b in
+    debug "Peer: process block %d %d %d" b_index off len;
+    M.Request (b_index, off, len) |> P.send t.peer;
+    t.pending <- Set.add t.pending b
   in 
-  Network_file.get_piece nf i |> Piece.iter ~f ~max
+
+  Condition.wait t.few_pending 
+  >>= fun () ->
+  let slot_available = G.max_pending_request - (Set.length t.pending) in
+  info !"Peer: %{} request queue has %d slots available" t slot_available;
+  match%map Pipe.read' t.block_rd ~max_queue_length:slot_available with
+  | `Eof -> 
+    `Finished ()
+  | `Ok q -> 
+    info !"Peer: %{} managed to fill %d slots" t (Queue.length q);
+    Queue.iter q ~f:process_block;
+    `Repeat ()
 
 let process_block t nf index bgn block =
   let piece = Network_file.get_piece nf index in
   let len = String.length block in
   Network_file.is_valid_piece_index nf index |> validate t; 
   Piece.is_valid_block piece bgn len |> validate t;
+  let b = Piece.{ b_index = index; off = bgn; len} in
+  assert (Set.mem t.pending b);
+  t.pending <- Set.remove t.pending b;
+  if (Set.length t.pending) < G.max_pending_request then ( 
+    debug !"Peer %{}: signal pending" t;
+    Condition.signal t.few_pending ()
+  );
   match Piece.update piece bgn block with 
   | `Ok -> 
     info !"Peer %{}: got block - piece %d offset = %d" t index bgn
@@ -292,27 +330,42 @@ let process_message t m : unit =
     assert (Option.is_some t.nf);
     failwith "not implemented yet"
 
+let clear_requests t =
+  let f { Piece.b_index } =
+    debug !"Peer %{}: clear requests %d" t b_index;
+    Fail b_index |> Pipe.write_without_pushback t.wr 
+  in
+  Set.iter t.pending  ~f
+
 (* This is the main message processing loop. We consider two types of events.
    Timeout (idle peer), and message reception. *)
-let rec wait_and_process_message t =
+let rec wait_and_process_message t () =
 
   let result = function
     | `Ok m -> process_message t m; `Repeat ()
-    | `Eof -> `Finished ()
+    | `Eof -> 
+      clear_requests t;
+      `Finished ()
   in
   P.receive t.peer |> Clock.with_timeout G.keep_alive
   >>| function 
-  | `Timeout -> `Finished ()
+  | `Timeout -> 
+    clear_requests t;
+    `Finished ()
   | `Result r -> result r 
 
 let set_nf t nf = t.nf <- Some nf
 
 let start t =
+  debug !"Peer %{}: start requesting loop" t; 
+  Deferred.repeat_until_finished () (requesting_loop t) |> don't_wait_for;
+  Condition.signal t.few_pending ();
   debug !"Peer %{}: start message handler loop" t; 
-  Deferred.repeat_until_finished () (fun () -> wait_and_process_message t)
+  Deferred.repeat_until_finished () (wait_and_process_message t)
   >>| fun () -> 
   debug !"Peer %{}: quit message handler loop" t; 
-  Pipe.close t.wr
+  Pipe.close t.wr;
+  Pipe.close t.block_wr
 
 let close t = 
   debug !"Peer %{}: we close this peer." t;
@@ -357,7 +410,8 @@ let is_interesting t =
   let downloaded = Nf.downloaded nf in 
   let num_pieces = Nf.num_pieces nf in
   let bf = t.bitfield in
-  not (Bitfield.is_subset num_pieces bf downloaded)
+(*   let s = Bitfield.to_list bf num_pieces |> List.to_string ~f:string_of_int in info "bitfield %s"  s; *)  
+ not (Bitfield.is_subset num_pieces bf downloaded)
 
 
 

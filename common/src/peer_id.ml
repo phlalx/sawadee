@@ -22,4 +22,4 @@ let client s =
   | "TIX" -> "tixati"
   | _ -> "unknown" ^ p
 
-let to_string_hum s = (to_string_hum s) ^ "---" ^ (client s)
+let to_string_hum s = (to_string_hum s) ^ "/" ^ (client s)

@@ -61,10 +61,10 @@ let rec split_along_piece_length l pl num_pieces =
 
 let read_piece t p = 
   let i = Piece.get_index p in
-  debug "Krpc: read piece %d from disk" i; 
+  debug "Pers: read piece %d from disk" i; 
   let f seg : unit Deferred.t = 
     let { name; fd; off; len; off_in_file } = seg in
-    debug !"Krpc: reading piece %d from %{segment_to_string}" i seg; 
+    (* debug !"Pers: reading piece %d from %{segment_to_string}" i seg;  *)
     let s = Piece.get_bigstring_content p in
     let pos = off % t.piece_length in
     Io.read fd s off_in_file pos len
@@ -74,10 +74,10 @@ let read_piece t p =
 let read_from_pipe t =
   let read_piece p = 
     let i = Piece.get_index p in
-    debug "Krpc: read from pipe piece %d" i; 
+    debug "Pers: read from pipe piece %d" i; 
     let f seg : unit Deferred.t = 
       let { name; fd; off; len; off_in_file } = seg in
-      debug !"Krpc: writing piece %d to %{segment_to_string}" i seg;
+      (* debug !"Pers: writing piece %d to %{segment_to_string}" i seg; *)
       let s = Piece.get_bigstring_content p in
       let pos = off % t.piece_length in
       Io.write fd s off_in_file pos len 

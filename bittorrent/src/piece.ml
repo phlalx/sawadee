@@ -40,19 +40,17 @@ let is_valid_block t ~off ~len =
 let is_valid_block_request t ~off ~len = 
   off + len <= t.length && len <= G.max_block_size
 
-let iter t ~f ~max = 
-  assert (max > 0);
-  let m = ref max in
-  for i = 0 to (num_blocks t) - 1 do 
+type block = { b_index : int; off: int; len: int }
+
+let blocks t = 
+  let f i =  
     let off = i * G.block_size in
     let len = block_length t off in
-    if not (Bitset.belongs t.blocks i) && !m >= 1 then (
-      f ~index:t.index ~off ~len;
-      decr m;
-    )else (
-      info "Piece: Good, don't request same block again"
-    )
-  done
+    match Bitset.belongs t.blocks i with
+    | true -> None
+    | false -> Some { b_index = t.index; off; len}
+  in
+  List.range 0 (num_blocks t) |> List.filter_map ~f
 
 let is_hash_ok t =
   (* TODO see if there is a Sha1.bigstring *)
@@ -80,3 +78,4 @@ let update t ~off (block:string) =
   )
 
 let to_string t = sprintf "(i = %d len = %d)" t.index t.length 
+
