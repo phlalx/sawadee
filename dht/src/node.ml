@@ -6,21 +6,20 @@ open Log.Global
 
 module K = Krpc_packet
 
-let node_id = Node_id.random ()
-let () = info !"Krpc: peer-id:%{Node_id.to_string_hum}" node_id
-
 let krpc_timeout = sec 5.0
 
 type t = {
   addr : Addr.t;
   buffer : Bigstring.t;
   socket : Fd.t;
+  id : Node_id.t; (* Id of querying node *)
 }
 
-let connect addr = {
+let connect id addr = {
     addr;
     buffer = Common.create_buf K.buffer_size;
     socket = Socket.create Socket.Type.udp |> Socket.fd;
+    id;
   }
 
 (* why this returns a deferred when Writer.write does not *)
@@ -79,7 +78,7 @@ let ping t =
     | R_ping_or_get_peers_node id -> Ok id
     | _ -> rpc_error 
   in 
-  let query = K.Ping node_id
+  let query = K.Ping t.id
   in
   rpc t query extract_ping_response
 
@@ -91,7 +90,7 @@ let get_peers t info_hash =
     | R_get_peers_nodes (id, token, nodes) -> Ok (`Nodes nodes)
     | _ -> rpc_error
   in 
-  let query = Get_peers (node_id, info_hash)
+  let query = Get_peers (t.id, info_hash)
   in
   rpc t query extract_query_response
 

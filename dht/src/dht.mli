@@ -1,17 +1,22 @@
-(** This DHT node. 
+(** Simple DHT service.
 
-    Maintains routing table... *)
+  
+  Server isn't implemented yet.  
+
+*)
 
 open Core
 open Async
 open Log.Global
 
-val try_add : Addr.t -> unit Deferred.Or_error.t
+type t
 
-val try_add_nis : Node_info.t list  -> unit Deferred.t
+val create : port:int -> Node_id.t -> t
 
-val table : unit -> Node_info.t list
+(* try to add an address to the table. Ping this address and if it's 
+   a node, add it. *)
+val try_add : t -> Addr.t -> unit Deferred.Or_error.t
 
-val lookup : Bt_hash.t -> Addr.t list Deferred.t
+val table : t -> Node_info.t list
 
-val populate : unit -> unit Deferred.t
+val lookup : t -> ?populate:bool -> Bt_hash.t -> Addr.t list Deferred.t

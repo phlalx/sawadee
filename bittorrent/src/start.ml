@@ -36,10 +36,10 @@ let add_peers_from_tracker pwp info_hash uris =
     add_peers pwp info_hash addrs
   )
 
-let add_peers_from_dht pwp info_hash = 
+let add_peers_from_dht pwp info_hash dht = 
   don't_wait_for (
     (* TODO use a pipe to regulate the number of peers *)
-    let%bind addrs = Dht.lookup info_hash in  
+    let%bind addrs = Dht.lookup dht info_hash in  
     let num_of_peers = List.length addrs in 
     info "Start: %d DHT peers" num_of_peers;
     add_peers pwp info_hash addrs
@@ -52,8 +52,8 @@ let process_any ?uris ?tinfo info_hash : Bt_hash.t =
   Pwp.start pwp tinfo |> don't_wait_for;
 
   (* TODO re-query for peers at regular interval *)
-  Option.value_map uris ~default:() ~f:(add_peers_from_tracker pwp info_hash);
-  add_peers_from_dht pwp info_hash; 
+  Option.iter uris ~f:(add_peers_from_tracker pwp info_hash);
+  Option.iter (G.dht ()) (add_peers_from_dht pwp info_hash); 
   Torrent_table.add info_hash pwp; 
   info_hash
 

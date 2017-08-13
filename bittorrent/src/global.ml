@@ -8,7 +8,7 @@ type t = {
   mutable download_path : string option;
   mutable torrent_path : string option;
   mutable port : int option;
-  mutable dht_port : int option;
+  mutable dht : Dht.t option;
   max_pending_request : int;
   max_non_choking_peers : int;
   bitset_ext : string;
@@ -31,7 +31,7 @@ let t = {
   download_path = None;
   torrent_path = None;
   port = None;
-  dht_port = None;
+  dht = None;
   max_pending_request = 10;
   max_non_choking_peers = 4;
   bitset_ext = ".bitset";
@@ -60,8 +60,6 @@ let block_size = t.block_size
 
 let port_exn () = Option.value_exn t.port
 
-let dht_port_exn () = Option.value_exn t.dht_port
-
 let download_path () = Option.value_exn t.download_path
 
 let torrent_path () = Option.value_exn t.torrent_path
@@ -70,9 +68,11 @@ let set_port p = t.port <- Some p
 
 let is_server () = Option.is_some t.port
 
-let set_dht_port p = t.dht_port <- Some p 
+let set_dht dht = t.dht <- Some dht 
 
-let is_dht () = Option.is_some t.dht_port
+let is_dht () = Option.is_some t.dht
+
+let dht () = t.dht
 
 let set_download_path p = t.download_path <- Some p
 

@@ -23,7 +23,7 @@ val set_download_path : string -> unit
 
 val set_torrent_path : string -> unit
 
-val set_dht_port : int -> unit
+val set_dht : Dht.t -> unit
 
 val set_port : int -> unit
 
@@ -36,7 +36,7 @@ val peer_id : Peer_id.t
 
 val routing_table_name : string
 
-val dht_port_exn : unit -> int
+val dht : unit -> Dht.t option
 
 val is_dht : unit -> bool
 

@@ -41,7 +41,7 @@ type t = {
   mutable peer_interested : bool;
   mutable am_choking : bool;
   mutable am_interested : bool; 
-  mutable port : int option;
+  mutable sent_port : bool ;
   bitfield : Bitfield.t;
   wr : event Pipe.Writer.t; 
   rd : event Pipe.Reader.t;
@@ -66,7 +66,7 @@ let create id peer ~dht ~extension =
     peer_choking = true; 
     am_interested = false;
     am_choking = true;
-    port = None;
+    sent_port = false;
     bitfield = Bitfield.empty G.max_num_pieces;
     rd;
     wr;
@@ -249,10 +249,13 @@ let process_message t m : unit =
 
   | M.Port port -> 
     debug !"Peer %{}: received port %d" t port;
-    set_port t (Some port);
-    if G.is_dht () then ( (* TODO move this in Pwp instead *)
+    not t.sent_port |> validate t;
+    let f dht = 
       Addr.create (Peer_comm.addr t.peer) port |> 
-      Dht.try_add |> Deferred.ignore |> don't_wait_for )
+      Dht.try_add dht |> Deferred.ignore |> don't_wait_for 
+    in
+    Option.iter (G.dht ()) ~f 
+
 
   | M.Extended (id, b) -> 
     if Option.is_none t.nf then 

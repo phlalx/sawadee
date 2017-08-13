@@ -75,7 +75,10 @@ let create info_hash tinfo =
   (* TODO truncate bitfield *)
   info "Network_file: read %s" stats;
 
+  let count = ref 0 in
+
   let read_piece i : unit Deferred.t =
+    incr count;
     let p = pieces.(i) in
     Pers.read_piece pers p 
     >>| fun () -> 
@@ -85,6 +88,7 @@ let create info_hash tinfo =
 
   Deferred.List.iter (Bitfield.to_list downloaded num_pieces) ~f:read_piece
   >>| fun () ->
+  info "Network_file: read %d pieces from disk" !count;
 
   let finally () =
     info "Network_file: writing bitfield to file %s" bitfield_name;

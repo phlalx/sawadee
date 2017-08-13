@@ -34,7 +34,7 @@ let callback ~body (addr : Addr.t) request =
     info !"Tracker_server: %{Addr} added" peer_addr;
     state.peers <- List.dedup (peer_addr :: state.peers)
   in
-  Option.value_map port ~default:() ~f:set_port;
+  Option.iter port ~f:set_port;
   info !"Tracker_server: %{Addr} responded" addr;
   Tracker_reply.to_string reply |>
   Server.respond_string ~flush:true

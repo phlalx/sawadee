@@ -6,7 +6,8 @@ open Log.Global
 
 type t 
 
-val connect : Addr.t -> t
+(* id of querying node *)
+val connect : Node_id.t -> Addr.t -> t
 
 val ping : t -> Node_id.t Deferred.Or_error.t 
 
