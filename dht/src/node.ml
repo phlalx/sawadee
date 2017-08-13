@@ -56,6 +56,13 @@ let fresh_tid () = incr counter; !counter |> string_of_int
 let query_packet transaction_id query = 
   K.{ transaction_id; content = Query query}
 
+let timeout_or_error 
+    (x :[ `Result of ('a Or_error.t) | `Timeout ] Deferred.t) 
+  : 'a Deferred.Or_error.t = 
+  match%map x with
+  | `Timeout -> Error (Error.of_string "timeout")
+  | `Result r -> r  
+
 let rpc t 
     (query : K.query) 
     (validate_and_extract : K.response -> 'a Or_error.t) 
@@ -63,12 +70,9 @@ let rpc t
   let open Deferred.Or_error.Monad_infix in
   let tid = fresh_tid () in
   query_packet tid query |> send_packet t |> Deferred.ok
-  >>= fun () -> Deferred.Monad_infix.(
-  get_one_packet_or_error t |> Clock.with_timeout krpc_timeout 
-  >>| function
-  | `Timeout -> Error (Error.of_string "timeout")
-  | `Result r -> r  
-  ) >>= function
+  >>= fun () -> 
+  get_one_packet_or_error t |> Clock.with_timeout krpc_timeout |> timeout_or_error 
+  >>= function
   | { K.transaction_id; K.content = K.Response r } 
     when tid = transaction_id -> validate_and_extract r |> return 
   | _ -> Error (Error.of_string "RPC error") |> return
