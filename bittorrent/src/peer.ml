@@ -252,7 +252,7 @@ let process_message t m : unit =
     set_port t (Some port);
     if G.is_dht () then ( (* TODO move this in Pwp instead *)
       Addr.create (Peer_comm.addr t.peer) port |> 
-      Krpc.try_add |> Deferred.ignore |> don't_wait_for )
+      Dht.try_add |> Deferred.ignore |> don't_wait_for )
 
   | M.Extended (id, b) -> 
     if Option.is_none t.nf then 

@@ -39,7 +39,7 @@ let add_peers_from_tracker pwp info_hash uris =
 let add_peers_from_dht pwp info_hash = 
   don't_wait_for (
     (* TODO use a pipe to regulate the number of peers *)
-    let%bind addrs = Krpc.lookup info_hash in  
+    let%bind addrs = Dht.lookup info_hash in  
     let num_of_peers = List.length addrs in 
     info "Start: %d DHT peers" num_of_peers;
     add_peers pwp info_hash addrs

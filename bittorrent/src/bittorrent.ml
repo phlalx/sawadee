@@ -16,13 +16,13 @@ let init_krpc () =
       debug !"Bittorrent: error processing %s. %{Exn}" table_name err;
       [] 
   in
-  if G.is_dht () then Krpc.try_add_nis table else Deferred.unit
+  if G.is_dht () then Dht.try_add_nis table else Deferred.unit
 
 let terminate_dht () =
   let table_name = G.with_torrent_path G.routing_table_name in
   info "Bittorrent: trying to write dht table %s" table_name;
   try 
-    let data = Krpc.table () |> Node_info.list_to_string in 
+    let data = Dht.table () |> Node_info.list_to_string in 
     Out_channel.write_all table_name ~data;
     info "Bittorrent: writing %s" table_name;
   with
