@@ -26,6 +26,8 @@ val copy : src:t -> dst:t -> unit
 
 val card : t -> int
 
+val is_empty : t -> bool
+
 val to_string_hum : t -> int -> string
 
 val to_list : t -> int -> int list 

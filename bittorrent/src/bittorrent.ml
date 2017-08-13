@@ -63,7 +63,7 @@ let create ~server_port ~verbose ~torrent_path ~download_path ~dht_port =
     else 
       Deferred.unit)
 
-let add_torrent s = Start.process_string s 
+let add_torrent = Start.process_torrent 
 
 let add_magnet s = 
   assert (G.is_dht ());

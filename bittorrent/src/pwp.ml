@@ -23,7 +23,7 @@ let send_have_messages t i =
   let notify_if_doesn't_have i p =
     if not (P.has_piece p i) then (
       debug !"Pwp: notify peer %{P} about piece %d" p i;
-      P.advertise_piece p i
+      P.send_have p i
     ) in
   for_all_peers t ~f:(notify_if_doesn't_have i)
 
@@ -38,7 +38,7 @@ let request_pieces t nf () =
 
   Condition.wait t.possible_request
   >>| fun () ->
-  let n = 1 in
+  let n = 20 in
   info "Pwp: try to request up to %d pieces." n;
   let peers = Set.to_list t.peers in
   let l = List.range 0 (Nf.num_pieces nf) |> 
@@ -50,7 +50,7 @@ let request_pieces t nf () =
 
 let setup_download t nf p =
   P.set_nf p nf;
-  if (Nf.num_downloaded_pieces nf) > 0 then (
+  if Nf.has_any_piece nf then (
     info !"Pwp: sending bitfield %{Peer}"  p;
     Nf.downloaded nf |> P.send_bitfield p;
   )
@@ -104,8 +104,8 @@ let event_loop_tinfo t nf () =
       info !"Pwp: %{P} unchoked us" p;
       Condition.signal t.possible_request ()
 
-    | Bitfield b ->
-      Peer.validate_bitfield p;
+    | Bitfield ->
+      (* TODO validate bitfield here *)
       if (P.is_interesting p)  then (
         assert (not (P.am_interested p)); (* can't be interested before his bitfield *)
         P.set_am_interested p true
@@ -168,7 +168,6 @@ let start_with_tinfo t (tinfo : Torrent.info) : unit Deferred.t =
 
   info "Pwp: start pieces requesting loop"; 
   Deferred.forever () (request_pieces t nf);
-  (* Clock.every G.keep_alive (fun () -> for_all_peers t ~f:P.send_keep_alive); *)
 
   info "Pwp: start peer events loop - with tinfo"; 
   Deferred.repeat_until_finished () (event_loop_tinfo t nf)

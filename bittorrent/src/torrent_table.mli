@@ -1,3 +1,5 @@
+(* table to store torrents being downloaded *)
+
 open Core
 
 val add : Bt_hash.t -> Pwp.t -> unit

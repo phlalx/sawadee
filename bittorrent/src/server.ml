@@ -20,10 +20,10 @@ let handler addr r w =
     info "Server: incoming connection";
     let p = Peer_comm.create addr r w in
     P.wait_handshake p Torrent_table.has_hash
-    >>= fun { info_hash; dht; extension } ->
+    >>= fun { info_hash; dht; extension; peer_id } ->
     info !"Server: %{P.to_string} handshake" p;
     let pwp = Torrent_table.find_exn info_hash in
-    let peer = Peer.create p ~dht ~extension in
+    let peer = Peer.create peer_id p ~dht ~extension in
     Pwp.add_peer pwp peer |> Deferred.ok
     >>= fun () ->
     Peer.close peer |> Deferred.ok

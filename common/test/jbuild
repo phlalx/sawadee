@@ -1,14 +1,9 @@
 (jbuild_version 1)
 
 (executables
-   ((names (test_bitset test_bitfield))
+   ((names (test_bitfield))
       (libraries (common core ppx_jane oUnit)) 
       (preprocess (pps (ppx_jane)))))
-
- (alias
- ((name    runtest)
-  (deps    (test_bitset.bc))
-  (action  (run ${<}))))
 
  (alias
  ((name    runtest)

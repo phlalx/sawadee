@@ -1,9 +1,14 @@
 (** Network file.
 
   A network file contains:
-   - a sequence of [Piece.t]
-   - the state of each [Piece.t]
-   - info relative to persistence (where to save each piece). *)
+   - A large array representing the network file, also seen as a sequence of 
+     [Piece.t]
+   - the status of each [Piece.t] : downloaded or not
+   - info relative to persistence (where to save each piece).
+   - the meta-info Torrent.info 
+
+  TODO: rename this package? *)
+
 open Core
 open Async
 open Log.Global
@@ -26,7 +31,7 @@ val has_piece : t -> int -> bool
 
 val downloaded : t -> Bitfield.t
 
-val num_downloaded_pieces : t -> int
+val has_any_piece : t -> bool
 
 val write_piece : t -> int -> unit
 

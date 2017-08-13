@@ -1,30 +1,26 @@
-(** P2P layer of the protocol. 
+(** Communication with peers.
 
-    Type [t] is used to communicate with peers via high-level message 
-    send/receive function. *)
+    [t] is used to handshake with peers then communicate via [Message.t] 
+    send/receive.
 
+    We distinguish between the peers that initiate the connexion (we get them
+    via [Server]) and those we contact from their address (e.g. from tracker 
+    or DHT). This makes a difference on who initiate handshake.
+
+    Note that we handshake before adding peers to the swarm as in the case of
+    server peers, we don't know what torrents they wish to download before
+    handhake *)
 
 open Core
 open Async
 
 type t 
 
-(** We suppose that the connection is already established and we have a reader
-    and a writer to communicate with the peer. The address is only used to 
-    identify the peer in debug traces.
-
-    We distinguish between the peers that initiate the connexion (when our
-    peer is listening to incoming connexion), and those that we contact
-    from the tracker's list of peer. This makes only a difference in the 
-    handshake. *)
 val create : Addr.t -> Reader.t -> Writer.t -> t
 
 val create_with_connect : Addr.t -> t Deferred.Or_error.t
 
 val to_string : t -> string
-
-(* TODO move this to Peer and returns pid in handshake info *)
-val id : t -> Peer_id.t  
 
 type handshake_info = {
     extension : bool;
@@ -33,24 +29,8 @@ type handshake_info = {
     peer_id : Peer_id.t
 }
 
-(** Communication functions *)
-
-(** [handshake x info_hash pid] initiates the pwt protocol with peer [x].
-
-    It consists in a round-trip message of the form.
-       fixed_prefix ^ info_hash ^ pid
-
-    The connecting peer is the one initiating the connexion. Both info_hash
-    must match. Each peer sends its peer_id, that should match the one returned
-    by the tracker (if any... apparently there's none in compact form which
-    is the one we're using). 
-
-    As a side effect, we save the peer_id *)
 val initiate_handshake: t -> Bt_hash.t -> handshake_info Deferred.Or_error.t
 
-(** [wait_handshake] is use in the server when we don't know the 
-    info_hash the peer wants to download (it's announced in the handshake.
-     We validate the handshake only if we serve this info_hash *)
 val wait_handshake : t -> (Bt_hash.t -> bool) -> 
    handshake_info Deferred.Or_error.t
 
@@ -58,11 +38,12 @@ val receive : t -> Message.t Reader.Read_result.t Deferred.t
 
 val send : t -> Message.t -> unit
 
-val set_downloading : t -> unit
+val set_downloading : t -> unit  (* TODO get rid of this function *)
 
-val set_uploading : t -> unit
+val set_uploading : t -> unit (* TODO get rid of this function *)
 
 val addr : t -> Unix.Inet_addr.t
 
+(* close fd *)
 val close : t -> unit Deferred.t
 

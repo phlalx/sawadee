@@ -83,8 +83,4 @@ let is_subset n t1 t2 =
   done;
   !cond
 
-
-
-
-
-
+let is_empty t = (card t) = 0

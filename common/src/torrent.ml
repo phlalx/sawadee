@@ -75,8 +75,8 @@ let info_to_string_hum i : string =
       in (String.concat ~sep:"\n" s) ^ "\n"
   in
 
-  sprintf "%s\npiece_length: %d\ntotal_length: %d\n%s" 
-    i.name i.piece_length i.total_length fi
+  sprintf "%s\npiece_length: %dkB\ntotal_length: %dkB\nnum_pieces: %d\n%s" 
+    i.name (i.piece_length / 1000) (i.total_length / 1000) i.num_pieces fi
 
 let info_of_bencode b : info = 
   debug !"Torrent: info_of_bencode %{B.pretty_print}" b;

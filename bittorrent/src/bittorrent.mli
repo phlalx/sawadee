@@ -1,3 +1,5 @@
+(** Interface of the library. *)
+
 open Core
 open Async
 

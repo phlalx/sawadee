@@ -37,8 +37,7 @@ let has_piece t i = Bitfield.get t.downloaded i
 
 let downloaded t = t.downloaded
 
-(* TODO replace with is_empty_bitfield *)
-let num_downloaded_pieces t = Bitfield.card t.downloaded
+let has_any_piece t = not (Bitfield.is_empty t.downloaded)
 
 let downloaded_to_string downloaded num_pieces =
   let n = Bitfield.card downloaded in 

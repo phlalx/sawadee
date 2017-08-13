@@ -23,7 +23,7 @@ type t_option = t option[@@deriving bin_io]
 
 let peer_status_to_string ps = 
   let addr = Unix.Inet_addr.to_string ps.addr in
-  sprintf "%-16s %-10s: dl/ul %dB %dB, dl/ul speed %.1fB/s %.1fB/s" 
+  sprintf "%-16s %-12s dl/ul %8dkB %8dkB, dl/ul speed %4.1fkB/s %4.1fkB/s" 
     addr ps.client ps.dl ps.ul ps.dl_speed ps.ul_speed
 
 let torrent_status_to_string ts =

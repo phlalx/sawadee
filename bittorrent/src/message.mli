@@ -8,10 +8,8 @@
     length in bytes of the remaining of the message.     
 
     We use OCaml ints instead of the [Int32.t] specified by the protocol. This
-    shouldn't be a limitation. 
+    shouldn't be a limitation. *)
 
-    TODO: can we generate conversion functions automatically using a syntax
-      extension? *)
 open Bin_prot
 
 type t =
@@ -31,6 +29,8 @@ type t =
 
 val max_size : int
 
+
+(* TODO try to be coherent with how this is done in Core *)
 (** size of message *not* including 4-byte {i prefix length}. *)
 val size : t -> int
 

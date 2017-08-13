@@ -1,3 +1,8 @@
+(** Messages in extension protocol.
+
+    http://bittorrent.org/beps/bep_0010.html
+    http://bittorrent.org/beps/bep_0009.html *)
+    
 open Core
 open Async
 

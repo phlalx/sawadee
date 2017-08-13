@@ -1,33 +1,36 @@
-(**  Piece of a (network) file.
+(**  Piece of a network file.
 
-     They are created upon creation of a [File.t]. A piece is furthermore 
-     divided into blocks. A piece is the unit of "ownership". That is, peer 
-     advertise and request pieces. A Block is the unit of transmission in the 
-     peer protocol. Blocks are exposed to client modules through the [iter] 
-     and [update] functions. Block size is defined globally in [Global]. *)
+     A Piece is bigsubstring of the network file (see [Network_file.t]).  
+
+     In bittorent, a piece is the unit of "ownership". Peers advertise and 
+     request pieces. However, they are furthmore divided into blocks 
+     (or sub-pieces)which are the unit of transmission. Block size is 
+     client-specific (normally 16kB) and is defined [Global]. 
+
+     Pieces also have a hash given in the meta-info and used to validate after
+     downloading. *)
 
 open Core
 open Async
 
 type t
 
-(** [create i h ~len pfs] creates a piece at index [i] in the file with hash [h]
-    and length [len]. *)
-val create :  pos:int -> index:int ->  len:int -> Bt_hash.t -> Bigstring.t -> t
+(** [create ~pos ~index ~len h s]. [pos] is the offset of the piece in the
+    network file. All pieces should have the same length exception maybe the 
+    last one. *)
+val create :  pos:int -> index:int -> len:int -> Bt_hash.t -> Bigstring.t -> t
 
 val get_index : t -> int
 
-(* a received block should match an off/len that this client has requested *)
-val is_valid_block : t -> off:int -> len:int -> bool
-
-(* blocks requested by peers must fit in a piece, and have a size smaller or
+(* blocks requested by peers must fit in a piece, and have a size less or
    equal than G.max_block_size *)
 val is_valid_block_request : t -> off:int -> len:int -> bool
 
-(* Copy content to a string, to be used to create a [Piece] message. *)
+(* Copy part of the content to a string, to be used to create a piece
+   message. TODO replace with a blit to the output buffer *)
 val get_content : t -> off:int -> len:int  -> string 
 
-(* use for R/W. Doesn't allocate a new bigstring *)
+(* used for R/W. Doesn't allocate a new bigstring *)
 val get_bigstring_content : t -> Bigsubstring.t
 
 type block = { b_index : int; off: int; len: int }
@@ -37,16 +40,10 @@ val blocks : t -> block list
 (** Updates a piece with downloaded block.
 
     This updates the content of the piece and check for consistency. Called 
-    by [Pwp] upon reception of a block.
-
-    Possible returned values:
-    - [`Downloaded] all blocks have been received and the hash of the pieces 
-      match the expected hash from the metainfo file. 
-    - [`Ok] the block was received but wasn't the last block. 
-    - [`Hash_error] all blocks have been received but hashes don't match. *)
+    by [Pwp] upon reception of a block *)
 val update : t -> off:int -> string -> [ `Downloaded | `Ok | `Hash_error ] 
 
 val is_hash_ok : t -> bool
 
-(** for logging purpose *)
+(** for logging *)
 val to_string : t -> string

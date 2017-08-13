@@ -10,7 +10,6 @@ module G = Global
 
 type t = {
   peer_addr : Addr.t;
-  mutable id : Peer_id.t;
   reader : Reader.t;
   writer : Writer.t;
   receive_buffer : Bigstring.t;
@@ -28,15 +27,12 @@ type handshake_info = {
 
 let buffer_size = Message.max_size
 
-let id t = t.id 
-
 let create peer_addr r w =
   (* this needs to be done so as we don't get errors when remote peers
      closes his connection *)
   Writer.set_raise_when_consumer_leaves w false;
   {
     peer_addr; 
-    id = Peer_id.dummy;
     reader = r; 
     writer = w; 
     (* this should be big enough to contain [Piece.block_size]
@@ -73,6 +69,19 @@ let hs_len = (String.length hs_prefix) + Bt_hash.length + Bt_hash.length (* 68 *
    hash must match.
 *)
 
+(** Communication functions *)
+
+(** [handshake x info_hash pid] initiates the pwt protocol with peer [x].
+
+    It consists in a round-trip message of the form.
+       fixed_prefix ^ info_hash ^ pid
+
+    The connecting peer is the one initiating the connexion. Both info_hash
+    must match. Each peer sends its peer_id, that should match the one returned
+    by the tracker (if any... apparently there's none in compact form which
+    is the one we're using).  *)
+
+
 let hs hash pid = sprintf !"%s%{Bt_hash}%{Peer_id}" hs_prefix hash pid
 
 let extract (s : string) : Bt_hash.t * Peer_id.t * bool * bool = 
@@ -102,7 +111,6 @@ and receive_handshake t (has_hash : Bt_hash.t -> bool) ~initiate : handshake_inf
   | `Ok  ->  
     begin
       let hash, pid, extension, dht = extract buf in
-      t.id <- pid;
       let hi = { info_hash = hash; dht; extension; peer_id = pid } in
       match initiate, has_hash hash with 
       | `Initiator, true ->

@@ -1,18 +1,29 @@
-(** Peer wire protocol. 
+(** Peer wire protocol / Bittorrent swarm.
 
- This module implements the peer wire protocol. A [t] is created for each
- torrent to be downloaded.
+  This module implements the peer wire protocol. It forms with [Peer] the 
+  core of the bittorrent protocol.
 
- It contains a set of [Peer.t] and all the state pertaining to the protocol
- and to the network file.
+  A [t] is created for each torrent to be downloaded. It acts as a conductor for
+  a set of [Peer.t] thare is dynamically updated. It also contains all the state
+  of the protocol (spread in [t] and in the [Peers.t]).
 
- In order to download a network file, one needs:
-   - a [Bt_hash.t], the hash of the info section
-   - a [Torrent.info], the content of the info section
+  [t] delegates most of the work to the [Peer.t] and communicate with them
+  via messages. However, [t] shares a [Network_file.t] with the [Peer.t]. This
+  allows the [Peer.t] to answers requests from the remote peers without 
+  interacting with [t].
 
- When we start with a torrent file, we have both info. But with a magnet, we
- have only the hash. In that case, we find peers from the DHT and needs 
- to query them to get the info. *)
+  One difficulty introduced with magnets is that we may not know the  meta-
+  information [Torrent.info] at creation time, and we need to interact with
+  remote peers to retrieve it.
+
+  Hence, there are two states in [t]. 
+  - without meta-info, [t] tries to get meta-info
+  - with meta-info, [t] tries do download pieces.
+
+  When dealing with a torrent, we immediately starts in the second state.
+
+  The process of finding peers is done outside this module e.g. in 
+  [Start] or [Server]. *)
 
 open Core
 open Async
@@ -23,8 +34,8 @@ val create: Bt_hash.t -> t
 
 val start: t -> Torrent.info option -> unit Deferred.t
 
-(* Peers can come from three sources:
-  - querying the tracker
+(* Currently, peers can come from three sources:
+  - the tracker
   - DHT
   - incoming peers from the server
 
