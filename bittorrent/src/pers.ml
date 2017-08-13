@@ -87,13 +87,13 @@ let read_from_pipe t =
 
 
 let open_file name ~len : Unix.Fd.t Deferred.Or_error.t = 
-  let open Deferred.Or_error.Monad_infix in
+  let open Deferred.Or_error.Let_syntax in
   let pname = G.with_download_path name in
   info "Pers: open file %s with length %d" pname len;
 
   (* TODO tentative to catch possible exceptions raised by Unix functions. *)
-  Monitor.try_with_or_error (fun () -> Unix.openfile pname ~mode:[`Creat;`Rdwr]) 
-  >>= fun fd ->
+  let%bind fd = Monitor.try_with_or_error 
+      (fun () -> Unix.openfile pname ~mode:[`Creat;`Rdwr]) in
   let llen = Int64.of_int len in
   Monitor.try_with_or_error (fun () -> Unix.ftruncate fd llen)
   >>| fun () -> fd
@@ -126,7 +126,7 @@ let init_write_pipe t ~finally = read_from_pipe t >>= finally
 let write_piece t p = 
   (* debug "piece %d is pushed to the I/O pipe" (Piece.get_index p); *)
   if not (Pipe.is_closed t.wr) then
-  Pipe.write_without_pushback t.wr p 
+    Pipe.write_without_pushback t.wr p 
 
 let close_all_files t = 
   info "Pers: closing all files";

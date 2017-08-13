@@ -16,11 +16,12 @@ let handler addr r w =
   in
 
   let handler_or_error () : unit Deferred.Or_error.t = 
-    let open Deferred.Or_error.Monad_infix in 
+    let open Deferred.Or_error.Let_syntax in 
     info "Server: incoming connection";
     let p = Peer_comm.create addr r w in
-    P.wait_handshake p Torrent_table.has_hash
-    >>= fun { info_hash; dht; extension; peer_id } ->
+    let%bind { info_hash; dht; extension; peer_id }  =
+      P.wait_handshake p Torrent_table.has_hash
+    in
     info !"Server: %{P.to_string} handshake" p;
     let pwp = Torrent_table.find_exn info_hash in
     let peer = Peer.create peer_id p ~dht ~extension in

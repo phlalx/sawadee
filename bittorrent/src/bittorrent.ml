@@ -42,6 +42,8 @@ let set_dht = function
         [] 
     in
     try_add_nis dht table
+    >>| fun () -> 
+    info "Bittorrent: added %d nodes to DHT" (List.length (Dht.table dht))
 
 let create ~server_port ~verbose ~torrent_path ~download_path ~dht_port = 
   set_level `Error;

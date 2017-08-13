@@ -14,14 +14,11 @@ let ignore_error addr : unit Or_error.t -> unit =
 let add_peers pwp info_hash addrs : unit Deferred.t =
 
   let add_peer addr = 
-    let open Deferred.Or_error.Monad_infix in 
-    P.create_with_connect addr
-    >>= fun p ->
-    P.initiate_handshake p info_hash 
-    >>= fun { extension; dht; peer_id } -> 
+    let open Deferred.Or_error.Let_syntax in
+    let%bind p = P.create_with_connect addr in
+    let%bind { extension; dht; peer_id } = P.initiate_handshake p info_hash in
     let peer = Peer.create peer_id p ~extension ~dht in 
-    Pwp.add_peer pwp peer |> Deferred.ok
-    >>= fun () -> 
+    let%bind () = Pwp.add_peer pwp peer |> Deferred.ok in
     Peer.close peer |> Deferred.ok
   in
 

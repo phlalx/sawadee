@@ -187,11 +187,12 @@ let set_uploading t =
 let addr t = Addr.addr t.peer_addr
 
 let create_with_connect addr = 
-  let open Deferred.Or_error.Monad_infix in 
+  let open Deferred.Or_error.Let_syntax in 
   let wtc = Tcp.to_inet_address addr in
   debug !"Peer_comm %{Addr}: try connecting" addr;
-  Deferred.Or_error.try_with (function () -> Tcp.connect wtc)
-  >>| fun (_, r, w) ->
+  let%map (_, r, w) = 
+    Deferred.Or_error.try_with (function () -> Tcp.connect wtc)
+  in
   create addr r w 
 
 let close t = 
