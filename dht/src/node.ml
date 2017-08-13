@@ -1,5 +1,4 @@
 open Core
-
 open Async
 open Bin_prot
 open Log.Global
@@ -16,21 +15,20 @@ type t = {
 }
 
 let connect id addr = {
-    addr;
-    buffer = Common.create_buf K.buffer_size;
-    socket = Socket.create Socket.Type.udp |> Socket.fd;
-    id;
-  }
+  addr;
+  buffer = Common.create_buf K.buffer_size;
+  socket = Socket.create Socket.Type.udp |> Socket.fd;
+  id;
+}
 
-(* why this returns a deferred when Writer.write does not *)
-let send_packet t m = 
+let send_packet t m : unit Deferred.t = 
   let pos = 0 in 
   let len = K.bin_write_t t.buffer ~pos m in 
   let buf = t.buffer |> Iobuf.of_bigstring ~pos ~len in
   let send = Udp.sendto () |> Or_error.ok_exn in
   send t.socket buf t.addr
 
-let get_one_packet t = 
+let get_one_packet_or_error t : Krpc_packet.t Deferred.Or_error.t = 
   let bs = Bigstring.create Krpc_packet.buffer_size in
   let ivar = Ivar.create () in
   let stop = Ivar.read ivar |> Deferred.ignore in
@@ -42,10 +40,11 @@ let get_one_packet t =
     let s = Iobuf.to_string buf in
     let bs0 = Bigstring.of_string s in 
     Bigstring.blit ~src:bs0 ~dst:bs ~src_pos:0 ~dst_pos:0 ~len;
-    let m = Krpc_packet.bin_read_t len bs ~pos_ref:(ref 0) in
+    let m = (fun () -> Krpc_packet.bin_read_t len bs ~pos_ref:(ref 0))
+            |> Or_error.try_with
+    in
     Ivar.fill ivar m 
   in
-
   Udp.recvfrom_loop ~config t.socket callback 
   >>= fun () ->
   Ivar.read ivar
@@ -57,17 +56,22 @@ let fresh_tid () = incr counter; !counter |> string_of_int
 let query_packet transaction_id query = 
   K.{ transaction_id; content = Query query}
 
-(* generate template for rpcs *)
-let rpc t query validate_and_extract =
+let rpc t 
+    (query : K.query) 
+    (validate_and_extract : K.response -> 'a Or_error.t) 
+  : 'a Deferred.Or_error.t =
+  let open Deferred.Or_error.Monad_infix in
   let tid = fresh_tid () in
-  query_packet tid query |> send_packet t  
-  >>= fun () ->
-  get_one_packet t |> Clock.with_timeout krpc_timeout
+  query_packet tid query |> send_packet t |> Deferred.ok
+  >>= fun () -> Deferred.Monad_infix.(
+  get_one_packet_or_error t |> Clock.with_timeout krpc_timeout 
   >>| function
   | `Timeout -> Error (Error.of_string "timeout")
-  | `Result { K.transaction_id; K.content = K.Response r } 
-    when tid = transaction_id -> validate_and_extract r
-  | _ -> Error (Error.of_string "RPC error") (* could be more specific here *)
+  | `Result r -> r  
+  ) >>= function
+  | { K.transaction_id; K.content = K.Response r } 
+    when tid = transaction_id -> validate_and_extract r |> return 
+  | _ -> Error (Error.of_string "RPC error") |> return
 
 let rpc_error = Error (Error.of_string "RPC error: Wrong response")
 

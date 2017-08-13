@@ -38,7 +38,6 @@ type content =
 type t = {
   transaction_id : string;
   content : content; 
-  (* version : string (* optional, we don't use it *) *)
 }
 
 let error_code_to_string = function
@@ -200,13 +199,13 @@ let t_of_bencode b =
   with
   | _ -> failwith (Bencode_ext.pretty_print b)
 
-    (******************)
+(******************)
 
-    let bin_read_t len buf ~pos_ref = 
-      let s = String.create len in
-      Common.blit_buf_string buf s ~len;
-      let b = B.decode (`String s) in
-      t_of_bencode b
+let bin_read_t len buf ~pos_ref = 
+  let s = String.create len in
+  Common.blit_buf_string buf s ~len;
+  let b = B.decode (`String s) in
+  t_of_bencode b
 
 let bin_write_t (buf:Common.buf) ~(pos:Common.pos) (x:t) = 
   let b = bencode_of_t x in

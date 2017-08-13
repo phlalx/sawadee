@@ -12,8 +12,8 @@ type t = {
   mutable nf : Nf.t option;
   mutable peers : P.t Set.Poly.t;
   mutable requested : int Set.Poly.t;
-  wr : (Peer.event * Peer.t) Pipe.Writer.t; 
-  rd : (Peer.event * Peer.t) Pipe.Reader.t;
+  event_wr : (Peer.event * Peer.t) Pipe.Writer.t; 
+  event_rd : (Peer.event * Peer.t) Pipe.Reader.t;
   possible_request : unit Condition.t
 }
 
@@ -70,7 +70,7 @@ let event_loop_no_tinfo t () =
     | _ -> failwith (Peer.event_to_string e)
   in 
 
-  match%map Pipe.read t.rd with
+  match%map Pipe.read t.event_rd with
   | `Eof -> `Finished None
   | `Ok (e, p) -> process_event e p
 
@@ -125,7 +125,7 @@ let event_loop_tinfo t nf () =
     | Tinfo _  -> assert false
 
   in
-  match%map Pipe.read t.rd with
+  match%map Pipe.read t.event_rd with
   | `Eof -> 
     `Finished ()
   | `Ok (e, p) -> 
@@ -137,7 +137,7 @@ let add_peer t p =
   info !"Pwp: %{Peer} added (%d in) has_nf %b" p (Set.length t.peers) (Option.is_some t.nf);
   Option.iter t.nf (fun nf -> setup_download t nf p);
   P.start p |> don't_wait_for;
-  Pipe.transfer (Peer.event_reader p) t.wr ~f:(fun e -> (e, p)) 
+  Pipe.transfer (Peer.event_reader p) t.event_wr ~f:(fun e -> (e, p)) 
   >>| fun () -> 
   t.peers <- Set.remove t.peers p;
   info !"Pwp: %{P} has left (%d left)" p (Set.length t.peers)
@@ -179,27 +179,27 @@ let start t tinfo_opt =
     | Some tinfo -> Some tinfo |> return 
   in
   Deferred.Option.Monad_infix.(tinfo >>| start_with_tinfo t)
-  |> Deferred.ignore
+  |> Deferred.ignore |> don't_wait_for
 
 let close t = 
   info !"Pwp: closing %{Bt_hash.to_hex}" t.info_hash;
   Set.to_list t.peers |> Deferred.List.iter ~f:Peer.close
   >>= fun () ->
-  Pipe.close t.wr; 
+  Pipe.close t.event_wr; 
   match t.nf with 
   | None -> Deferred.unit  
   | Some nf -> Nf.close nf  
 
 let create info_hash = 
   info !"Pwp: create %{Bt_hash.to_hex}" info_hash;
-  let rd, wr = Pipe.create () in 
+  let event_rd, event_wr = Pipe.create () in 
   let possible_request = Condition.create () in { 
     info_hash;
     peers = Set.Poly.empty; (* TODO use a set based on peer-id *)
     nf = None;
     requested = Set.Poly.empty;
-    rd;
-    wr;
+    event_rd;
+    event_wr;
     possible_request;
   }
 

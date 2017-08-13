@@ -8,7 +8,7 @@ let terminate _ =
   don't_wait_for (
     Bittorrent.terminate () 
     >>= fun () ->
-    exit 0   (* TODO try to terminate without exit 0 *)
+    exit 0 
   )
 
 let process 

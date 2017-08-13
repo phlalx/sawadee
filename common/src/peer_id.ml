@@ -21,6 +21,7 @@ let client s =
   | "-UM" -> "utorrent mac"
   | "-SD" -> "thunder"
   | "-qB" -> "qBittorrent"
+  | "-MG" -> "qBittorrent"
   | "TIX" -> "tixati"
   | _ -> "unknown" ^ p
 

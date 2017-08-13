@@ -46,7 +46,7 @@ let process_any ?uris ?tinfo info_hash : Bt_hash.t =
 
   let pwp = Pwp.create info_hash in 
 
-  Pwp.start pwp tinfo |> don't_wait_for;
+  Pwp.start pwp tinfo;
 
   (* TODO re-query for peers at regular interval *)
   Option.iter uris ~f:(add_peers_from_tracker pwp info_hash);

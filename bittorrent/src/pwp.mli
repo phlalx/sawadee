@@ -32,7 +32,7 @@ type t
 
 val create: Bt_hash.t -> t
 
-val start: t -> Torrent.info option -> unit Deferred.t
+val start: t -> Torrent.info option -> unit
 
 (* Currently, peers can come from three sources:
   - the tracker
