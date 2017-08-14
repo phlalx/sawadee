@@ -2,7 +2,6 @@ open Core
 open Async
 open Log.Global
 
-module Em = Error_msg
 module G = Global
 
 type t = {

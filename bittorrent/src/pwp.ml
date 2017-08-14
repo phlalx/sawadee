@@ -17,6 +17,8 @@ type t = {
   possible_request : unit Condition.t;
   mutable tinfo : Torrent.info option; (* TODO redondency with NF *)
   uris : Uri.t list option;
+  peer_rd : (Peer_comm.t * Peer_comm.handshake_info) Pipe.Reader.t;
+  peer_producer : Peer_producer.t;
 }
 
 let for_all_peers t ~f = Set.iter t.peers ~f
@@ -134,7 +136,6 @@ let event_loop_tinfo t nf () =
     process_event t nf e p;
     `Repeat ()
 
-
 let status t = 
   let f nf = {
     Status.tinfo = Nf.tinfo nf;
@@ -165,52 +166,27 @@ let start_with_tinfo t (tinfo : Torrent.info) : unit Deferred.t =
   info "Pwp: start peer events loop - with tinfo"; 
   Deferred.repeat_until_finished () (event_loop_tinfo t nf)
 
-
-
-let ignore_error addr : unit Or_error.t -> unit =
-  function 
-  | Ok () -> () 
-  | Error err -> debug !"Pwp: can't connect to %{Addr}" addr
-
-
 let add_peer_comm t (pc : Peer_comm.t) (hi : Peer_comm.handshake_info) :
-unit Deferred.Or_error.t
-=
+  unit Deferred.Or_error.t
+  =
   (let p = Peer.create hi.peer_id pc ~extension:hi.extension ~dht:hi.dht in 
-  t.peers <- Set.add t.peers p;
-  info !"Pwp: %{Peer} added (%d in) has_nf %b" p (Set.length t.peers) (Option.is_some t.nf);
-  Option.iter t.nf (fun nf -> setup_download t nf p);
-  P.start p |> don't_wait_for;
-  Pipe.transfer (Peer.event_reader p) t.event_wr ~f:(fun e -> (e, p)) 
-  >>| fun () -> 
-  t.peers <- Set.remove t.peers p;
-  info !"Pwp: %{P} has left (%d left)" p (Set.length t.peers))
+   t.peers <- Set.add t.peers p;
+   info !"Pwp: %{Peer} added (%d in) has_nf %b" p (Set.length t.peers) (Option.is_some t.nf);
+   Option.iter t.nf (fun nf -> setup_download t nf p);
+   P.start p |> don't_wait_for;
+   Pipe.transfer (Peer.event_reader p) t.event_wr ~f:(fun e -> (e, p)) 
+   >>| fun () -> 
+   t.peers <- Set.remove t.peers p;
+   info !"Pwp: %{P} has left (%d left)" p (Set.length t.peers))
   |> Deferred.ok
 
-let add_peer_addr t addr : unit Deferred.Or_error.t =
-  let open Deferred.Or_error.Let_syntax in
-  let%bind p = Peer_comm.create_with_connect addr in
-  let%bind hi = Peer_comm.initiate_handshake p t.info_hash in
-  add_peer_comm t p hi
-
-let add_peers_from_tracker t info_hash uris = 
-  don't_wait_for (
-    let%bind addrs = Tracker_client.query info_hash uris in
-    let num_of_peers = List.length addrs in 
-    info "Pwp: %d tracker peers" num_of_peers;
-    let f addr = add_peer_addr t addr >>| ignore_error addr in
-    Deferred.List.iter ~how:`Parallel addrs ~f
-  )
-
-let add_peers_from_dht t info_hash dht = 
-  don't_wait_for (
-    (* TODO use a pipe to regulate the number of peers *)
-    let%bind addrs = Dht.lookup dht info_hash in  
-    let num_of_peers = List.length addrs in 
-    info "Pwp: %d DHT peers" num_of_peers;
-    let f addr = add_peer_addr t addr >>| ignore_error addr in
-    Deferred.List.iter ~how:`Parallel addrs ~f
-  )
+let rec process_peers t () = 
+  match%bind Pipe.read t.peer_rd with
+  | `Eof -> `Finished () |> return
+  | `Ok (p, hi) -> 
+    add_peer_comm t p hi 
+    >>| fun _ ->
+    `Repeat ()
 
 let stop t = assert false
 
@@ -223,9 +199,9 @@ let start t =
   Deferred.Option.Monad_infix.(tinfo >>| start_with_tinfo t)
   |> Deferred.ignore |> don't_wait_for;
 
-  Option.iter t.uris ~f:(add_peers_from_tracker t t.info_hash);
-  Option.iter (G.dht ()) (add_peers_from_dht t t.info_hash)
-
+  Peer_producer.start t.peer_producer; 
+  Deferred.repeat_until_finished () (process_peers t)
+  |> don't_wait_for
 
 let close t = 
   info !"Pwp: closing %{Bt_hash.to_hex}" t.info_hash;
@@ -239,6 +215,9 @@ let close t =
 let create uris tinfo info_hash = 
   info !"Pwp: create %{Bt_hash.to_hex}" info_hash;
   let event_rd, event_wr = Pipe.create () in 
+  let peer_rd, peer_wr = Pipe.create () in
+  let peer_producer = Peer_producer.create peer_wr info_hash uris in
+
   let possible_request = Condition.create () in { 
     info_hash;
     peers = Set.Poly.empty; (* TODO use a set based on peer-id *)
@@ -248,6 +227,8 @@ let create uris tinfo info_hash =
     event_wr;
     possible_request;
     uris;
+    peer_producer;
+    peer_rd;
     tinfo;
   }
 
