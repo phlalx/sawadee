@@ -98,7 +98,7 @@ let create info_hash tinfo =
        let data = downloaded |> Bitfield.to_string in
        Out_channel.write_all bitfield_name ~data
      with 
-       _  ->  info "%s" (Em.can't_open bitfield_name));
+       _  ->  info "can't open %s" bitfield_name);
 
     Pers.close_all_files pers 
   in 

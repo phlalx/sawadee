@@ -9,7 +9,7 @@
     - by notifying it with events on a pipe.
 
     All [Peer.t] in a swarm and their controling [Pwp.t] eventually share a
-    [Network_file.t] with [Pwp.t]. This let them answer block queries from
+    [Network_file.t]. This let them answer block queries from
     remote peers with no interaction with [Pwp.t]. *)
 
 open Core

@@ -3,18 +3,18 @@ open Async
 open Log.Global
 
 module G = Global
-module Em = Error_msg
 
 let set_verbose i =
   match i with
+  | 0 -> ()
   | 1 -> set_level `Info; 
   | 2 -> set_level `Debug;
-  | _ -> Em.terminate (Em.verbose_error ()) 
+  | _ -> failwith "verbose level should be 1 or 2"
 
 let check_path p = 
   match%bind Sys.is_directory p with 
   | `Yes -> return ()
-  | `No | `Unknown -> Em.terminate (Em.can't_open p)
+  | `No | `Unknown -> failwith ("can't open " ^ p)
 
 let set_server = function
   | None -> Deferred.unit
@@ -78,7 +78,7 @@ let terminate_dht dht =
     Out_channel.write_all table_name ~data;
     info "Bittorrent: writing %s" table_name;
   with
-    _ -> info "%s" (Em.can't_open table_name)
+    _ -> info "Bittorrent: can't open %s" table_name
 
 let terminate () =
   Torrent_table.data () |> Deferred.List.iter ~f:Pwp.close
