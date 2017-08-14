@@ -19,15 +19,10 @@ let handler addr r w =
     let open Deferred.Or_error.Let_syntax in 
     info "Server: incoming connection";
     let p = Peer_comm.create addr r w in
-    let%bind { info_hash; dht; extension; peer_id }  =
-      P.wait_handshake p Torrent_table.has_hash
-    in
+    let%bind hi = P.wait_handshake p Torrent_table.has_hash in
     info !"Server: %{P.to_string} handshake" p;
-    let pwp = Torrent_table.find_exn info_hash in
-    let peer = Peer.create peer_id p ~dht ~extension in
-    Pwp.add_peer pwp peer |> Deferred.ok
-    >>= fun () ->
-    Peer.close peer |> Deferred.ok
+    let pwp = Torrent_table.find_exn hi.info_hash in
+    Pwp.add_peer_comm pwp p hi
 
   in  handler_or_error () >>| ignore_error addr
 

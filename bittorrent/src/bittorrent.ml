@@ -4,6 +4,43 @@ open Log.Global
 
 module G = Global
 
+let add_any info_hash 
+    (tinfo : Torrent.info option)
+    (uris : Uri.t list option) 
+  : Bt_hash.t =
+  let pwp = Pwp.create uris tinfo info_hash in  
+  Torrent_table.add info_hash pwp; 
+  Pwp.start pwp;
+  info_hash
+
+let add_magnet h = 
+  if not (G.is_dht ()) then
+    failwith "DHT should be enabled for magnets";
+  let hash = Bt_hash.of_hex h in
+  let n = h |> G.torrent_name |> G.with_torrent_path in
+  let tinfo = Option.try_with
+      (fun () -> In_channel.read_all n |> Torrent.info_of_string)  in
+
+  add_any hash tinfo None
+
+let add_torrent s = 
+  let t = try 
+      Torrent.of_string s
+    with
+    | Failure _ -> failwith ("unable to decode" ^ s)
+    | ex -> raise ex
+  in 
+
+  let open Torrent in
+  let { info_hash; announce; announce_list; tinfo } = t in
+
+  let uris = 
+    match announce_list with
+    | [] -> [ announce ]
+    | al -> List.dedup (List.concat al) |> List.permute 
+  in
+  add_any info_hash (Some tinfo) (Some uris)
+
 let set_verbose i =
   match i with
   | 0 -> ()
@@ -60,12 +97,6 @@ let create ~server_port ~verbose ~torrent_path ~download_path ~dht_port =
   set_server server_port
   >>= fun () ->  
   set_dht dht_port
-
-let add_torrent = Start.process_torrent 
-
-let add_magnet s = 
-  assert (G.is_dht ());
-  Bt_hash.of_hex s |> Start.process_magnet 
 
 let torrent_list () = 
   Torrent_table.keys ()

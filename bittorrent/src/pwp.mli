@@ -30,21 +30,13 @@ open Async
 
 type t
 
-val create: Bt_hash.t -> t
+val create: (Uri.t list option) -> Torrent.info option -> Bt_hash.t -> t 
 
-val start: t -> Torrent.info option -> unit
+val start: t -> unit
 
-(* Currently, peers can come from three sources:
-  - the tracker
-  - DHT
-  - incoming peers from the server
+val stop : t -> unit
 
-  Handshake has been established when peers are added, but no other message
-  has been sent.
-
-  This function returns when [Peer.t] is not needed anymore. Resource freeing
-  is then done by the caller. *)
-val add_peer: t -> Peer.t -> unit Deferred.t 
+val add_peer_comm: t -> Peer_comm.t -> Peer_comm.handshake_info -> unit Deferred.Or_error.t
 
 (* close the network file if there is one *)
 val close: t -> unit Deferred.t
