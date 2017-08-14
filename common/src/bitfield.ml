@@ -69,7 +69,7 @@ let to_compl_list t n =
   assert (n >= 1);
   to_list_aux t n [] false
 
-let to_string_hum t n =  to_list t n |> List.to_string ~f:string_of_int 
+let to_string_hum t n = to_list t n |> List.to_string ~f:string_of_int 
 
 let is_subset n t1 t2 = 
   let n = length_from_size n in

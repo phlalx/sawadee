@@ -189,7 +189,7 @@ let addr t = Addr.addr t.peer_addr
 let create_with_connect addr = 
   let open Deferred.Or_error.Let_syntax in 
   let wtc = Tcp.to_inet_address addr in
-  debug !"Peer_comm %{Addr}: try connecting" addr;
+  (* debug !"Peer_comm %{Addr}: try connecting" addr; *)
   let%map (_, r, w) = 
     Deferred.Or_error.try_with (function () -> Tcp.connect wtc)
   in

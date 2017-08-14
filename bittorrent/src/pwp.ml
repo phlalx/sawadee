@@ -11,10 +11,8 @@ type t = {
   info_hash : Bt_hash.t;
   mutable nf : Nf.t option;
   mutable peers : P.t Set.Poly.t;
-  mutable requested : int Set.Poly.t;
   event_wr : (Peer.event * Peer.t) Pipe.Writer.t; 
   event_rd : (Peer.event * Peer.t) Pipe.Reader.t;
-  possible_request : unit Condition.t;
   mutable tinfo : Torrent.info option; (* TODO redondency with NF *)
   uris : Uri.t list option;
   peer_rd : (Peer_comm.t * Peer_comm.handshake_info) Pipe.Reader.t;
@@ -30,27 +28,6 @@ let send_have_messages t i =
       P.send_have p i
     ) in
   for_all_peers t ~f:(notify_if_doesn't_have i)
-
-let request t nf (i, p): unit = 
-  info !"Pwp: %{P} requesting piece %d" p i;
-  assert (not (Set.mem t.requested i));
-  t.requested <- Set.add t.requested i;
-  P.request_piece p i 
-
-(* Request as many pieces as we can. *)
-let request_pieces t nf () =
-
-  Condition.wait t.possible_request
-  >>| fun () ->
-  let n = 20 in
-  info "Pwp: try to request up to %d pieces." n;
-  let peers = Set.to_list t.peers in
-  let l = List.range 0 (Nf.num_pieces nf) |> 
-          List.filter ~f:(fun i -> not (Nf.has_piece nf i)) |>
-          List.filter ~f:(fun i -> not (Set.mem t.requested i))
-  in
-  let r = Strategy.next_requests l peers n in
-  List.iter ~f:(request t nf) r
 
 let setup_download t nf p =
   P.set_nf p nf;
@@ -86,17 +63,9 @@ let event_loop_tinfo t nf () =
     match e with 
     | Piece i -> 
       info !"Pwp: %{P} downloaded piece %d" p i;
-      Nf.set_downloaded nf i;
-      Nf.write_piece nf i;
-      send_have_messages t i;
-      t.requested <- Set.remove t.requested i;
-
-    | Fail i ->
-      t.requested <- Set.remove t.requested i;
+      send_have_messages t i
 
     | Choke  -> ()
-
-    | More  -> Condition.signal t.possible_request ()
 
     | Not_interested -> ()
 
@@ -105,8 +74,7 @@ let event_loop_tinfo t nf () =
       P.set_am_choking p false
 
     | Unchoke ->
-      info !"Pwp: %{P} unchoked us" p;
-      Condition.signal t.possible_request ()
+      info !"Pwp: %{P} unchoked us" p
 
     | Bitfield ->
       (* TODO validate bitfield here *)
@@ -116,12 +84,9 @@ let event_loop_tinfo t nf () =
       )
 
     | Have i ->
-      if not (Nf.has_piece nf i) then (
+      if not (Nf.is_downloaded nf i) then (
         if not (P.am_interested p) then (
           P.set_am_interested p true;
-        );
-        if not (P.peer_choking p) then (
-          Condition.signal t.possible_request ()
         )
       )
 
@@ -159,9 +124,9 @@ let start_with_tinfo t (tinfo : Torrent.info) : unit Deferred.t =
 
   t.nf <- Some nf;
   setup_download t nf |> for_all_peers t;
-
+(* 
   info "Pwp: start pieces requesting loop"; 
-  Deferred.forever () (request_pieces t nf);
+  Deferred.forever () (request_pieces t nf); *)
 
   info "Pwp: start peer events loop - with tinfo"; 
   Deferred.repeat_until_finished () (event_loop_tinfo t nf)
@@ -174,6 +139,7 @@ let add_peer_comm t (pc : Peer_comm.t) (hi : Peer_comm.handshake_info) :
    info !"Pwp: %{Peer} added (%d in) has_nf %b" p (Set.length t.peers) (Option.is_some t.nf);
    Option.iter t.nf (fun nf -> setup_download t nf p);
    P.start p |> don't_wait_for;
+   (* finishes when pipe is closed *)
    Pipe.transfer (Peer.event_reader p) t.event_wr ~f:(fun e -> (e, p)) 
    >>| fun () -> 
    t.peers <- Set.remove t.peers p;
@@ -184,9 +150,22 @@ let rec process_peers t () =
   match%bind Pipe.read t.peer_rd with
   | `Eof -> `Finished () |> return
   | `Ok (p, hi) -> 
+    info !"Pwp: %{Peer_comm} read from pipe" p; 
+    add_peer_comm t p hi |> Deferred.ignore |> don't_wait_for; 
+    Clock.after (sec 5.) 
+    >>| fun () ->
+    `Repeat () 
+
+(* 
+let rec process_peers t () = 
+  match%bind Pipe.read t.peer_rd with
+  | `Eof -> `Finished () |> return
+  | `Ok (p, hi) -> 
+    info !"Pwp: %{Peer_comm} read from pipe" p; 
     add_peer_comm t p hi 
-    >>| fun _ ->
-    `Repeat ()
+    >>| fun _ -> 
+    info !"Pwp: %{Peer_comm} terminate, can add new peer" p; 
+    `Repeat ()  *)
 
 let stop t = assert false
 
@@ -217,15 +196,12 @@ let create uris tinfo info_hash =
   let event_rd, event_wr = Pipe.create () in 
   let peer_rd, peer_wr = Pipe.create () in
   let peer_producer = Peer_producer.create peer_wr info_hash uris in
-
-  let possible_request = Condition.create () in { 
+  { 
     info_hash;
     peers = Set.Poly.empty; (* TODO use a set based on peer-id *)
     nf = None;
-    requested = Set.Poly.empty;
     event_rd;
     event_wr;
-    possible_request;
     uris;
     peer_producer;
     peer_rd;

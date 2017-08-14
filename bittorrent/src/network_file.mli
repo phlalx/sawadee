@@ -13,7 +13,14 @@ open Core
 open Async
 open Log.Global
 
+(* TODO make this private *)
 type t
+
+val add_requested : t -> int -> unit
+
+val remove_requested : t -> int -> unit
+
+val requested : t -> int list 
 
 val create : Bt_hash.t -> Torrent.info -> t Deferred.t
 
@@ -27,7 +34,9 @@ val num_pieces : t -> int
 
 val length : t -> int
 
-val has_piece : t -> int -> bool 
+val is_downloaded : t -> int -> bool 
+
+val is_requested : t -> int -> bool 
 
 val downloaded : t -> Bitfield.t
 

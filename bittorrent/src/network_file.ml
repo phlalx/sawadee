@@ -14,6 +14,7 @@ type t = {
   piece_length : int; (** piece length of all pieces except possibly the last one *)
   pieces : Piece.t Array.t;
   pers : Pers.t;
+  mutable requested : int Set.Poly.t;
 }
 
 let piece_init bs pos pieces_hash piece_length total_len i = 
@@ -32,7 +33,7 @@ let num_pieces t = t.num_pieces
 
 let length t = t.total_length
 
-let has_piece t i = Bitfield.get t.downloaded i
+let is_downloaded t i = Bitfield.get t.downloaded i
 
 let downloaded t = t.downloaded
 
@@ -114,6 +115,7 @@ let create info_hash tinfo =
     pieces;
     pers;
     bitfield_name;
+    requested = Set.Poly.empty;
   }
 
 let tinfo t = t.tinfo
@@ -124,6 +126,19 @@ let close t =
 let write_piece t i =
   let p = t.pieces.(i) in 
   Pers.write_piece t.pers p  
+
+let add_requested t i = 
+  assert (not (Set.mem t.requested i));
+  t.requested <- Set.add t.requested i
+
+let remove_requested t i =
+  assert (Set.mem t.requested i);
+  t.requested <- Set.remove t.requested i
+
+let requested t = Set.to_list t.requested
+
+let is_requested t i = Set.mem t.requested i
+
 
 
 

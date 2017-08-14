@@ -44,8 +44,6 @@ type event =
   | Have of int
   | Bitfield
   | Piece of int
-  | Fail of int
-  | More
 
 val event_to_string : event -> string
 
@@ -56,21 +54,15 @@ val event_to_string : event -> string
    in [Pwp.t] *)
 val event_reader : t -> event Pipe.Reader.t
 
-
-
 val id : t -> Peer_id.t
 
 val to_string : t -> string
 
 val has_piece : t -> int -> bool
 
-val bitfield : t -> Bitfield.t
-
 val am_interested : t -> bool
 
 val am_choking : t -> bool
-
-val take_request : t -> bool
 
 val peer_choking : t -> bool
 
@@ -83,8 +75,6 @@ val is_interesting : t -> bool
     TODO: terminate peer silently instead (monitor?). *) 
 val validate : t -> bool -> unit
 
-val validate_bitfield : t -> unit
-
 val status : t -> Status.peer_status
 
 (** The following function may send messages to the remote peer *)
@@ -96,7 +86,7 @@ val send_bitfield : t -> Bitfield.t -> unit
 val send_have : t -> int -> unit
 
 (** request a piece and directly fill [Network_file.t] *)
-val request_piece : t -> int -> unit
+(* val request_piece : t -> int -> unit *)
 
 val set_am_interested : t -> bool -> unit
 
