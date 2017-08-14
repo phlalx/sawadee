@@ -43,8 +43,8 @@ type t = {
   mutable am_interested : bool; 
   mutable sent_port : bool ;
   bitfield : Bitfield.t;
-  wr : event Pipe.Writer.t; 
-  rd : event Pipe.Reader.t;
+  event_wr : event Pipe.Writer.t; 
+  event_rd : event Pipe.Reader.t;
   mutable meta : meta option; (* protocol id and metadata size *)
   mutable nf : Network_file.t option;
   mutable sent_bitfield : bool;
@@ -57,7 +57,7 @@ type t = {
 } [@@deriving fields]
 
 let create id peer ~dht ~extension =
-  let rd, wr = Pipe.create () in 
+  let event_rd, event_wr = Pipe.create () in 
   let block_rd, block_wr = Pipe.create () in
   {
     id;
@@ -68,8 +68,8 @@ let create id peer ~dht ~extension =
     am_choking = true;
     sent_port = false;
     bitfield = Bitfield.empty G.max_num_pieces;
-    rd;
-    wr;
+    event_rd;
+    event_wr;
     extension;
     dht;
     meta = None;
@@ -82,6 +82,8 @@ let create id peer ~dht ~extension =
     few_pending = Condition.create ();
     received_bitfield = false;
   }
+
+let push_event t e = Pipe.write_without_pushback t.event_wr e
 
 let event_to_string e = Sexp.to_string (sexp_of_event e)
 
@@ -122,7 +124,7 @@ let set_am_choking t b =
 
 let request_piece t i =
   let nf = Option.value_exn t.nf in
-  debug !"Peer %{}: we request %d (pipe has currently %d blocks) " t i (Pipe.length t.wr); 
+  debug !"Peer %{}: we request %d (pipe has currently %d blocks) " t i (Pipe.length t.event_wr); 
   let l = Network_file.get_piece nf i |> Piece.blocks in
   debug !"Peer %{}: going to push %d blocks " t (List.length l);
   List.iter l ~f:(Pipe.write_without_pushback_if_open t.block_wr)
@@ -150,7 +152,7 @@ let requesting_loop t () =
   Condition.wait t.few_pending 
   >>= fun () ->
   info !"Peer: %{} request queue has slots available" t;
-  debug !"Peer %{}: pipe has currently %d blocks waiting" t (Pipe.length t.wr); 
+  debug !"Peer %{}: pipe has currently %d blocks waiting" t (Pipe.length t.event_wr); 
   process_blocks t ()
 
 let process_block t nf index bgn block =
@@ -172,7 +174,7 @@ let process_block t nf index bgn block =
   | `Downloaded ->
     info !"Peer %{}: got piece %d" t index; 
     P.set_downloading t.peer;
-    Pipe.write_without_pushback t.wr (Piece index)
+    push_event t (Piece index)
 
 let update_data t i s = 
   debug !"Peer %{}: received piece %d" t i; 
@@ -186,7 +188,7 @@ let update_data t i s =
     debug !"Peer %{}: data complete" t; 
 
     let tinfo = Torrent.info_of_string data in
-    Tinfo tinfo |> Pipe.write_without_pushback t.wr  
+    Tinfo tinfo |> push_event t
   | false -> ()
 
 let process_extended t id s =
@@ -200,7 +202,7 @@ let process_extended t id s =
     let data = String.create total_length in
     let received = Array.create num_block false in
     t.meta <- Some {id; total_length; num_block; data; received};
-    Pipe.write_without_pushback t.wr Support_meta
+    push_event t Support_meta
   | Extension.Data (i, s) -> update_data t i s  
   | _ -> info !"Peer %{}: not implemented" t
 
@@ -226,26 +228,26 @@ let process_message t m : unit =
 
   | M.Choke -> 
     set_peer_choking t true;
-    Pipe.write_without_pushback t.wr Choke
+    push_event t Choke
 
   | M.Unchoke -> 
     set_peer_choking t false; 
-    Pipe.write_without_pushback t.wr Unchoke
+    push_event t Unchoke
 
   | M.Interested -> 
     set_peer_interested t true; 
-    Pipe.write_without_pushback t.wr Interested
+    push_event t Interested
 
   | M.Not_interested -> 
     set_peer_interested t false;
-    Pipe.write_without_pushback t.wr Not_interested
+    push_event t Not_interested
 
   | M.Bitfield bits -> 
     info !"Peer %{}: received bitfield (%d pieces)" t (Bitfield.card bits);
     Bitfield.copy ~src:bits ~dst:t.bitfield; 
     validate t (not t.received_bitfield);
     if Option.is_some t.nf then
-      Pipe.write_without_pushback t.wr Bitfield
+      push_event t Bitfield
 
   | M.Port port -> 
     debug !"Peer %{}: received port %d" t port;
@@ -265,7 +267,7 @@ let process_message t m : unit =
     debug !"Peer %{}: received have %d" t index;
     Bitfield.set t.bitfield index true;
     if Option.is_some t.nf then
-      Pipe.write_without_pushback t.wr (Have index)
+      push_event t (Have index)
 
   | M.Request (index, bgn, length) -> 
     info !"Peer %{}: *** peer requests %d ***" t index;
@@ -285,7 +287,7 @@ let process_message t m : unit =
 let clear_requests t =
   let f i =
     debug !"Peer %{}: clear requests %d" t i;
-    Fail i |> Pipe.write_without_pushback t.wr 
+    Fail i |> push_event t
   in
   Set.Poly.map t.pending ~f:(fun { Piece.b_index } -> b_index ) |> Set.iter  ~f
 
@@ -309,7 +311,7 @@ let rec wait_and_process_message t () =
 let set_nf t nf = 
   t.nf <- Some nf;
   if t.received_bitfield then
-    Pipe.write_without_pushback t.wr Bitfield
+    push_event t Bitfield
 
 let start t =
   debug !"Peer %{}: start requesting loop" t; 
@@ -319,7 +321,7 @@ let start t =
   Deferred.repeat_until_finished () (wait_and_process_message t)
   >>| fun () -> 
   debug !"Peer %{}: quit message handler loop" t; 
-  Pipe.close t.wr;
+  Pipe.close t.event_wr;
   Pipe.close t.block_wr
 
 let close t = 
@@ -335,7 +337,7 @@ let send_bitfield t bf =
 
 let send_have t i = M.Have i |> P.send t.peer 
 
-let event_reader t = t.rd
+let event_reader t = t.event_rd
 
 let request_meta t = 
   debug !"Peer %{}: request meta" t;
