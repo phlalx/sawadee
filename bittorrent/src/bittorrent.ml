@@ -37,7 +37,7 @@ let add_torrent s =
   let uris = 
     match announce_list with
     | [] -> [ announce ]
-    | al -> List.dedup (List.concat al) |> List.permute 
+    | al -> List.dedup_and_sort (List.concat al) |> List.permute 
   in
   add_any info_hash (Some tinfo) (Some uris)
 

@@ -21,10 +21,10 @@ let handler addr r w =
     let p = Peer_comm.create addr r w in
     let%bind hi = P.wait_handshake p Torrent_table.has_hash in
     info !"Server: %{P.to_string} handshake" p;
-    (* TODO each peer_producer will register at the server *)
-    assert false
+    let pwp = Torrent_table.find_exn hi.info_hash in
+    Pwp.add_peer_comm pwp p hi |> Deferred.ok
 
-  in  handler_or_error () >>| ignore_error addr
+  in handler_or_error () >>| ignore_error addr
 
 let start ~port = 
   info "Server: started on port %d" port;

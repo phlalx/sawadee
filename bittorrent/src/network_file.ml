@@ -17,6 +17,8 @@ type t = {
   mutable requested : int Set.Poly.t;
 }
 
+let to_string t = t.tinfo.Torrent.name
+
 let piece_init bs pos pieces_hash piece_length total_len i = 
   let len = min (total_len - i * piece_length) piece_length in
   Piece.create ~pos ~index:i ~len pieces_hash.(i) bs
@@ -45,14 +47,16 @@ let downloaded_to_string downloaded num_pieces =
   sprintf "%d/%d pieces (%d%%)" n num_pieces percent
 
 let create info_hash tinfo = 
-  let { 
-    Torrent.piece_length;
-    Torrent.pieces_hash;
-    Torrent.files_info; 
-    Torrent.total_length;
-    Torrent.num_pieces;
-    Torrent.num_files;
+  let Torrent.{ 
+    name;
+    piece_length;
+    pieces_hash;
+    files_info; 
+    total_length;
+    num_pieces;
+    num_files;
   } = tinfo in 
+  info "Network_file: create for torrent %s" name;
 
   let content = Bigstring.create total_length in
 
@@ -62,7 +66,6 @@ let create info_hash tinfo =
   let%bind pers = Pers.create files_info num_pieces piece_length  in
   let f i = piece_init content (i * piece_length) pieces_hash piece_length total_length i in
   let pieces = Array.init num_pieces ~f  in
-  info "Network_file: created network file (%d pieces)" num_pieces;
   let downloaded = 
     try
       In_channel.read_all bitfield_name |> Bitfield.of_string

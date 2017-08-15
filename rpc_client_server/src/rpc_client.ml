@@ -6,7 +6,7 @@ let test file port  =
   let%bind hash = 
     let f = In_channel.read_all file in
     Wrapper.add_torrent f port in
-  let%bind () = Clock.after (sec 1.0) in 
+  let%bind () = Clock.after (sec 5.0) in 
   let%bind status = Wrapper.status hash port in 
   let res = 
     match status with

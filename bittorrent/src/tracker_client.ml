@@ -87,7 +87,7 @@ let query_tracker (info_hash:Bt_hash.t) (uri:Uri.t) : sl Deferred.Option.t =
 let query info_hash uris =
   let%map l = Deferred.List.filter_map uris ~how:`Parallel 
                ~f:(query_tracker info_hash) 
-  in List.concat l |> List.dedup |> List.filter ~f:Addr.is_valid 
+  in List.concat l |> List.dedup_and_sort |> List.filter ~f:Addr.is_valid 
 
 
 

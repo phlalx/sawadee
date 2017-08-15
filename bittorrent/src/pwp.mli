@@ -36,7 +36,7 @@ val start: t -> unit
 
 val stop : t -> unit
 
-val add_peer_comm: t -> Peer_comm.t -> Peer_comm.handshake_info -> unit Deferred.Or_error.t
+val add_peer_comm: t -> Peer_comm.t -> Peer_comm.handshake_info -> unit Deferred.t
 
 (* close the network file if there is one *)
 val close: t -> unit Deferred.t

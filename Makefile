@@ -1,4 +1,7 @@
-.PHONY: default unit test clean
+.PHONY: default unit test clean bittorrent
+
+bittorrent:
+	jbuilder build main/src/main.bc 
 
 all: 
 	jbuilder build @install

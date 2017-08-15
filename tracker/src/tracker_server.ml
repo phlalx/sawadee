@@ -32,7 +32,7 @@ let callback ~body (addr : Addr.t) request =
     let port = int_of_string p in
     let peer_addr = Addr.create inet_addr ~port in
     info !"Tracker_server: %{Addr} added" peer_addr;
-    state.peers <- List.dedup (peer_addr :: state.peers)
+    state.peers <- List.dedup_and_sort (peer_addr :: state.peers)
   in
   Option.iter port ~f:set_port;
   info !"Tracker_server: %{Addr} responded" addr;
