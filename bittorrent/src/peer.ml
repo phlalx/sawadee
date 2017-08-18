@@ -18,7 +18,6 @@ type t = {
   peer : Peer_comm.t;
 
   id : Peer_id.t;  (* TODO these three fields can go in peer_comm *)
-  extension : bool;
   dht : bool;
 
   mutable peer_choking : bool; 
@@ -28,7 +27,9 @@ type t = {
   mutable received_port : bool ;
   bitfield : Bitfield.t;
   event_wr : (Pevent.t * t) Pipe.Writer.t; 
-  mutable meta : meta option; 
+
+  peer_ext : (Peer_ext.t * Pevent.t Pipe.Reader.t) option;
+
   mutable nf : Network_file.t option;
   mutable sent_bitfield : bool;
   conn_stat : Conn_stat.t;
@@ -67,6 +68,13 @@ let create id peer nf event_wr ~dht ~extension =
   info !"Peer: %{Peer_id.to_string_hum} created" id;
   let block_rd, block_wr = Pipe.create () in
   Pipe.set_size_budget block_wr 3;
+  let peer_ext = 
+    if extension then
+      let peer_ext_event_rd, peer_ext_event_wr = Pipe.create () in
+      Some ((Peer_ext.create peer peer_ext_event_wr), peer_ext_event_rd)
+    else 
+      None
+  in
   {
     id;
     peer;
@@ -77,9 +85,7 @@ let create id peer nf event_wr ~dht ~extension =
     received_port = false;
     bitfield = Bitfield.empty G.max_num_pieces;
     event_wr;
-    extension;
     dht;
-    meta = None;
     nf;
     sent_bitfield = false;
     conn_stat = Conn_stat.create ();
@@ -89,6 +95,7 @@ let create id peer nf event_wr ~dht ~extension =
     can_consume = Condition.create ();
     can_produce = Condition.create ();
     received_bitfield = false;
+    peer_ext;
   }
 
 let push_event t e = Pipe.write_without_pushback_if_open t.event_wr (e, t)
@@ -161,35 +168,6 @@ struct
       Nf.remove_requested nf index;
       push_event t (Piece index)
 
-  let update_data t i s = 
-    let { received ; total_length; data } = Option.value_exn t.meta in
-    received.(i) <- true;
-    let off = i * G.meta_block_size in
-    let len = min (total_length - i * G.meta_block_size) G.meta_block_size in
-    String.blit ~src:s ~dst:data ~src_pos:0 ~dst_pos:off ~len;
-    match Array.fold ~init:true ~f:(fun acc b -> acc && b) received  with
-    | true ->
-      info !"Peer %{}: meta-data complete" t; 
-
-      let tinfo = Torrent.info_of_string data in
-      Tinfo tinfo |> push_event t
-    | false -> ()
-
-  let process_extended t id s =
-    let em = Extension.of_bin s in 
-    debug !"Peer %{}: process ext. message %{Extension}" t em; 
-    validate t (id = 0);
-    match em with 
-    | Extension.Handshake [`Metadata (id, total_length)] ->
-      let num_block = (total_length + G.meta_block_size - 1) / 
-                      G.meta_block_size in
-      let data = String.create total_length in
-      let received = Array.create num_block false in
-      t.meta <- Some {id; total_length; num_block; data; received};
-      push_event t Support_meta
-    | Extension.Data (i, s) -> update_data t i s  
-    | _ -> debug !"Peer %{}: not implemented" t
-
   let process_request t nf block =
     let Block.{ piece; off; len } = block in
     validate t t.peer_interested;
@@ -248,9 +226,13 @@ struct
       in
       Option.iter (G.dht ()) ~f 
 
-    | Message.Extended (id, b) -> 
-      validate t t.extension;
-      if Option.is_none t.nf then process_extended t id b 
+    | Message.Extended (id, b) -> (
+        match t.peer_ext with
+        | None -> validate t false
+        | Some (pe, _) ->  
+          if Option.is_none t.nf then ( (* TODO should work without this condition *)
+            let em = Extension.of_bin b in 
+            Peer_ext.process_extended pe id em))
 
     | Message.Have i -> 
       Bitfield.set t.bitfield i true;
@@ -378,29 +360,24 @@ let close t =
   debug !"Peer %{}: we close this peer." t;
   Option.iter t.nf ~f:(clear_requests t);
   Pipe.close t.block_wr;
+  Option.iter t.peer_ext ~f:(fun (pe, _) -> Peer_ext.close pe); 
   Peer_comm.close t.peer
 
 let start t = 
   Option.iter t.nf ~f:(start_nf t);
+  let f (_, peer_ext_event_rd) = 
+    Pipe.transfer peer_ext_event_rd t.event_wr ~f:(fun e -> (e,t))
+    |> don't_wait_for
+  in
+  Option.iter t.peer_ext ~f; 
   Message_loop.start t 
-
-(* TODO send keep alive when needed 
-   let send_keep_alive t = P.send t.peer M.KeepAlive  *)
 
 let send_have t i = Message.Have i |> Pc.send t.peer 
 
-let request_meta t = 
-  info !"Peer %{}: request meta" t;
-  match t.meta with
+let request_meta t =  
+  match t.peer_ext with
   | None -> assert false
-  | Some {id; total_length; num_block } -> 
-    let f i = 
-      let em = Extension.Request i in
-      let m = Message.Extended (id, Extension.to_bin em) in
-      debug !"Peer %{}: sending ext. %{Extension}" t em;
-      Pc.send t.peer m
-    in
-    List.range 0 num_block |> List.iter ~f
+  | Some (pe, _) -> Peer_ext.request_meta pe
 
 let status t = Status.{
     dl = t.conn_stat.total_dl / 1000;
