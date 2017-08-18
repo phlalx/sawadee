@@ -33,9 +33,7 @@ val get_content : t -> off:int -> len:int  -> string
 (* used for R/W. Doesn't allocate a new bigstring *)
 val get_bigstring_content : t -> Bigsubstring.t
 
-type block = { b_index : int; off: int; len: int }
-
-val blocks : t -> block list 
+val blocks : t -> Block.t list 
 
 (** Updates a piece with downloaded block.
 

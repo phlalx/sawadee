@@ -3,7 +3,7 @@ open Async
 open Bin_prot
 open Log.Global
 
-module K = Krpc_packet
+module Kp = Krpc_packet
 
 let krpc_timeout = sec 5.0
 
@@ -16,14 +16,14 @@ type t = {
 
 let connect id addr = {
   addr;
-  buffer = Common.create_buf K.buffer_size;
+  buffer = Common.create_buf Kp.buffer_size;
   socket = Socket.create Socket.Type.udp |> Socket.fd;
   id;
 }
 
 let send_packet t m : unit Deferred.t = 
   let pos = 0 in 
-  let len = K.bin_write_t t.buffer ~pos m in 
+  let len = Kp.bin_write_t t.buffer ~pos m in 
   let buf = t.buffer |> Iobuf.of_bigstring ~pos ~len in
   let send = Udp.sendto () |> Or_error.ok_exn in
   send t.socket buf t.addr
@@ -54,7 +54,7 @@ let counter = ref 0
 let fresh_tid () = incr counter; !counter |> string_of_int
 
 let query_packet transaction_id query = 
-  K.{ transaction_id; content = Query query}
+  Kp.{ transaction_id; content = Query query}
 
 let timeout_or_error 
     (x :[ `Result of ('a Or_error.t) | `Timeout ] Deferred.t) 
@@ -64,8 +64,8 @@ let timeout_or_error
   | `Result r -> r  
 
 let rpc t 
-    (query : K.query) 
-    (validate_and_extract : K.response -> 'a Or_error.t) 
+    (query : Kp.query) 
+    (validate_and_extract : Kp.response -> 'a Or_error.t) 
   : 'a Deferred.Or_error.t =
   let open Deferred.Or_error.Monad_infix in
   let tid = fresh_tid () in
@@ -73,32 +73,30 @@ let rpc t
   >>= fun () -> 
   get_one_packet_or_error t |> Clock.with_timeout krpc_timeout |> timeout_or_error 
   >>= function
-  | { K.transaction_id; K.content = K.Response r } 
+  | { Kp.transaction_id; Kp.content = Kp.Response r } 
     when tid = transaction_id -> validate_and_extract r |> return 
   | _ -> Error (Error.of_string "RPC error") |> return
 
 let rpc_error = Error (Error.of_string "RPC error: Wrong response")
 
 let ping t = 
-  let open K in
   let extract_ping_response = 
     function
-    | R_ping_or_get_peers_node id -> Ok id
+    | Kp.R_ping_or_get_peers_node id -> Ok id
     | _ -> rpc_error 
   in 
-  let query = K.Ping t.id
+  let query = Kp.Ping t.id
   in
   rpc t query extract_ping_response
 
 let get_peers t info_hash = 
-  let open K in
   let extract_query_response = 
     function
-    | R_get_peers_values (id, token, addrs) -> Ok (`Values addrs)
-    | R_get_peers_nodes (id, token, nodes) -> Ok (`Nodes nodes)
+    | Kp.R_get_peers_values (id, token, addrs) -> Ok (`Values addrs)
+    | Kp.R_get_peers_nodes (id, token, nodes) -> Ok (`Nodes nodes)
     | _ -> rpc_error
   in 
-  let query = Get_peers (t.id, info_hash)
+  let query = Kp.Get_peers (t.id, info_hash)
   in
   rpc t query extract_query_response
 

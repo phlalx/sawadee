@@ -36,7 +36,7 @@ end
 module Id = struct
   open Core
 
-  module B = Bencode_ext
+  module Be = Bencode_ext
 
   type t = string
   [@@deriving bin_io, sexp]
@@ -56,9 +56,9 @@ module Id = struct
 
   let dummy = "????????????????????"
 
-  let to_bencode t = B.String t
+  let to_bencode t = Be.String t
 
-  let of_bencode = B.as_string_exn
+  let of_bencode = Be.as_string_exn
 
   let to_string_hum x =
     let f c =
@@ -66,9 +66,9 @@ module Id = struct
       char_of_int (65 + (i % 26))
     in String.suffix (String.map x ~f) 6 
 
-  let list_to_bencode l = B.String (String.concat (List.map l ~f:to_string))
+  let list_to_bencode l = Be.String (String.concat (List.map l ~f:to_string))
 
-  let list_of_bencode b = B.split b length |> List.map ~f:of_bencode
+  let list_of_bencode b = Be.split b length |> List.map ~f:of_bencode
 
   let to_hex t = Hex.of_string t |> function (`Hex s) -> s
 

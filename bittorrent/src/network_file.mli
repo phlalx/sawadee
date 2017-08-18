@@ -13,7 +13,6 @@ open Core
 open Async
 open Log.Global
 
-(* TODO make this private *)
 type t
 
 val add_requested : t -> int -> unit

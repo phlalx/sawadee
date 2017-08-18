@@ -1,5 +1,6 @@
 open Core
-module B = Bencode_ext
+
+module Be = Bencode_ext
 
 type t = Node_id.t * Addr.t  
 
@@ -11,13 +12,13 @@ let of_compact s =
   (Node_id.of_string s1, Addr.of_compact s2) 
 
 let list_to_bencode nis = 
-  let f acc p = acc ^ (to_compact p) in B.String (List.fold nis ~init:"" ~f)
+  let f acc p = acc ^ (to_compact p) in Be.String (List.fold nis ~init:"" ~f)
 
 let length = Node_id.length + Addr.length
 
-let of_bencode b = B.as_string_exn b |> of_compact
+let of_bencode b = Be.as_string_exn b |> of_compact
 
-let list_of_bencode b = B.split b length |> List.map ~f:of_bencode
+let list_of_bencode b = Be.split b length |> List.map ~f:of_bencode
 
 let to_string (n, p) = sprintf !"%{Node_id.to_hex} %{Addr}" n p
 

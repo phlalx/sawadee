@@ -1,6 +1,7 @@
 open Core
 open Async
-module B = Bencode_ext
+
+module Be = Bencode_ext
 
 include Socket.Address.Inet
 
@@ -20,20 +21,20 @@ let of_compact s =
   let addr = Unix.Inet_addr.inet4_addr_of_int32 addr_int32 in
   create addr port
 
-let of_bencode b = B.as_string_exn b |> of_compact 
+let of_bencode b = Be.as_string_exn b |> of_compact 
 
-let to_bencode peer_addr = B.String (to_compact peer_addr)
+let to_bencode peer_addr = Be.String (to_compact peer_addr)
 
 let list_to_bencode peers = 
-  let f acc p = acc ^ (to_compact p) in B.String (List.fold peers ~init:"" ~f)
+  let f acc p = acc ^ (to_compact p) in Be.String (List.fold peers ~init:"" ~f)
 
-let list_to_bencode_list peers = List.map peers ~f:to_bencode |> B.List
+let list_to_bencode_list peers = List.map peers ~f:to_bencode |> Be.List
 
-let list_of_bencode_list b = B.as_list_exn b |> List.map ~f:of_bencode
+let list_of_bencode_list b = Be.as_list_exn b |> List.map ~f:of_bencode
 
 let length = 6
 
-let list_of_bencode b = B.split b length |> List.map ~f:of_bencode
+let list_of_bencode b = Be.split b length |> List.map ~f:of_bencode
 
 let of_string s = String.split s ~on:':' |> function
  | [addr; p] -> create (Unix.Inet_addr.of_string addr) (int_of_string p)  

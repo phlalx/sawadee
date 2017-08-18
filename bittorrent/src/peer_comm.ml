@@ -52,8 +52,6 @@ let check_bit s i =
   Bitfield.get bf i  
 
 let status_bytes = "\000\000\000\000\000\016\000\001"
-(* let status_bytes = "\000\000\000\000\000\000\000\000"   *)
-
 let dht_bit = 63
 let extension_bit = 43
 

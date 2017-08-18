@@ -16,20 +16,10 @@ open Core
 open Async
 open Log.Global
 
-type event = 
-  (* only before nf is set *)
-  | Support_meta
-  | Tinfo of Torrent.info
-  | Bye
-  (* only after nf is set *)
-  | Piece of int
-
-val event_to_string : event -> string
-
 type t
 
 val create : Peer_id.t -> Peer_comm.t -> Network_file.t option 
-  -> (event * t) Pipe.Writer.t -> dht:bool -> extension:bool -> t
+  -> (Pevent.t * t) Pipe.Writer.t -> dht:bool -> extension:bool -> t
 
 (** starts the message loop. should be done before any other operation.  *)
 val start : t -> unit Deferred.t

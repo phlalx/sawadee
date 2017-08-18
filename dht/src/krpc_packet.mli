@@ -1,8 +1,6 @@
 open Core
 open Bin_prot
 
-module B = Bencode_ext
-
 type token = string
 
 type query = 
@@ -32,8 +30,6 @@ type t = {
   transaction_id : string;
   content : content; 
 }
-
-val dummy : t
 
 val buffer_size : int
 

@@ -1,6 +1,8 @@
 (** Messages in the peer protocol. 
 
-    See [https://wiki.theory.org/index.php/BitTorrentSpecification#Message_flow>].
+    http://www.bittorrent.org/beps/bep_0003.html   Main protocol
+    http://www.bittorrent.org/beps/bep_0005.html   DHT extension 
+    http://www.bittorrent.org/beps/bep_0010.html   Extension protocol
 
     This module describes the type of messages and conversion to/from binary
     protocol using [Bin_prot]. In binary, messages are of the form
@@ -20,15 +22,14 @@ type t =
   | Not_interested
   | Have of int (** index *)
   | Bitfield of Bitfield.t
-  | Request of int * int  * int (** index, begin, length *)
-  | Block of int * int * string (** index, begin, block *)
-  | Cancel of int * int * int (** index, begin, length *)
+  | Request of Block.t
+  | Block of int * int * string (** index, begin, content *)
+  | Cancel of Block.t
   | Port of int 
-  | Extended of int * string  (** id, payload *)
+  | Extended of Extension.id * Extension.bin 
 [@@deriving sexp]
 
 val max_size : int
-
 
 (* TODO try to be coherent with how this is done in Core *)
 (** size of message *not* including 4-byte {i prefix length}. *)

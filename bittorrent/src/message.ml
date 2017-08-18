@@ -11,12 +11,11 @@ type t =
   | Not_interested
   | Have of int 
   | Bitfield of Bitfield.t sexp_opaque
-  | Request of int * int  * int
+  | Request of Block.t
   | Block of int * int * string sexp_opaque
-  | Cancel of int * int * int
+  | Cancel of Block.t
   | Port of int
-  (* TODO better to have Bencode.t instead of string *)
-  | Extended of int * string sexp_opaque
+  | Extended of Extension.id * Extension.bin 
 [@@deriving sexp]
 
 let max_size = Global.max_block_size + 13
@@ -53,10 +52,10 @@ let bin_read_payload buf ~pos_ref length =
     Common.blit_buf_string ~src_pos:!pos_ref buf bitfield ~len:bitfield_len;
     Bitfield (Bitfield.of_string bitfield)
   | 6 -> 
-    let index = Read.bin_read_network32_int buf pos_ref in
-    let begn = Read.bin_read_network32_int buf pos_ref in
+    let piece = Read.bin_read_network32_int buf pos_ref in
+    let off = Read.bin_read_network32_int buf pos_ref in
     let len = Read.bin_read_network32_int buf pos_ref in
-    Request (index, begn, len)
+    Request Block.{ piece; off; len}
   | 7 -> 
     let block_len = length - 9 in
     let index = Read.bin_read_network32_int buf pos_ref in
@@ -65,10 +64,10 @@ let bin_read_payload buf ~pos_ref length =
     Common.blit_buf_string ~src_pos:!pos_ref buf block ~len:block_len; 
     Block (index, begn, block)
   | 8 -> 
-    let index = Read.bin_read_network32_int buf pos_ref in
-    let begn = Read.bin_read_network32_int buf pos_ref in
+    let piece = Read.bin_read_network32_int buf pos_ref in
+    let off = Read.bin_read_network32_int buf pos_ref in
     let len = Read.bin_read_network32_int buf pos_ref in
-    Cancel (index, begn, len)
+    Cancel Block.{ piece; off; len}
   | 9 -> 
     let port = Read.bin_read_network16_int buf pos_ref in
     assert (port >= 0);
@@ -113,11 +112,11 @@ let bin_write_t (buf:Common.buf) ~(pos:Common.pos) (x:t) =
     let pos = Write.bin_write_char buf pos (char_of_int 5) in
     Common.blit_string_buf (Bitfield.to_string bitfield) ~dst_pos:pos buf ~len;
     pos + len
-  | Request (index, begn, len) -> 
+  | Request Block.{piece; off; len} -> 
     let pos = Write.bin_write_network32_int buf pos 13 in
     let pos = Write.bin_write_char buf pos (char_of_int 6) in
-    let pos = Write.bin_write_network32_int buf pos index in
-    let pos = Write.bin_write_network32_int buf pos begn in
+    let pos = Write.bin_write_network32_int buf pos piece in
+    let pos = Write.bin_write_network32_int buf pos off in
     Write.bin_write_network32_int buf pos len
   | Block (index, begn, block) ->
     let len = String.length block in
@@ -127,11 +126,11 @@ let bin_write_t (buf:Common.buf) ~(pos:Common.pos) (x:t) =
     let pos = Write.bin_write_network32_int buf pos begn in
     Common.blit_string_buf block ~dst_pos:pos buf ~len;
     pos + len
-  | Cancel (index, begn, len) ->
+  | Cancel Block.{piece; off; len} ->
     let pos = Write.bin_write_network32_int buf pos 13 in
     let pos = Write.bin_write_char buf pos (char_of_int 8) in
-    let pos = Write.bin_write_network32_int buf pos index in
-    let pos = Write.bin_write_network32_int buf pos begn in
+    let pos = Write.bin_write_network32_int buf pos piece in
+    let pos = Write.bin_write_network32_int buf pos off in
     Write.bin_write_network32_int buf pos len
   | Port port ->
     let pos = Write.bin_write_network32_int buf pos 3 in

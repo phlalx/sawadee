@@ -36,15 +36,13 @@ let block_length t ~off = min (t.length - off) G.block_size
 let is_valid_block_request t ~off ~len = 
   off + len <= t.length && len <= G.max_block_size
 
-type block = { b_index : int; off: int; len: int }
-
 let blocks t = 
   let f i =  
     let off = i * G.block_size in
     let len = block_length t off in
     match t.blocks.(i) with
     | true -> None
-    | false -> Some { b_index = t.index; off; len}
+    | false -> Some Block.{ piece = t.index; off; len}
   in
   List.range 0 (num_blocks t) |> List.filter_map ~f
 
