@@ -11,7 +11,8 @@
 
     We use OCaml ints instead of the [Int32.t] specified by the protocol. This
     shouldn't be a limitation. *)
-
+    
+open Core
 open Bin_prot
 
 type t =
@@ -26,7 +27,7 @@ type t =
   | Block of int * int * string (** index, begin, content *)
   | Cancel of Block.t
   | Port of int 
-  | Extended of Extension.id * Extension.bin 
+  | Extended of Extension.id * Extension.bin sexp_opaque
 [@@deriving sexp]
 
 val max_size : int

@@ -32,8 +32,6 @@ val id : t -> Peer_id.t
 
 val to_string : t -> string
 
-val has_piece : t -> int -> bool
-
 val status : t -> Status.peer_status
 
 val request_meta : t -> unit

@@ -6,19 +6,12 @@ module Nf = Network_file
 module Pc = Peer_comm
 module G = Global
 
-type meta = {
-  id : Extension.id;
-  total_length : int;
-  num_block : int;
-  data : string;
-  received : bool Array.t
-}
-
 type t = {
   peer : Peer_comm.t;
 
-  id : Peer_id.t;  (* TODO these three fields can go in peer_comm *)
+  id : Peer_id.t;  (* TODO these two fields can go in peer_comm *)
   dht : bool;
+  peer_ext : (Peer_ext.t * Pevent.t Pipe.Reader.t) option;
 
   mutable peer_choking : bool; 
   mutable peer_interested : bool;
@@ -28,34 +21,17 @@ type t = {
   bitfield : Bitfield.t;
 
   event_wr : (Pevent.t * t) Pipe.Writer.t; 
-  peer_ext : (Peer_ext.t * Pevent.t Pipe.Reader.t) option;
 
   mutable nf : Network_file.t option;
   mutable sent_bitfield : bool;
-  block_wr : Block.t Pipe.Writer.t;
-  block_rd : Block.t Pipe.Reader.t;
-  mutable pending : Block.t Set.Poly.t;
+
   mutable received_bitfield : bool;
-  can_consume : unit Condition.t;
-  can_produce : unit Condition.t;
+
+  block_consumer : Block_consumer.t;
+  block_producer : Block_producer.t;
+
 } [@@deriving fields]
 
-
-(* TODO add validation check *)
-let has_piece t i = Bitfield.get t.bitfield i
-
-let next_requests t nf = 
-
-  let f i = 
-    not (Nf.is_downloaded nf i) && not (Nf.is_requested nf i) && (has_piece t i)
-  in
-
-  List.range 0 (Nf.num_pieces nf) |> List.filter ~f
-
-let can_produce t nf =
-  match next_requests t nf with
-  | h :: _ when not t.peer_choking (* && t.am_interested *) -> Some h
-  | _ -> None
 
 let is_interesting t nf = 
   let downloaded = Nf.downloaded nf in 
@@ -67,12 +43,13 @@ let create id peer nf event_wr ~dht ~extension =
   info !"Peer: %{Peer_id.to_string_hum} created" id;
   let block_rd, block_wr = Pipe.create () in
   Pipe.set_size_budget block_wr 3;
+  let bitfield = Bitfield.empty G.max_num_pieces in
   let peer_ext = 
-    if extension then
+    match extension with
+    | true ->
       let peer_ext_event_rd, peer_ext_event_wr = Pipe.create () in
       Some ((Peer_ext.create peer peer_ext_event_wr), peer_ext_event_rd)
-    else 
-      None
+    | false -> None
   in
   {
     id;
@@ -82,18 +59,15 @@ let create id peer nf event_wr ~dht ~extension =
     am_interested = false;
     am_choking = true;
     received_port = false;
-    bitfield = Bitfield.empty G.max_num_pieces;
+    bitfield;
     event_wr;
     dht;
     nf;
     sent_bitfield = false;
-    block_rd;
-    block_wr;
-    pending = Set.Poly.empty;
-    can_consume = Condition.create ();
-    can_produce = Condition.create ();
     received_bitfield = false;
     peer_ext;
+    block_consumer = Block_consumer.create block_rd peer;
+    block_producer = Block_producer.create block_wr bitfield;
   }
 
 let push_event t e = Pipe.write_without_pushback_if_open t.event_wr (e, t)
@@ -127,7 +101,6 @@ let set_am_choking t b =
   t.am_choking <- b;
   (if b then Message.Choke else Message.Unchoke) |> Pc.send t.peer
 
-
 module Message_loop : sig 
 
   val start : t -> unit Deferred.t
@@ -135,25 +108,12 @@ module Message_loop : sig
 end = 
 struct
 
-  let set_peer_interested t b = 
-    info !"Peer %{}: is %{is_or_not} interested" t b;
-    t.peer_interested <- b
-
-  let set_peer_choking t b = 
-    info !"Peer %{}: is %{is_or_not} choking" t b;
-    t.peer_choking <- b
-
   let process_block t nf index bgn block =
     let piece = Network_file.get_piece nf index in
     let len = String.length block in
     Network_file.is_valid_piece_index nf index |> validate t; 
     let b = Block.{ piece = index; off = bgn; len} in
-    Set.mem t.pending b |> validate t;
-    t.pending <- Set.remove t.pending b;
-    if (Set.length t.pending) < G.max_pending_request then ( 
-      info !"Peer %{}: wake-up block consumer" t;
-      Condition.signal t.can_consume ()
-    );
+    Block_consumer.notify t.block_consumer b;
     match Piece.update piece bgn block with 
     | `Ok -> ()
     | `Hash_error -> 
@@ -183,22 +143,19 @@ struct
     | Message.KeepAlive -> ()
 
     | Message.Choke -> 
-      set_peer_choking t true
+      t.peer_choking <- true;
+      Block_producer.set_choking t.block_producer true
 
     | Message.Unchoke -> 
-      set_peer_choking t false; (
-        match t.nf with
-        | None -> validate t false
-        | Some nf -> 
-          debug !"Peer %{}: wake up block producer" t;
-          Condition.signal t.can_produce ())
+      t.peer_choking <- false;
+      Block_producer.set_choking t.block_producer false
 
     | Message.Interested -> 
-      set_peer_interested t true;
+      t.peer_interested <- true;
       set_am_choking t false 
 
     | Message.Not_interested -> 
-      set_peer_interested t false
+      t.peer_interested <- false;
 
     | Message.Bitfield bits -> 
       info !"Peer %{}: received bitfield (%d pieces)" t (Bitfield.card bits);
@@ -272,67 +229,10 @@ struct
     Deferred.repeat_until_finished () (wait_and_process_message t)
 end
 
-module Block_consumer = 
-struct
-
-  let process t b =
-    debug !"Peer: requesting block %{Block}" b;
-    Message.Request b |> Pc.send t.peer;
-    t.pending <- Set.add t.pending b
-
-  let consume t () = 
-    debug !"Peer %{}: trying to consume a block (%d blocks in pipe)" t (Pipe.length t.block_rd); 
-    if (Set.length t.pending) < G.max_pending_request then (
-      match%bind Pipe.read t.block_rd with
-      | `Eof -> `Finished () |> return
-      | `Ok b -> process t b; `Repeat () |> return
-    ) else (
-      debug !"Peer %{}: block consumer goes to sleep" t; 
-      Condition.wait t.can_consume >>| fun () -> `Repeat ()
-    )
-
-  let start t = 
-    info !"Peer %{}: start block consumer" t; 
-    Deferred.repeat_until_finished () (consume t) |> don't_wait_for 
-
-end 
-
-module Block_producer =
-struct 
-
-  let produce_blocks' t nf i = 
-    Nf.add_requested nf i;
-    let l = Network_file.get_piece nf i |> Piece.blocks in
-    debug !"Peer %{}: producing %d new blocks for piece %d (pipe contains\
-            %d blocks)" t (List.length l) i (Pipe.length t.block_wr); 
-    Deferred.List.iter l ~f:(Pipe.write_if_open t.block_wr)
-    >>| fun () -> `Repeat ()
-
-  let produce_blocks t nf i =
-    if Pipe.is_closed t.block_wr then
-      `Finished () |> return
-    else 
-      produce_blocks' t nf i
-
-  let produce t nf () =
-    match can_produce t nf with
-    | None -> 
-      debug !"Peer %{}: block producer goes to sleep" t;
-      (* TODO send not interested *)
-      Condition.wait t.can_produce >>| fun () -> `Repeat ()
-    | Some i -> 
-      produce_blocks t nf i
-
-  let start t nf = 
-    info !"Peer %{}: start block producer" t; 
-    Deferred.repeat_until_finished () (produce t nf) |> don't_wait_for
-
-end
-
 let start_nf t nf = 
   send_bitfield t nf;
-  Block_consumer.start t;
-  Block_producer.start t nf;
+  Block_consumer.start t.block_consumer;
+  Block_producer.start t.block_producer nf;
   if t.received_bitfield && (is_interesting t nf) then (
     validate t t.peer_choking;
     set_am_interested t true
@@ -348,12 +248,12 @@ let clear_requests t nf =
     debug !"Peer %{}: clear requests %d" t i;
     Nf.remove_requested nf i
   in
-  Set.Poly.map t.pending ~f:(fun { Block.piece } -> piece ) |> Set.iter  ~f
+  List.iter (Block_consumer.pending_requests t.block_consumer) ~f
 
 let close t = 
   debug !"Peer %{}: we close this peer." t;
   Option.iter t.nf ~f:(clear_requests t);
-  Pipe.close t.block_wr;
+  Block_producer.close t.block_producer;
   Option.iter t.peer_ext ~f:(fun (pe, _) -> Peer_ext.close pe); 
   Peer_comm.close t.peer
 
@@ -366,7 +266,9 @@ let start t =
   Option.iter t.peer_ext ~f; 
   Message_loop.start t 
 
-let send_have t i = Message.Have i |> Pc.send t.peer 
+let send_have t i = 
+  if not (Bitfield.get t.bitfield i) then
+    Pc.send t.peer (Message.Have i)
 
 let request_meta t =  
   match t.peer_ext with

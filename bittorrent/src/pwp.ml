@@ -22,14 +22,6 @@ let to_string t = Bt_hash.to_hex t.info_hash
 
 let for_all_peers t ~f = Set.iter t.peers ~f
 
-let send_have_messages t i =
-  let notify_if_doesn't_have i p =
-    if not (Peer.has_piece p i) then (
-      debug !"Pwp: notify peer %{Peer} about piece %d" p i;
-      Peer.send_have p i
-    ) in
-  for_all_peers t ~f:(notify_if_doesn't_have i)
-
 let remove_peer t p =
   t.peers <- Set.remove t.peers p;
   info !"Pwp: %{Peer} has left (%d left)" p (Set.length t.peers)
@@ -62,7 +54,7 @@ let event_loop_tinfo t nf () =
     debug !"Pwp: process event %{Pevent} from %{Peer}" e p;
     match e with 
     | Piece i -> 
-      send_have_messages t i
+      for_all_peers t ~f:(fun p -> Peer.send_have p i)
     | Bye ->
       remove_peer t p
     | _ -> failwith (Pevent.to_string e)

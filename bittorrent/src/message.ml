@@ -15,7 +15,7 @@ type t =
   | Block of int * int * string sexp_opaque
   | Cancel of Block.t
   | Port of int
-  | Extended of Extension.id * Extension.bin 
+  | Extended of Extension.id * Extension.bin sexp_opaque
 [@@deriving sexp]
 
 let max_size = Global.max_block_size + 13
