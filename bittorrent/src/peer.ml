@@ -32,7 +32,6 @@ type t = {
 
   mutable nf : Network_file.t option;
   mutable sent_bitfield : bool;
-  conn_stat : Conn_stat.t;
   block_wr : Block.t Pipe.Writer.t;
   block_rd : Block.t Pipe.Reader.t;
   mutable pending : Block.t Set.Poly.t;
@@ -88,7 +87,6 @@ let create id peer nf event_wr ~dht ~extension =
     dht;
     nf;
     sent_bitfield = false;
-    conn_stat = Conn_stat.create ();
     block_rd;
     block_wr;
     pending = Set.Poly.empty;
@@ -162,7 +160,6 @@ struct
       info !"Peer %{}: hash error piece %d" t index
     | `Downloaded ->
       info !"Peer %{}: downloaded piece %d" t index; 
-      Pc.set_downloading t.peer;
       Nf.set_downloaded nf index;
       Nf.write_piece nf index;
       Nf.remove_requested nf index;
@@ -176,9 +173,7 @@ struct
     Network_file.is_valid_piece_index nf piece |> validate t;
     Piece.is_valid_block_request piece_ ~off ~len |> validate t;
     Network_file.is_downloaded nf piece |> validate t;
-    Pc.set_uploading t.peer; (* TODO pass this in this module *)
     let block_content = Piece.get_content piece_ ~off ~len in
-    Conn_stat.incr_ul t.conn_stat len;
     Message.Block (piece, off, block_content) |> Pc.send t.peer
 
   let process_message t m : unit =
@@ -249,7 +244,6 @@ struct
 
     | Message.Block (i, bgn, block) -> 
       assert (Option.is_some t.nf);
-      Conn_stat.incr_dl t.conn_stat (String.length block);
       process_block t (Option.value_exn t.nf) i bgn block
 
     | Message.Cancel block -> 
@@ -380,10 +374,10 @@ let request_meta t =
   | Some (pe, _) -> Peer_ext.request_meta pe
 
 let status t = Status.{
-    dl = t.conn_stat.total_dl / 1000;
-    ul = t.conn_stat.total_ul / 1000;
-    dl_speed = t.conn_stat.dl_speed /. 1000.;
-    ul_speed = t.conn_stat.ul_speed /. 1000.;
+    dl = Peer_comm.downloaded t.peer; 
+    ul = Peer_comm.uploaded t.peer;
+    dl_speed = Peer_comm.download_speed t.peer; 
+    ul_speed = Peer_comm.upload_speed t.peer;
     client = Peer_id.client (id t);
     addr = Peer_comm.addr t.peer;
   }

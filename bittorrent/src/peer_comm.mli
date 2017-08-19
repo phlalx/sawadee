@@ -29,6 +29,14 @@ type handshake_info = {
     peer_id : Peer_id.t
 }
 
+val downloaded : t -> int
+
+val uploaded : t -> int
+
+val download_speed : t -> float
+
+val upload_speed : t -> float
+
 val initiate_handshake: t -> Bt_hash.t -> handshake_info Deferred.Or_error.t
 
 val wait_handshake : t -> (Bt_hash.t -> bool) -> 
@@ -37,10 +45,6 @@ val wait_handshake : t -> (Bt_hash.t -> bool) ->
 val receive : t -> Message.t Reader.Read_result.t Deferred.t
 
 val send : t -> Message.t -> unit
-
-val set_downloading : t -> unit  (* TODO get rid of this function *)
-
-val set_uploading : t -> unit (* TODO get rid of this function *)
 
 val addr : t -> Unix.Inet_addr.t
 

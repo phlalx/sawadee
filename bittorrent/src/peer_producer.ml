@@ -22,6 +22,11 @@ let close_on_error (p : Pc.t) hi =
   | Ok x -> Ok x |> return 
   | Error err -> Pc.close p >>| fun () -> Error err
 
+let close_on_error (p : Pc.t) hi = 
+  match%bind hi with
+  | Ok x -> Ok x |> return 
+  | Error err -> Pc.close p >>| fun () -> Error err
+
 let handshake_and_push t addr = 
   let open Deferred.Or_error.Let_syntax in
   let%bind p = Pc.create_with_connect addr in

@@ -35,6 +35,10 @@ let size = function
   | Port _ -> 3
   | Extended (_, b) -> 2 + (String.length b)
 
+let payload_size = function
+  | Block (_, _, s) -> String.length s
+  | _ -> 0
+
 exception Unkown_message of int 
 
 (* length is prefix-length, the number of bytes left to read, *)

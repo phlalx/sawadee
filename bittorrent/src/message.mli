@@ -31,6 +31,8 @@ type t =
 
 val max_size : int
 
+val payload_size : t -> int
+
 (* TODO try to be coherent with how this is done in Core *)
 (** size of message *not* including 4-byte {i prefix length}. *)
 val size : t -> int

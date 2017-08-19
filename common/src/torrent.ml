@@ -65,18 +65,6 @@ let info_to_string i : string =
   debug !"Torrent: info_to_bencode %{Be.pretty_print}" b;
   Be.encode_to_string b
 
-let info_to_string_hum i : string =
-  let fi =
-    match i.files_info with
-    | [] -> ""
-    | _ :: [] -> "" 
-    | fis ->
-      let s = List.map fis ~f:(fun (n,i) -> sprintf "%s %d" n i)
-      in (String.concat ~sep:"\n" s) ^ "\n"
-  in
-
-  sprintf "%s\npiece_length: %dkB\ntotal_length: %dkB\nnum_pieces: %d\n%s" 
-    i.name (i.piece_length / 1000) (i.total_length / 1000) i.num_pieces fi
 
 let info_of_bencode b : info = 
   debug !"Torrent: info_of_bencode %{Be.pretty_print}" b;

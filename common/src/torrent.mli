@@ -21,8 +21,6 @@ val info_of_string : string -> info
 
 val info_to_string : info -> string
 
-val info_to_string_hum : info -> string
-
 type t = {
   info_hash : Bt_hash.t; 
   announce : Uri.t;

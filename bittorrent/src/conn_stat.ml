@@ -13,7 +13,8 @@ type t = {
   mutable ul_speed : float;
   mutable last_tick_dl : int;
   mutable last_tick_ul : int;
-} [@@deriving sexp]
+  stop : unit Ivar.t sexp_opaque;
+} [@@deriving sexp, fields]
 
 let to_string t = Sexp.to_string (sexp_of_t t)
 
@@ -27,6 +28,8 @@ let update t () =
   t.total_dl <- t.total_dl + t.last_tick_dl;
   t.total_ul <- t.total_ul + t.last_tick_ul;
   Queue.enqueue t.last_n_sec (t.last_tick_dl, t.last_tick_ul);
+  t.last_tick_dl <- 0;
+  t.last_tick_ul <- 0;
   if (Queue.length t.last_n_sec > window_size) then
     Queue.dequeue t.last_n_sec |> ignore;
 
@@ -35,9 +38,12 @@ let update t () =
   t.dl_speed <- (float_of_int last_dl) /. (float_of_int window_size);
   t.ul_speed <- (float_of_int last_ul) /. (float_of_int window_size)
 
+let close t = 
+    Ivar.fill t.stop ()
 
 (* tick could  be done outside this module for all peers at once *)
-let start t = Clock.every tick (update t)
+let start t = 
+    Clock.every ~stop:(Ivar.read t.stop) tick (update t)
 
 let create () = 
   let t = {
@@ -48,5 +54,6 @@ let create () =
     last_n_sec = Queue.create ();
     last_tick_dl = 0;
     last_tick_ul = 0;
+    stop = Ivar.create ()
   }
   in start t; t

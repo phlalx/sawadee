@@ -21,13 +21,42 @@ type t = {
 
 type t_option = t option[@@deriving bin_io]
 
+let byte_to_hum = 
+  function
+  | x when x < 0 -> assert false
+  | x when 0 <= x && x < 1024 -> sprintf "%dB" x
+  | x when 1024 <= x && x < 1048576  -> sprintf "%dkB" (x / 1024)
+  | x -> sprintf "%dMB" (x / 1048576)
+
+let byte_speed_to_hum = 
+  function
+  | x when x <. 0. -> assert false
+  | x when 0. <=. x && x <. 1000. -> sprintf "%.1fB/s" x
+  | x when 1000. <=. x && x <. 1000000.  -> sprintf "%.1fkB/s" (x /. 1000.)
+  | x -> sprintf "%.1fMB/s" (x /. 1000000.) 
+
 let peer_status_to_string ps = 
   let addr = Unix.Inet_addr.to_string ps.addr in
-  sprintf "%-16s %-12s dl/ul %8dkB %8dkB, dl/ul speed %4.1fkB/s %4.1fkB/s" 
-    addr ps.client ps.dl ps.ul ps.dl_speed ps.ul_speed
+  sprintf "%-16s %-12s dl/ul %8s %8s, dl/ul speed %10s %10s" 
+    addr ps.client (byte_to_hum ps.dl) (byte_to_hum ps.ul) 
+    (byte_speed_to_hum ps.dl_speed) (byte_speed_to_hum ps.ul_speed)
+
+let info_to_string_hum i : string =
+  let fi =
+    match i.Torrent.files_info with
+    | [] -> ""
+    | _ :: [] -> "" 
+    | fis ->
+      let s = List.map fis ~f:(fun (n,i) -> sprintf "%s %8s" n (byte_to_hum i))
+      in (String.concat ~sep:"\n" s) ^ "\n"
+  in
+
+  sprintf "%s\npiece_length: %8s\ntotal_length: %8s\nnum_pieces: %d\n%s" 
+    i.name (byte_to_hum i.piece_length) (byte_to_hum i.total_length)
+    i.num_pieces fi
 
 let torrent_status_to_string ts =
-  sprintf !"%{Torrent.info_to_string_hum}downloaded = %d\n" ts.tinfo 
+  sprintf !"%{info_to_string_hum}downloaded = %d\n" ts.tinfo 
     (Bitfield.card ts.downloaded) 
 
 let to_string t = 

@@ -16,6 +16,7 @@ type t = {
   send_buffer : Bigstring.t;  
   mutable downloading : bool;
   mutable uploading : bool;
+  conn_stat : Conn_stat.t;
 } 
 
 type handshake_info = {
@@ -41,6 +42,7 @@ let create peer_addr r w =
     send_buffer = Bin_prot.Common.create_buf 40000;
     downloading = false;
     uploading = false;
+    conn_stat = Conn_stat.create ();
   }
 
 let to_string t = Addr.to_string t.peer_addr 
@@ -158,9 +160,9 @@ let receive t =
         `Eof 
       | `Ok -> 
         pos_ref := 0;
-        let msg = Message.bin_read_t buf ~pos_ref in
-        (* debug !"got message %{Message} from %{}" msg t; *)
-        `Ok msg)
+        let m = Message.bin_read_t buf ~pos_ref in
+        Conn_stat.incr_dl t.conn_stat (Message.payload_size m);
+        `Ok m)
 
 let send t m =
   let len = 4 + Message.size m in (* prefix length + message *)
@@ -168,19 +170,8 @@ let send t m =
   let buf = t.send_buffer in
   let pos = Message.bin_write_t buf 0 m in
   assert(pos = len); 
+  Conn_stat.incr_ul t.conn_stat (Message.payload_size m);
   Writer.write_bigstring t.writer buf ~len
-
-let set_downloading t = 
-  if not t.downloading then (
-    info !"Peer_comm %{}: downloading" t;
-    t.downloading <- true;
-  )
-
-let set_uploading t = 
-  if not t.uploading then (
-    info !"Peer_comm %{}: uploading" t;
-    t.uploading <- true;
-  )
 
 let addr t = Addr.addr t.peer_addr
 
@@ -195,6 +186,16 @@ let create_with_connect addr =
 
 let close t = 
   debug !"Peer_comm %{Addr}: closing fd" t.peer_addr;
+  Conn_stat.close t.conn_stat;
   Writer.close t.writer
   >>= fun () -> 
   Reader.close t.reader
+
+let downloaded t = Conn_stat.total_dl t.conn_stat
+
+let uploaded t = Conn_stat.total_ul t.conn_stat
+
+let download_speed t = Conn_stat.dl_speed t.conn_stat
+
+let upload_speed t = Conn_stat.ul_speed t.conn_stat
+
