@@ -20,6 +20,7 @@ type t = {
   log_name : string;
   client_id : string;
   max_unchoke : int;
+  handshake_timeout : Time.Span.t
 }
 
 let t = {
@@ -42,8 +43,10 @@ let t = {
   meta_block_size = 16384;
   client_id = "-sW0010";
   max_unchoke = 4;
+  handshake_timeout = sec 10.0;
 }
 
+let handshake_timeout = t.handshake_timeout
 let log_name = t.log_name
 let meta_block_size = t.meta_block_size
 let max_num_pieces = t.max_num_pieces

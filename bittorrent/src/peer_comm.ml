@@ -29,6 +29,7 @@ type handshake_info = {
 let buffer_size = Message.max_size
 
 let create peer_addr r w =
+  info !"Peer_comm: create peer_comm  %{Addr}" peer_addr;
   (* this needs to be done so as we don't get errors when remote peers
      closes his connection *)
   Writer.set_raise_when_consumer_leaves w false;
@@ -104,11 +105,14 @@ let rec send_handshake t hash ~initiate : handshake_info Deferred.Or_error.t =
     let has_hash x = x = hash in 
     receive_handshake t has_hash ~initiate:`Non_initiator
 
-and receive_handshake t (has_hash : Bt_hash.t -> bool) ~initiate : handshake_info Deferred.Or_error.t =
+and receive_handshake t (has_hash : Bt_hash.t -> bool) ~initiate : 
+  handshake_info Deferred.Or_error.t =
   let buf = String.create hs_len in
-  Reader.really_read t.reader buf ~len:hs_len
+  Reader.really_read t.reader buf ~len:hs_len 
+  |> Clock.with_timeout G.handshake_timeout
   >>= function
-  | `Ok  ->  
+  | `Timeout -> Error (Error.of_string "handshake timeout") |> return
+  | `Result `Ok  ->  
     begin
       let hash, pid, extension, dht = extract buf in
       let hi = { info_hash = hash; dht; extension; peer_id = pid } in
@@ -120,7 +124,7 @@ and receive_handshake t (has_hash : Bt_hash.t -> bool) ~initiate : handshake_inf
         Ok hi |> return
       | _, false -> Error (Error.of_string "don't have hash") |> return
     end
-  | `Eof _ -> Error (Error.of_string "handshake error") |> return
+  | `Result `Eof _ -> Error (Error.of_string "handshake error") |> return
 
 let not_ourselves t hinfo = 
   if hinfo.peer_id = G.peer_id then (

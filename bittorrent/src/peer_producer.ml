@@ -14,13 +14,8 @@ type t = {
 let ignore_error addr : unit Or_error.t -> unit =
   function 
   | Ok () -> () 
-  | Error err -> debug !"Peer_producer: can't connect to %{Addr}" addr
-  (* | Error err -> () *)
-
-let close_on_error (p : Pc.t) hi = 
-  match%bind hi with
-  | Ok x -> Ok x |> return 
-  | Error err -> Pc.close p >>| fun () -> Error err
+  | Error err -> 
+      debug !"Peer_producer: can't connect to %{Addr} - %{sexp:Error.t}" addr err
 
 let close_on_error (p : Pc.t) hi = 
   match%bind hi with
