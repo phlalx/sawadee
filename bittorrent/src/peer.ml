@@ -26,8 +26,8 @@ type t = {
   mutable am_interested : bool; 
   mutable received_port : bool ;
   bitfield : Bitfield.t;
-  event_wr : (Pevent.t * t) Pipe.Writer.t; 
 
+  event_wr : (Pevent.t * t) Pipe.Writer.t; 
   peer_ext : (Peer_ext.t * Pevent.t Pipe.Reader.t) option;
 
   mutable nf : Network_file.t option;

@@ -4,6 +4,7 @@ open Log.Global
 
 module G = Global
 module Nf = Network_file
+module Pp = Peer_producer
 
 type t = {
   info_hash : Bt_hash.t;
@@ -14,7 +15,7 @@ type t = {
   mutable tinfo : Torrent.info option; (* TODO redondency with NF *)
   uris : Uri.t list option;
   peer_rd : (Peer_comm.t * Peer_comm.handshake_info) Pipe.Reader.t;
-  peer_producer : Peer_producer.t;
+  peer_producer : Pp.t;
 }
 
 let to_string t = Bt_hash.to_hex t.info_hash
@@ -97,7 +98,6 @@ let add_peer_comm t (pc : Peer_comm.t) (hi : Peer_comm.handshake_info) =
   info !"Pwp: %{Peer} added (%d in) has_nf %b" p (Set.length t.peers) (Option.is_some t.nf);
   Peer.start p
 
-
 let rec process_peers t () = 
   match%bind Pipe.read t.peer_rd with
   | `Eof -> `Finished () |> return
@@ -118,7 +118,7 @@ let start t =
   Deferred.Option.Monad_infix.(tinfo >>| start_with_tinfo t)
   |> Deferred.ignore |> don't_wait_for;
 
-  Peer_producer.start t.peer_producer; 
+  Pp.start t.peer_producer; 
   Deferred.repeat_until_finished () (process_peers t)
   |> don't_wait_for
 
