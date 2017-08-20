@@ -15,6 +15,10 @@ open Log.Global
 
 type t
 
+val meta_length : t -> int
+
+val tinfo_bin : t -> string
+
 val add_requested : t -> int -> unit
 
 val remove_requested : t -> int -> unit

@@ -4,6 +4,9 @@ open Log.Global
 
 module G = Global
 module Pc = Peer_comm
+module Nf = Network_file
+
+let metadata_id = 1
 
 type meta = {
   id : Extension.id;
@@ -17,13 +20,28 @@ type t = {
   event_wr : Pevent.t Pipe.Writer.t;
   peer : Peer_comm.t;
   mutable meta : meta option;
+  nf : Nf.t option
 }
 
-let create peer event_wr = {
+let create peer event_wr nf = {
+  nf;
   peer;
   event_wr;
   meta = None;
 }
+
+let handshake_id = 0 
+let metadata_id = 1 
+
+let send_handshake t = 
+  let supp_ext = 
+    match t.nf with
+    | None -> [] 
+    | Some nf -> [`Metadata (metadata_id, Nf.meta_length nf)]
+  in
+  let em = Extension.Handshake supp_ext in
+  (* TODO make a function to construct extended messages *)
+  Pc.send t.peer (Message.Extended (handshake_id, Extension.to_bin em))
 
 let push_event t e = Pipe.write_without_pushback_if_open t.event_wr e 
 

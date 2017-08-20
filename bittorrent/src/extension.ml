@@ -15,6 +15,9 @@ type ext = [ `Metadata of id * int ]
 
 let ext_to_string ext = Sexp.to_string (sexp_of_ext ext)
 
+let my_metadata_identifier = "sw_metadata"
+let my_metadata_id = 1
+
 type t = 
   | Reject of int  
   | Request of int 
@@ -23,10 +26,13 @@ type t =
   | Unknown
 [@@deriving sexp]
 
+let to_string t = Sexp.to_string (sexp_of_t t)
+
 let extension_message t p = 
   Be.Dict [ "msg_type", Be.Integer t; "piece", Be.Integer p ] 
 
 let to_bin t = 
+  info !"Extension: encoding %{}" t;
   (match t with
    | Unknown -> assert false
    | Request i -> 
@@ -37,6 +43,11 @@ let to_bin t =
      extension_message 2 i |> Be.encode_to_string 
    | Handshake [] -> 
      Be.Dict [ "m", Be.Dict [] ] |> Be.encode_to_string  
+   | Handshake [ `Metadata (id, total_length) ] -> 
+     Be.Dict [ "metadata_size", Be.Integer total_length; 
+               "m", Be.Dict [ my_metadata_identifier,
+                              Be.Integer my_metadata_id ] ] 
+     |> Be.encode_to_string  
    | _ -> assert false (* TODO: support other types *)
   )
 
@@ -81,4 +92,3 @@ let of_bin s =
     assert (n = 0);
     handshake_of_bin b bm 
 
-let to_string t = Sexp.to_string (sexp_of_t t)

@@ -1,9 +1,13 @@
 open Core
 open Async
 
+module Nf = Network_file
+
 type t 
 
-val create : Peer_comm.t -> Pevent.t Pipe.Writer.t -> t
+val create : Peer_comm.t -> Pevent.t Pipe.Writer.t -> Nf.t option -> t
+
+val send_handshake : t -> unit
 
 val process_extended : t -> Extension.id -> Extension.t -> unit
 

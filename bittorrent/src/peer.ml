@@ -30,14 +30,7 @@ type t = {
   block_consumer : Block_consumer.t;
   block_producer : Block_producer.t;
 
-} [@@deriving fields]
-
-
-let is_interesting t nf = 
-  let downloaded = Nf.downloaded nf in 
-  let num_pieces = Nf.num_pieces nf in
-  let bf = t.bitfield in
-  not (Bitfield.is_subset num_pieces bf downloaded)
+} 
 
 let create id peer nf event_wr ~dht ~extension =
   info !"Peer: %{Peer_id.to_string_hum} created" id;
@@ -48,7 +41,7 @@ let create id peer nf event_wr ~dht ~extension =
     match extension with
     | true ->
       let peer_ext_event_rd, peer_ext_event_wr = Pipe.create () in
-      Some ((Peer_ext.create peer peer_ext_event_wr), peer_ext_event_rd)
+      Some ((Peer_ext.create peer peer_ext_event_wr nf), peer_ext_event_rd)
     | false -> None
   in
   {
@@ -70,15 +63,19 @@ let create id peer nf event_wr ~dht ~extension =
     block_producer = Block_producer.create block_wr bitfield;
   }
 
+let is_interesting t nf = 
+  let downloaded = Nf.downloaded nf in 
+  let num_pieces = Nf.num_pieces nf in
+  let bf = t.bitfield in
+  not (Bitfield.is_subset num_pieces bf downloaded)
+
 let push_event t e = Pipe.write_without_pushback_if_open t.event_wr (e, t)
 
-exception Incorrect_behavior
+let validate t b = 
+  let exception Incorrect_behavior in
+  if not b then raise Incorrect_behavior
 
-let validate t b = if not b then raise Incorrect_behavior
-
-let id t = t.id
-
-let to_string t = id t |> Peer_id.to_string_hum  
+let to_string t = t.id |> Peer_id.to_string_hum  
 
 let is_or_not b = if b then "" else "not"
 
@@ -100,6 +97,31 @@ let set_am_choking t b =
   info !"Peer %{}: I am %{is_or_not} choking" t b;
   t.am_choking <- b;
   (if b then Message.Choke else Message.Unchoke) |> Pc.send t.peer
+
+let send_have t i = 
+  if not (Bitfield.get t.bitfield i) then
+    Pc.send t.peer (Message.Have i)
+
+let clear_requests t nf =
+  let f i =
+    debug !"Peer %{}: clear requests %d" t i;
+    Nf.remove_requested nf i
+  in
+  List.iter (Block_consumer.pending_requests t.block_consumer) ~f
+
+let request_meta t =  
+  match t.peer_ext with
+  | None -> assert false
+  | Some (pe, _) -> Peer_ext.request_meta pe
+
+let status t = Status.{
+    dl = Peer_comm.downloaded t.peer; 
+    ul = Peer_comm.uploaded t.peer;
+    dl_speed = Peer_comm.download_speed t.peer; 
+    ul_speed = Peer_comm.upload_speed t.peer;
+    client = Peer_id.client t.id;
+    addr = Peer_comm.addr t.peer;
+  }
 
 module Message_loop : sig 
 
@@ -196,7 +218,7 @@ struct
 
     | Message.Request block -> 
       assert (Option.is_some t.nf);
-      if not (am_choking t) then 
+      if not t.am_choking then 
         process_request t (Option.value_exn t.nf) block
 
     | Message.Block (i, bgn, block) -> 
@@ -243,12 +265,15 @@ let set_nf t nf =
   t.nf <- Some nf;
   start_nf t nf
 
-let clear_requests t nf =
-  let f i =
-    debug !"Peer %{}: clear requests %d" t i;
-    Nf.remove_requested nf i
+let start t = 
+  let f (peer_ext, peer_ext_event_rd) = 
+    Peer_ext.send_handshake peer_ext;
+    Pipe.transfer peer_ext_event_rd t.event_wr ~f:(fun e -> (e,t))
+    |> don't_wait_for
   in
-  List.iter (Block_consumer.pending_requests t.block_consumer) ~f
+  Option.iter t.nf ~f:(start_nf t);
+  Option.iter t.peer_ext ~f; 
+  Message_loop.start t 
 
 let close t = 
   debug !"Peer %{}: we close this peer." t;
@@ -256,33 +281,3 @@ let close t =
   Block_producer.close t.block_producer;
   Option.iter t.peer_ext ~f:(fun (pe, _) -> Peer_ext.close pe); 
   Peer_comm.close t.peer
-
-let start t = 
-  Option.iter t.nf ~f:(start_nf t);
-  let f (_, peer_ext_event_rd) = 
-    Pipe.transfer peer_ext_event_rd t.event_wr ~f:(fun e -> (e,t))
-    |> don't_wait_for
-  in
-  Option.iter t.peer_ext ~f; 
-  Message_loop.start t 
-
-let send_have t i = 
-  if not (Bitfield.get t.bitfield i) then
-    Pc.send t.peer (Message.Have i)
-
-let request_meta t =  
-  match t.peer_ext with
-  | None -> assert false
-  | Some (pe, _) -> Peer_ext.request_meta pe
-
-let status t = Status.{
-    dl = Peer_comm.downloaded t.peer; 
-    ul = Peer_comm.uploaded t.peer;
-    dl_speed = Peer_comm.download_speed t.peer; 
-    ul_speed = Peer_comm.upload_speed t.peer;
-    client = Peer_id.client (id t);
-    addr = Peer_comm.addr t.peer;
-  }
-
-
-

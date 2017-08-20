@@ -40,7 +40,7 @@ let event_loop_no_tinfo t () =
     | Bye ->
       remove_peer t p;
       `Repeat ()
-    | _ -> failwith (Pevent.to_string e)
+    | Piece _ -> assert false
   in 
 
   match%map Pipe.read t.event_rd with
@@ -57,7 +57,7 @@ let event_loop_tinfo t nf () =
       for_all_peers t ~f:(fun p -> Peer.send_have p i)
     | Bye ->
       remove_peer t p
-    | _ -> failwith (Pevent.to_string e)
+    | Support_meta | Tinfo _ -> assert false
 
   in
   match%map Pipe.read t.event_rd with
@@ -66,6 +66,7 @@ let event_loop_tinfo t nf () =
   | `Ok (e, p) -> 
     process_event t nf e p;
     `Repeat ()
+    (* TODO try to use Pipe.iter *)
 
 let start_without_info t : Torrent.info Deferred.Option.t = 
   info !"Pwp: %{} start event loop - without tinfo" t; 

@@ -28,8 +28,6 @@ val close : t -> unit Deferred.t
 
 val set_nf : t -> Network_file.t -> unit
 
-val id : t -> Peer_id.t
-
 val to_string : t -> string
 
 val status : t -> Status.peer_status

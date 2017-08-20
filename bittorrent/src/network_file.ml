@@ -6,6 +6,7 @@ module G = Global
 
 type t = {
   tinfo : Torrent.info;
+  tinfo_bin : string;
   content : Bigstring.t;
   bitfield_name : string; 
   total_length : int; 
@@ -22,6 +23,8 @@ let to_string t = t.tinfo.Torrent.name
 let piece_init bs pos pieces_hash piece_length total_len i = 
   let len = min (total_len - i * piece_length) piece_length in
   Piece.create ~pos ~index:i ~len pieces_hash.(i) bs
+
+let meta_length t = String.length (t.tinfo_bin)
 
 let get_piece t i = t.pieces.(i)
 
@@ -48,14 +51,14 @@ let downloaded_to_string downloaded num_pieces =
 
 let create info_hash tinfo = 
   let Torrent.{ 
-    name;
-    piece_length;
-    pieces_hash;
-    files_info; 
-    total_length;
-    num_pieces;
-    num_files;
-  } = tinfo in 
+      name;
+      piece_length;
+      pieces_hash;
+      files_info; 
+      total_length;
+      num_pieces;
+      num_files;
+    } = tinfo in 
   info "Network_file: create for torrent %s" name;
 
   let content = Bigstring.create total_length in
@@ -107,8 +110,13 @@ let create info_hash tinfo =
   in 
 
   Pers.init_write_pipe pers ~finally |> don't_wait_for;
-
+  let tinfo_bin = Torrent.info_to_string tinfo in
+  let computed_info_hash =
+    Sha1.string tinfo_bin |> Sha1.to_bin |> Bt_hash.of_string 
+  in
+  assert (info_hash = computed_info_hash);
   {
+    tinfo_bin;
     tinfo;
     content;
     total_length;
@@ -120,6 +128,8 @@ let create info_hash tinfo =
     bitfield_name;
     requested = Set.Poly.empty;
   }
+
+let tinfo_bin t = t.tinfo_bin
 
 let tinfo t = t.tinfo
 
