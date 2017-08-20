@@ -16,5 +16,6 @@ do
     sleep 0.1
 done
 FILE=$TORRENT_DIR/$TORRENT
+sleep 5 # wait for DHT to be initialized
 $EXEC_PREFIX/$RPC_CLIENT -r $BASE_RPC_PORT -n $NUM_CLIENTS $FILE
 

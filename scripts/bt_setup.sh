@@ -9,6 +9,7 @@ do
     DIR=$TEST_PATH_PREFIX$i 
     echo "setting up dir $DIR"
     cp -r $FILES $DIR
+    cp $DHT $DIR/routing
     echo "$SCRIPTS_PREFIX/gen_bitset.py "$DIR/$BITSET" $BITSET_LEN"
     $SCRIPTS_PREFIX/gen_bitset.py "$DIR/$BITSET" $NUM_PIECES
 done

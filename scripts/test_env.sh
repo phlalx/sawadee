@@ -9,6 +9,7 @@ export TEST_PATH_PREFIX=download
 export TORRENT=multifiles_localhost_6969.torrent 
 export BITSET=e816b060122c95fa171e41227b12b4a8f30c4e20.bitset
 export TORRENT_DIR=tests/torrents
+export DHT=tests/routing.local
 export FILES=tests/multifiles
 export NUM_PIECES=66
 export NUM_CLIENTS=10

@@ -33,7 +33,7 @@ let implementations =
       ~torrent_path:path
       ~verbose:verbose
       ~server_port:port
-      ~dht_port:None
+      ~dht_port:port
     >>= fun () ->
 
     Signal.handle Signal.terminating ~f:(fun _ -> terminate () |> don't_wait_for);

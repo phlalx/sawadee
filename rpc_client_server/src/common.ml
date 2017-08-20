@@ -29,7 +29,7 @@ let with_rpc_conn f ~host ~port =
     )
 
 let start_server ~env ?(stop=Deferred.never ()) ~implementations ~port () =
-  Log.Global.info "Starting server on %d" port;
+  Log.Global.info "RPC_server: starting server on %d" port;
   let implementations =
     Rpc.Implementations.create_exn ~implementations
       ~on_unknown_rpc:(`Call (fun _ ~rpc_tag ~version ->
