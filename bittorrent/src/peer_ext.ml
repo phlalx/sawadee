@@ -33,6 +33,9 @@ let create peer event_wr nf = {
 let handshake_id = 0 
 let metadata_id = 1 
 
+let send peer id e =
+  Pc.send peer (Message.Extended (id, Extension.to_bin e))
+
 let send_handshake t = 
   let supp_ext = 
     match t.nf with
@@ -40,8 +43,7 @@ let send_handshake t =
     | Some nf -> [`Metadata (metadata_id, Nf.meta_length nf)]
   in
   let em = Extension.Handshake supp_ext in
-  (* TODO make a function to construct extended messages *)
-  Pc.send t.peer (Message.Extended (handshake_id, Extension.to_bin em))
+  send t.peer handshake_id em
 
 let push_event t e = Pipe.write_without_pushback_if_open t.event_wr e 
 
@@ -65,23 +67,31 @@ let request_meta t =
   | Some {id; total_length; num_block } -> 
     let f i = 
       let em = Extension.Request i in
-      let m = Message.Extended (id, Extension.to_bin em) in
       debug !"Peer_ext: sending ext. %{Extension}" em;
-      Pc.send t.peer m
+      send t.peer id em
     in
     List.range 0 num_block |> List.iter ~f
 
-let process_extended t id em =
+let process_extended t rec_id em =
   debug !"Peer_ext: message %{Extension}" em; 
   match em with 
-  | Extension.Handshake [`Metadata (id, total_length)] ->
+  | Extension.Handshake [`Metadata (id, total_length)] when rec_id = handshake_id ->
     let num_block = (total_length + G.meta_block_size - 1) / 
                     G.meta_block_size in
     let data = String.create total_length in
     let received = Array.create num_block false in
     t.meta <- Some {id; total_length; num_block; data; received};
     push_event t Support_meta
-  | Extension.Data (i, s) -> update_data t i s  
+  | Extension.Data (i, s) when rec_id = handshake_id (* TODO checkt this *) -> update_data t i s  
+  | Extension.Request i when rec_id = metadata_id ->  (
+      match t.nf with 
+      | None -> send t.peer handshake_id (*TODO*) (Extension.Reject i)
+      | Some nf ->
+      let pos = i * G.meta_block_size in
+      (* TODO validate *)
+      let data = String.sub (Nf.tinfo_bin nf) ~pos ~len:G.meta_block_size in 
+      send t.peer handshake_id (* TODO *) (Extension.Data (i, data))
+    )
   | _ -> debug "Peer_ext: not implemented" 
 
 let close t = Pipe.close t.event_wr

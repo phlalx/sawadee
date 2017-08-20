@@ -72,7 +72,8 @@ let meta_of_bin b s =
     let msg_type = Be.dict_get_int_exn b "msg_type" in
     let piece = Be.dict_get_int_exn b "piece" in
     match msg_type with 
-    | 0 -> failwith "not implemented yet"
+    | 0 -> 
+      Request piece
     | 1 -> 
       Data (piece, s)
     | 2 -> 
