@@ -17,7 +17,7 @@ val keep_alive : Time.Span.t
 
 val handshake_timeout : Time.Span.t
 
-val is_server : unit -> bool 
+val is_server : unit -> bool  (* TODO always server *)
 
 val port_exn : unit -> int
 

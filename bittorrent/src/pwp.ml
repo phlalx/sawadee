@@ -66,19 +66,23 @@ let event_loop_tinfo t nf () =
   | `Ok (e, p) -> 
     process_event t nf e p;
     `Repeat ()
-    (* TODO try to use Pipe.iter *)
+(* TODO try to use Pipe.iter *)
 
 let start_without_info t : Torrent.info Deferred.Option.t = 
   info !"Pwp: %{} start event loop - without tinfo" t; 
   Deferred.repeat_until_finished () (event_loop_no_tinfo t)
 
 let start_with_tinfo t (tinfo : Torrent.info) : unit Deferred.t =
+
   let n = Bt_hash.to_hex t.info_hash |> G.torrent_name |> G.with_torrent_path in
   info "Pwp: saving meta-info to file %s" n; 
   Torrent.info_to_string tinfo |> Out_channel.write_all n;
 
   let%bind nf = Nf.create t.info_hash tinfo in
-
+  let f dht = 
+    Dht.announce dht t.info_hash (G.port_exn ())
+  in
+  Option.iter (G.dht ()) ~f;
   t.nf <- Some nf;
   for_all_peers t (fun p -> Peer.set_nf p nf);
 

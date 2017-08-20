@@ -8,32 +8,35 @@ open Bin_prot
 
 module Be = Bencode_ext
 
-type token = string
-
 exception Krpc_exception of string
+
+type token = string
+type port = int
 
 type query = 
   | Ping of Node_id.t 
   | Find_node of Node_id.t * Node_id.t  
   | Get_peers of Node_id.t * Bt_hash.t
-  | Announce_peer of Node_id.t * Bt_hash.t * int * token 
+  | Announce_peer of Node_id.t * Bt_hash.t * port * token 
+  (* TODO add unknown *)
 
 type response = 
-  | R_ping_or_get_peers_node of Node_id.t 
-  | R_find_node of Node_info.t
+  | R_ping_or_get_peers_node of Node_id.t  (* TODO change the name of this 
+    constructor, it can be a response for announce too *)
+  | R_find_node of Node_id.t * Node_info.t list
   | R_get_peers_values of Node_id.t * token * Addr.t list 
   | R_get_peers_nodes of Node_id.t * token * Node_info.t list 
 
 type error_code = 
-  | Generic_error 
-  | Server_error 
-  | Protocol_error
+  | Generic_error
+  | Server_error
+  | Protocol_error 
   | Method_unknown
 
 type content = 
   | Query of query 
   | Response of response 
-  | Error of (error_code * string) (* code and message *)
+  | Error of (error_code * string) 
 
 type t = {
   transaction_id : string;
@@ -79,8 +82,9 @@ let buffer_size = 4096
 let bencode_of_response =
   function
   | R_ping_or_get_peers_node id -> ("id", Node_id.to_bencode id) :: []
-  | R_find_node (id, nodes) -> ("id", Node_id.to_bencode id) :: 
-                               ("nodes", (Addr.to_bencode nodes) ) :: []
+  | R_find_node (id, nodes) -> 
+    ("id", Node_id.to_bencode id) :: ("nodes", (Node_info.list_to_bencode nodes))
+    :: []
   | R_get_peers_nodes (id, token, nodes) -> 
     ("id", Node_id.to_bencode id) :: ("token", Be.String token) :: 
     ("nodes", (Node_info.list_to_bencode nodes) ) :: []
@@ -95,17 +99,17 @@ let bencode_of_query =
     ("q", Be.String "ping") :: ("a", args) :: []
   | Find_node (id, target) -> 
     let args = Be.Dict [( "id", Node_id.to_bencode id); 
-                       ("target", Node_id.to_bencode target)]  in
+                        ("target", Node_id.to_bencode target)]  in
     ("q", Be.String "find_node") :: ("a", args) :: []
   | Get_peers (id, info_hash) -> 
     let args = Be.Dict [( "id", Node_id.to_bencode id); 
-                       ("info_hash", Bt_hash.to_bencode info_hash)]  in
+                        ("info_hash", Bt_hash.to_bencode info_hash)]  in
     ("q", Be.String "get_peers") :: ("a", args) :: [] 
   | Announce_peer (id, info_hash, port, token) -> 
     let args = Be.Dict [ ("id", Node_id.to_bencode id); 
-                        ("info_hash", Bt_hash.to_bencode info_hash);
-                        ("port", Be.Integer port);
-                        ("token", Be.String token) ]  in
+                         ("info_hash", Bt_hash.to_bencode info_hash);
+                         ("port", Be.Integer port);
+                         ("token", Be.String token) ]  in
     ("q", Be.String "announce_peer") :: ("a", args) :: []
 
 let bencode_of_error (code, msg) = 
@@ -162,7 +166,7 @@ let response_of_bencode b =
     let nodes_info = Node_info.list_of_bencode n in
     R_get_peers_nodes (id, token, nodes_info)
   | None, None, Some n -> 
-    let nodes = Addr.of_bencode n in
+    let nodes = Node_info.list_of_bencode n in
     R_find_node (id, nodes)
   | None, None, None -> 
     R_ping_or_get_peers_node id

@@ -21,12 +21,14 @@ let connect id addr = {
   id;
 }
 
-let send_packet t m : unit Deferred.t = 
+let send_packet t m : unit Deferred.Or_error.t = 
   let pos = 0 in 
   let len = Kp.bin_write_t t.buffer ~pos m in 
   let buf = t.buffer |> Iobuf.of_bigstring ~pos ~len in
-  let send = Udp.sendto () |> Or_error.ok_exn in
-  send t.socket buf t.addr
+  let send_or_error = Udp.sendto () |> return in
+  let open Deferred.Or_error.Let_syntax in
+  let%bind send = send_or_error in
+  Deferred.Or_error.try_with (fun () -> send t.socket buf t.addr)
 
 let get_one_packet_or_error t : Krpc_packet.t Deferred.Or_error.t = 
   let bs = Bigstring.create Krpc_packet.buffer_size in
@@ -69,7 +71,7 @@ let rpc t
   : 'a Deferred.Or_error.t =
   let open Deferred.Or_error.Monad_infix in
   let tid = fresh_tid () in
-  query_packet tid query |> send_packet t |> Deferred.ok
+  query_packet tid query |> send_packet t 
   >>= fun () -> 
   get_one_packet_or_error t |> Clock.with_timeout krpc_timeout |> timeout_or_error 
   >>= function
@@ -99,6 +101,28 @@ let get_peers t info_hash =
   let query = Kp.Get_peers (t.id, info_hash)
   in
   rpc t query extract_query_response
+
+let find_node t node_id =  
+  let extract_find_node_response = 
+    function
+    | Kp.R_find_node (id, nis) -> Ok (id, nis)
+    | _ -> rpc_error 
+  in 
+  let query = Kp.Find_node (t.id, node_id)
+  in
+  rpc t query extract_find_node_response
+
+let announce t hash port token =
+  let extract_announce_response = 
+    function
+    | Kp.R_ping_or_get_peers_node id -> Ok id
+    | _ -> rpc_error 
+  in 
+  let query = Kp.Announce_peer (t.id, hash, port, token)
+  in
+  rpc t query extract_announce_response
+
+
 
 let close t = assert false
 

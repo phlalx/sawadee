@@ -5,6 +5,8 @@ module Be = Bencode_ext
 
 include Socket.Address.Inet
 
+let update_port t ~port = create (addr t) port
+
 let to_compact t = 
   let p = port t in
   let a = addr t in
