@@ -19,8 +19,6 @@ type t = {
   torrent : torrent_status option
 } [@@deriving bin_io]
 
-type t_option = t option[@@deriving bin_io]
-
 val peer_status_to_string : peer_status -> string
 
 val torrent_status_to_string : torrent_status -> string

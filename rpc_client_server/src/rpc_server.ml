@@ -17,7 +17,9 @@ let implementations =
   [ Rpc.Rpc.implement' Protocol.add_torrent_rpc (fun () -> Bittorrent.add_torrent);
     Rpc.Rpc.implement' Protocol.add_magnet_rpc (fun () -> Bittorrent.add_magnet);
     Rpc.Rpc.implement Protocol.terminate_rpc (fun () -> terminate);
-    Rpc.Rpc.implement' Protocol.status_rpc (fun () -> Bittorrent.status); ]
+    Rpc.Rpc.implement' Protocol.status_rpc (fun () -> Bittorrent.status); 
+    Rpc.Rpc.implement' Protocol.seed_rpc (fun () (x,y) -> Bittorrent.seed x y); 
+  ]
 
   let process 
       (port : int option) 

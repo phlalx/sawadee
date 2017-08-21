@@ -13,6 +13,13 @@ let add_any info_hash
   Pwp.start pwp;
   info_hash
 
+let seed name ~piece_length = 
+  let f () =
+    let tinfo = Torrent.info_of_file name piece_length in
+    let info_hash = Torrent.info_to_string tinfo |> Bt_hash.sha1_of_string in 
+    add_any info_hash (Some tinfo) None 
+  in Or_error.try_with f
+
 let add_magnet h = 
   if not (G.is_dht ()) then
     failwith "DHT should be enabled for magnets";

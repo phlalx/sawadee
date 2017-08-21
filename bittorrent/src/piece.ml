@@ -47,10 +47,7 @@ let blocks t =
   List.range 0 (num_blocks t) |> List.filter_map ~f
 
 let is_hash_ok t =
-  let hash_piece = 
-    Bigsubstring.to_string t.content |> Sha1.string |> Sha1.to_bin 
-  in 
-  hash_piece = Bt_hash.to_string t.hash
+  Bt_hash.sha1_of_string (Bigsubstring.to_string t.content) = t.hash
 
 let update t ~off (block:string) = 
   let index = off / G.block_size in

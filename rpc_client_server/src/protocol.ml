@@ -31,8 +31,19 @@ let terminate_rpc = Rpc.Rpc.create
   ~bin_query:Unit.bin_t
   ~bin_response:Unit.bin_t
 
+type t_option = Status.t option[@@deriving bin_io]
+
+type t_si = (string * int)[@@deriving bin_io]
+type t_hash_or_error = Bt_hash.t Or_error.t[@@deriving bin_io]
+
 let status_rpc = Rpc.Rpc.create
   ~name:"status"
   ~version:0
   ~bin_query:Bt_hash.bin_t
-  ~bin_response:Status.bin_t_option
+  ~bin_response:bin_t_option
+
+let seed_rpc = Rpc.Rpc.create
+  ~name:"seed"
+  ~version:0
+  ~bin_query:bin_t_si
+  ~bin_response:bin_t_hash_or_error

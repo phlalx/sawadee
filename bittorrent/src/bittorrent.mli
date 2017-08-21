@@ -19,6 +19,9 @@ val add_torrent : string -> Bt_hash.t
 
 val add_magnet : string -> Bt_hash.t
 
+(** take a file name and starts to seed it *)
+val seed : string -> piece_length:int -> Bt_hash.t Or_error.t 
+
 val torrent_list : unit -> Bt_hash.t list
 
 val terminate : unit -> unit Deferred.t 

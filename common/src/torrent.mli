@@ -17,6 +17,8 @@ type info = {
   num_files : int;
 } [@@deriving bin_io, sexp]
 
+val info_of_file : string -> piece_length:int -> info
+
 val info_of_string : string -> info
 
 val info_to_string : info -> string

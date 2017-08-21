@@ -111,9 +111,7 @@ let create info_hash tinfo =
 
   Pers.init_write_pipe pers ~finally |> don't_wait_for;
   let tinfo_bin = Torrent.info_to_string tinfo in
-  let computed_info_hash =
-    Sha1.string tinfo_bin |> Sha1.to_bin |> Bt_hash.of_string 
-  in
+  let computed_info_hash = Bt_hash.sha1_of_string tinfo_bin in
   (* assert (info_hash = computed_info_hash); TODO *) 
   {
     tinfo_bin;

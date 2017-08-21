@@ -19,8 +19,6 @@ type t = {
   torrent : torrent_status option
 } [@@deriving bin_io]
 
-type t_option = t option[@@deriving bin_io]
-
 let byte_to_hum = 
   function
   | x when x < 0 -> assert false

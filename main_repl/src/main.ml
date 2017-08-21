@@ -34,9 +34,19 @@ let eval_list () =
   let f = Print.printf !"%{Bt_hash.to_hex}\n" in
   Bittorrent.torrent_list () |> List.iter ~f
 
+let eval_seed f ps =
+  let piece_length = int_of_string ps in
+  match Bittorrent.seed f ~piece_length with
+  | Ok h -> 
+    Print.printf !"Seeding %{Bt_hash.to_hex}.\n" h
+  | Error err -> 
+    Print.printf "Can't seed %s\n" f;
+    Print.printf !"%{sexp:Error.t}\n" err
+
 let help () = 
   Print.printf "Commands are: \n";
   Print.printf " add\n";
+  Print.printf " seed\n";
   Print.printf " list\n";
   Print.printf " status \n";
   Print.printf " quit\n";
@@ -54,6 +64,7 @@ let eval = function
   | "add" :: s :: [] -> eval_add s |> return
   | "list" :: [] -> eval_list () |> return
   | "status" :: h :: [] -> eval_status h |> return
+  | "seed" :: f :: ps :: [] -> eval_seed f ps |> return
   | "quit" :: [] -> terminate ()
   | "help" :: [] -> help () |> return
   | _ -> Print.printf "bad command\n" |> return

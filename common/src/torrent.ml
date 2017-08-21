@@ -122,15 +122,35 @@ let of_bencode bc =
   in
   let info_dict_bc = Be.dict_get_exn bc "info" in 
   let info_str = Be.encode_to_string info_dict_bc in 
-  let info_hash = Sha1.string info_str |> Sha1.to_bin |> Bt_hash.of_string in
+  let info_hash = Bt_hash.sha1_of_string info_str in
   let tinfo = info_of_bencode info_dict_bc in
   debug !"Torrent: announce %{Uri}" announce;
   List.concat announce_list |>  List.iter ~f:(debug !"Torrent: announce %{Uri}"); 
   { announce; announce_list; info_hash; tinfo }
 
-
 let of_string s = `String s |> Be.decode |> of_bencode
 
+let info_of_file name ~piece_length = 
+  let ic = In_channel.create name in
+  let name = Filename.basename name in
+  let total_length = Int64.to_int_exn (In_channel.length ic) in
+  let num_pieces = (total_length + piece_length - 1) / piece_length in
+  let buf = String.create piece_length in
+  let f i = 
+     let p = In_channel.input ic ~buf ~pos:0 ~len:piece_length in
+     Bt_hash.sha1_of_string (String.sub buf ~pos:0 ~len:p)
+   in
+
+  let pieces_hash = Array.init num_pieces ~f in
+  {
+    name;
+    piece_length;
+    pieces_hash;
+    files_info = [ (name, total_length )];
+    total_length;
+    num_pieces;
+    num_files = 1;
+  }
 
 
 
