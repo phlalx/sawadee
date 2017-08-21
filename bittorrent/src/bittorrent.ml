@@ -3,21 +3,31 @@ open Async
 open Log.Global
 
 module G = Global
+module Nf = Network_file 
+
+let nf_of_tinfo info_hash tinfo seeder = 
+  match tinfo with
+  | None -> return None
+  | Some tinfo -> let%map nf = Nf.create ~seeder info_hash tinfo in Some nf
 
 let add_any info_hash 
     (tinfo : Torrent.info option)
     (uris : Uri.t list option) 
+    (seeder : bool)
   : Bt_hash.t =
-  let pwp = Pwp.create uris tinfo info_hash in  
-  Torrent_table.add info_hash pwp; 
-  Pwp.start pwp;
+  (
+    let%map nf = nf_of_tinfo info_hash tinfo seeder in 
+   let pwp = Pwp.create uris nf info_hash in  
+   Torrent_table.add info_hash pwp; 
+   Pwp.start pwp) |>
+  don't_wait_for;
   info_hash
 
 let seed name ~piece_length = 
   let f () =
     let tinfo = Torrent.info_of_file name piece_length in
     let info_hash = Torrent.info_to_string tinfo |> Bt_hash.sha1_of_string in 
-    add_any info_hash (Some tinfo) None 
+    add_any info_hash (Some tinfo) None true
   in Or_error.try_with f
 
 let add_magnet h = 
@@ -28,7 +38,7 @@ let add_magnet h =
   let tinfo = Option.try_with
       (fun () -> In_channel.read_all n |> Torrent.info_of_string)  in
 
-  add_any hash tinfo None
+  add_any hash tinfo None false
 
 let add_torrent s = 
   let t = try 
@@ -46,7 +56,7 @@ let add_torrent s =
     | [] -> [ announce ]
     | al -> List.dedup_and_sort (List.concat al) |> List.permute 
   in
-  add_any info_hash (Some tinfo) (Some uris)
+  add_any info_hash (Some tinfo) (Some uris) false
 
 let set_verbose i =
   match i with

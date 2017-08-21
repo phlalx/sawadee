@@ -10,6 +10,8 @@ open Core
 type t
 [@@deriving sexp, bin_io]
 
+val full : int -> t
+
 (* length of serialized form of [t] *)
 val length : t -> int 
 

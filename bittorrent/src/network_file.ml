@@ -18,38 +18,16 @@ type t = {
   mutable requested : int Set.Poly.t;
 }
 
-let to_string t = t.tinfo.Torrent.name
-
-let piece_init bs pos pieces_hash piece_length total_len i = 
-  let len = min (total_len - i * piece_length) piece_length in
-  Piece.create ~pos ~index:i ~len pieces_hash.(i) bs
-
-let meta_length t = String.length (t.tinfo_bin)
-
-let get_piece t i = t.pieces.(i)
-
-let set_downloaded t i = 
-  assert (not (Bitfield.get t.downloaded i));
-  Bitfield.set t.downloaded i true
-
-let is_valid_piece_index t i = i >=0 && i < t.num_pieces
-
-let num_pieces t = t.num_pieces 
-
-let length t = t.total_length
-
-let is_downloaded t i = Bitfield.get t.downloaded i
-
-let downloaded t = t.downloaded
-
-let has_any_piece t = not (Bitfield.is_empty t.downloaded)
-
 let downloaded_to_string downloaded num_pieces =
   let n = Bitfield.card downloaded in 
   let percent = (100 * n) / num_pieces in
   sprintf "%d/%d pieces (%d%%)" n num_pieces percent
 
-let create info_hash tinfo = 
+let piece_init bs pos pieces_hash piece_length total_len i = 
+  let len = min (total_len - i * piece_length) piece_length in
+  Piece.create ~pos ~index:i ~len pieces_hash.(i) bs
+
+let create ~seeder info_hash tinfo = 
   let Torrent.{ 
       name;
       piece_length;
@@ -71,7 +49,9 @@ let create info_hash tinfo =
   let pieces = Array.init num_pieces ~f  in
   let downloaded = 
     try
-      In_channel.read_all bitfield_name |> Bitfield.of_string
+      match seeder with 
+      | false -> In_channel.read_all bitfield_name |> Bitfield.of_string
+      | true -> Bitfield.full num_pieces
     with _ -> 
       info "Network_file: can't read bitfield %s. Using empty bitfield" bitfield_name;
       Bitfield.empty num_pieces 
@@ -126,6 +106,29 @@ let create info_hash tinfo =
     bitfield_name;
     requested = Set.Poly.empty;
   }
+
+let to_string t = t.tinfo.Torrent.name
+
+let meta_length t = String.length (t.tinfo_bin)
+
+let get_piece t i = t.pieces.(i)
+
+let set_downloaded t i = 
+  assert (not (Bitfield.get t.downloaded i));
+  Bitfield.set t.downloaded i true
+
+let is_valid_piece_index t i = i >=0 && i < t.num_pieces
+
+let num_pieces t = t.num_pieces 
+
+let length t = t.total_length
+
+let is_downloaded t i = Bitfield.get t.downloaded i
+
+let downloaded t = t.downloaded
+
+let has_any_piece t = not (Bitfield.is_empty t.downloaded)
+
 
 let tinfo_bin t = t.tinfo_bin
 

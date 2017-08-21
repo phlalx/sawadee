@@ -12,8 +12,6 @@ type t = {
   mutable peers : Peer.t Set.Poly.t;
   event_wr : (Pevent.t * Peer.t) Pipe.Writer.t; 
   event_rd : (Pevent.t * Peer.t) Pipe.Reader.t;
-  mutable tinfo : Torrent.info option; (* TODO redondency with NF *)
-  uris : Uri.t list option;
   peer_rd : (Peer_comm.t * Peer_comm.handshake_info) Pipe.Reader.t;
   peer_producer : Pp.t;
 }
@@ -26,7 +24,7 @@ let remove_peer t p =
   t.peers <- Set.remove t.peers p;
   info !"Pwp: %{Peer} has left (%d left)" p (Set.length t.peers)
 
-let event_loop_no_tinfo t () = 
+let event_loop_no_nf t () = 
 
   let process_event e p = 
     let open Peer in
@@ -47,7 +45,7 @@ let event_loop_no_tinfo t () =
   | `Eof -> `Finished None
   | `Ok (e, p) -> process_event e p
 
-let event_loop_tinfo t nf () = 
+let event_loop_nf t nf () = 
 
   let process_event t nf e p = 
     let open Peer in
@@ -68,17 +66,20 @@ let event_loop_tinfo t nf () =
     `Repeat ()
 (* TODO try to use Pipe.iter *)
 
-let start_without_info t : Torrent.info Deferred.Option.t = 
-  info !"Pwp: %{} start event loop - without tinfo" t; 
-  Deferred.repeat_until_finished () (event_loop_no_tinfo t)
+let start_without_nf t : Nf.t Deferred.Option.t = 
+  info !"Pwp: %{} start event loop - without nf" t; 
+  match%bind Deferred.repeat_until_finished () (event_loop_no_nf t) with
+  | None -> return None
+  | Some tinfo -> 
+    info !"Pwp: %{} got meta-info" t; 
+    let n = Bt_hash.to_hex t.info_hash |> G.torrent_name |> G.with_torrent_path in
+    info "Pwp: saving meta-info to file %s" n; 
+    Torrent.info_to_string tinfo |> Out_channel.write_all n;
 
-let start_with_tinfo t (tinfo : Torrent.info) : unit Deferred.t =
+    let%map nf = Nf.create ~seeder:false t.info_hash tinfo in Some nf
 
-  let n = Bt_hash.to_hex t.info_hash |> G.torrent_name |> G.with_torrent_path in
-  info "Pwp: saving meta-info to file %s" n; 
-  Torrent.info_to_string tinfo |> Out_channel.write_all n;
+let start_with_nf t nf : unit =
 
-  let%bind nf = Nf.create t.info_hash tinfo in
   let f dht = 
     Dht.announce dht t.info_hash (G.port_exn ())
   in
@@ -86,8 +87,9 @@ let start_with_tinfo t (tinfo : Torrent.info) : unit Deferred.t =
   t.nf <- Some nf;
   for_all_peers t (fun p -> Peer.set_nf p nf);
 
-  info !"Pwp: %{} start event loop - with tinfo" t; 
-  Deferred.repeat_until_finished () (event_loop_tinfo t nf)
+  info !"Pwp: %{} start event loop - with nf" t; 
+  Deferred.repeat_until_finished () (event_loop_nf t nf)
+  |> don't_wait_for
 
 let add_peer_comm t (pc : Peer_comm.t) (hi : Peer_comm.handshake_info) =
   let p = Peer.create hi.peer_id pc t.nf t.event_wr ~extension:hi.extension 
@@ -105,19 +107,19 @@ let rec process_peers t () =
 
 let stop t = assert false
 
-let start t =
-  info !"Pwp: start %{}" t;
-  let tinfo : Torrent.info Deferred.Option.t =
-    match t.tinfo with 
-    | None -> start_without_info t
-    | Some tinfo -> Some tinfo |> return 
-  in
-  Deferred.Option.Monad_infix.(tinfo >>| start_with_tinfo t)
-  |> Deferred.ignore |> don't_wait_for;
+let get_nf t : Network_file.t Deferred.Option.t =
+  match t.nf with
+  | Some nf -> return (Some nf)
+  | None -> start_without_nf t  
 
+let start t : unit =
+  (let open Deferred.Option.Let_syntax in
+   info !"Pwp: start %{}" t;
+   let%map nf = get_nf t in
+   start_with_nf t nf)
+  |> Deferred.ignore |> don't_wait_for;
   Pp.start t.peer_producer; 
-  Deferred.repeat_until_finished () (process_peers t)
-  |> don't_wait_for
+  Deferred.repeat_until_finished () (process_peers t) |> don't_wait_for
 
 let close t = 
   info !"Pwp: closing %{}" t;
@@ -128,7 +130,7 @@ let close t =
   | None -> Deferred.unit  
   | Some nf -> Nf.close nf  
 
-let create uris tinfo info_hash = 
+let create uris nf info_hash = 
   info !"Pwp: create with info_hash %{Bt_hash.to_hex}" info_hash;
   let event_rd, event_wr = Pipe.create () in 
   let peer_rd, peer_wr = Pipe.create () in
@@ -136,13 +138,11 @@ let create uris tinfo info_hash =
   { 
     info_hash;
     peers = Set.Poly.empty; (* TODO use a set based on peer-id *)
-    nf = None;
+    nf;
     event_rd;
     event_wr;
-    uris;
     peer_producer;
     peer_rd;
-    tinfo;
   }
 
 let status t = 

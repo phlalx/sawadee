@@ -35,6 +35,14 @@ let set t i b =
   else  
     t.[byte_index] <- i land (lnot (1 lsl bit)) |> char_of_int 
 
+let full n = 
+  (* TODO overkill *)
+  let s = String.create (length_from_size n) in
+  for i = 0 to n - 1 do
+    set s i true
+  done;
+  s
+
 let copy ~src ~dst = 
   let len = String.length src in
   String.blit ~src ~dst ~src_pos:0 ~dst_pos:0 ~len 
