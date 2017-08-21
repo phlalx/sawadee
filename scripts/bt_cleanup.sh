@@ -10,11 +10,13 @@ do
     rm -rf $DIR
 done
 echo pkill -f $CLIENT
-echo pkill -f $RPC_CLIENT
+echo pkill -f $TEST_DHT
+echo pkill -f $TEST_TORRENT
 echo pkill -f $RPC_SERVER
 echo pkill -f $TRACKER
 
 pkill -f $CLIENT
-pkill -f $RPC_CLIENT
+pkill -f $TEST_TORRENT
+pkill -f $TEST_DHT
 pkill -f $RPC_SERVER
 pkill -f $TRACKER

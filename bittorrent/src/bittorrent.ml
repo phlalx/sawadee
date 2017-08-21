@@ -10,35 +10,50 @@ let nf_of_tinfo info_hash tinfo seeder =
   | None -> return None
   | Some tinfo -> let%map nf = Nf.create ~seeder info_hash tinfo in Some nf
 
+let copy f1 f2 =
+  let len = 65536 in
+  let buffer = String.create len in
+  let f rd : unit Deferred.t = 
+    let g wr : unit Deferred.t =
+      Deferred.repeat_until_finished ()
+        (fun () -> 
+           match%map Reader.read rd buffer ~pos:0 ~len with
+           | `Eof -> `Finished ()
+           | `Ok i -> Writer.write wr buffer ~pos:0 ~len:i; `Repeat ())
+    in 
+    Writer.with_file f2 ~f:g 
+  in
+  Reader.with_file f1 ~f 
+
 let add_any info_hash 
     (tinfo : Torrent.info option)
     (uris : Uri.t list option) 
-    (seeder : bool)
-  : Bt_hash.t =
-  (
-    let%map nf = nf_of_tinfo info_hash tinfo seeder in 
-   let swarm = Swarm.create uris nf info_hash in  
-   Torrent_table.add info_hash swarm; 
-   Swarm.start swarm) |>
-  don't_wait_for;
-  info_hash
+    (seeder : bool) =
+  let%map nf = nf_of_tinfo info_hash tinfo seeder in 
+  let swarm = Swarm.create uris nf info_hash in  
+  Torrent_table.add info_hash swarm; 
+  Swarm.start swarm
 
 let seed name ~piece_length = 
   let f () =
     let tinfo = Torrent.info_of_file name piece_length in
     let info_hash = Torrent.info_to_string tinfo |> Bt_hash.sha1_of_string in 
-    add_any info_hash (Some tinfo) None true
-  in Or_error.try_with f
+    let dst = G.with_download_path (Filename.basename name) in
+    (copy name dst >>= fun () ->
+    add_any info_hash (Some tinfo) None true) |> don't_wait_for;
+    info_hash
+  in Or_error.try_with f (* TODO change this *)
 
 let add_magnet h = 
   if not (G.is_dht ()) then
     failwith "DHT should be enabled for magnets";
-  let hash = Bt_hash.of_hex h in
+  let info_hash = Bt_hash.of_hex h in
   let n = h |> G.torrent_name |> G.with_torrent_path in
   let tinfo = Option.try_with
       (fun () -> In_channel.read_all n |> Torrent.info_of_string)  in
 
-  add_any hash tinfo None false
+  add_any info_hash tinfo None false |> don't_wait_for;
+  info_hash
 
 let add_torrent s = 
   let t = try 
@@ -56,7 +71,8 @@ let add_torrent s =
     | [] -> [ announce ]
     | al -> List.dedup_and_sort (List.concat al) |> List.permute 
   in
-  add_any info_hash (Some tinfo) (Some uris) false
+  add_any info_hash (Some tinfo) (Some uris) false |> don't_wait_for;
+  info_hash
 
 let set_verbose i =
   match i with

@@ -20,6 +20,7 @@ depends: [
   "sha" {>= "1.9"} 
   "hex" {>= "1.1.1"}
   "bencode" {>= "1.0.2"}
+  "ounit" {>= "2.0.0"}
   ]      
 available: [ ocaml-version >= "4.04.2" ]
 descr: "

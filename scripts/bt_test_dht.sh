@@ -15,7 +15,6 @@ do
     $SCRIPTS_PREFIX/bt_rpc_server.sh $i & 
     sleep 0.1
 done
-FILE=$TORRENT_DIR/$TORRENT
 sleep 5 # wait for DHT to be initialized
-$EXEC_PREFIX/$TEST_TORRENT -r $BASE_RPC_PORT -n $NUM_CLIENTS $FILE
+$EXEC_PREFIX/$TEST_DHT -r $BASE_RPC_PORT -n $NUM_CLIENTS $FILE_MAGNET
 

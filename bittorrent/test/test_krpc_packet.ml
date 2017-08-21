@@ -28,7 +28,7 @@ let announce_peer = Query (Announce_peer (id1, hash1, 1234, token))
 
 let r_ping = Response (R_ping_or_get_peers_node id1)
 
-let r_find_node = Response (R_find_node (id1, addr1))
+let r_find_node = Response (R_find_node (id1, [id2, addr1; id3, addr2]))
 
 let r_get_peers_values = Response 
     (R_get_peers_values (id1, token, [addr1; addr2]))

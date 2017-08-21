@@ -1,7 +1,8 @@
 export EXEC_PREFIX=_build/install/default/bin
 export TRACKER=bt_tracker
 export RPC_SERVER=sawadee_rpc
-export RPC_CLIENT=test_simple_torrent
+export TEST_TORRENT=test_simple_torrent
+export TEST_DHT=test_dht
 export CLIENT=sawadee
 export SCRIPTS_PREFIX=scripts
 export OCAML_TORRENT=1
@@ -12,6 +13,7 @@ export TORRENT_DIR=tests/torrents
 export DHT_LOCAL=tests/routing.local
 export DHT=routing
 export FILES=tests/multifiles
+export FILE_MAGNET=tests/singlefile/11318.jpg 
 export NUM_PIECES=66
 export NUM_CLIENTS=10
 export BASE_PORT=6000
