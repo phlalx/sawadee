@@ -18,6 +18,8 @@ open Log.Global
 
 type t
 
+val create : seeder:bool -> Bt_hash.t -> Torrent.info -> t Deferred.t
+
 val meta_length : t -> int
 
 val tinfo_bin : t -> string
@@ -27,8 +29,6 @@ val add_requested : t -> int -> unit
 val remove_requested : t -> int -> unit
 
 val requested : t -> int list 
-
-val create : seeder:bool -> Bt_hash.t -> Torrent.info -> t Deferred.t
 
 val get_piece : t -> int -> Piece.t  
 

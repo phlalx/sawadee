@@ -17,9 +17,9 @@ let add_any info_hash
   : Bt_hash.t =
   (
     let%map nf = nf_of_tinfo info_hash tinfo seeder in 
-   let pwp = Pwp.create uris nf info_hash in  
-   Torrent_table.add info_hash pwp; 
-   Pwp.start pwp) |>
+   let swarm = Swarm.create uris nf info_hash in  
+   Torrent_table.add info_hash swarm; 
+   Swarm.start swarm) |>
   don't_wait_for;
   info_hash
 
@@ -129,14 +129,14 @@ let terminate_dht dht =
     _ -> info "Bittorrent: can't open %s" table_name
 
 let terminate () =
-  Torrent_table.data () |> Deferred.List.iter ~f:Pwp.close
+  Torrent_table.data () |> Deferred.List.iter ~f:Swarm.close
   >>= fun () ->
   (* TODO we could terminate the server too *)
   Option.iter (G.dht ()) terminate_dht;
   flushed () 
 
 let status h = 
-  Torrent_table.find h |> Option.map ~f:Pwp.status 
+  Torrent_table.find h |> Option.map ~f:Swarm.status 
 
 
 

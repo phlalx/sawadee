@@ -1,8 +1,8 @@
 (jbuild_version 1)
 
 (executable
-   ((name tracker_server) 
-    (public_name tracker) 
+   ((name main) 
+    (public_name bt_tracker) 
     (libraries (common core async ppx_jane cohttp cohttp.async)) 
     (preprocess (pps (ppx_jane))))) 
 

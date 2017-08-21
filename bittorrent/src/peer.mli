@@ -1,16 +1,16 @@
 (** Worker thread to communicate with a remote peer. 
 
     This module implements a "worker thread" that communicates with a remote 
-    peer, and controlled by a "master" [Pwp.t].
+    peer, and controlled by a "master" [Swarm.t].
 
-    A [Peer.t] communicates with [Pwp.t] in two ways.
+    A [Peer.t] communicates with [Swarm.t] in two ways.
     - non blocking function calls (e.g. requesting a piece, or sending a
     bitfield.  
     - by notifying it with events on a pipe.
 
-    All [Peer.t] in a swarm and their controling [Pwp.t] eventually share a
+    All [Peer.t] in a swarm and their controling [Swarm.t] eventually share a
     [Network_file.t]. This let them answer block queries from
-    remote peers with no interaction with [Pwp.t]. *)
+    remote peers with no interaction with [Swarm.t]. *)
 
 open Core
 open Async

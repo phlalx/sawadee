@@ -38,7 +38,7 @@ val blocks : t -> Block.t list
 (** Updates a piece with downloaded block.
 
     This updates the content of the piece and check for consistency. Called 
-    by [Pwp] upon reception of a block *)
+    by [Swarm] upon reception of a block *)
 val update : t -> off:int -> string -> [ `Downloaded | `Ok | `Hash_error ] 
 
 val is_hash_ok : t -> bool

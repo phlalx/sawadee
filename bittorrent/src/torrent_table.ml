@@ -2,7 +2,7 @@ open Core
 
 let t = Hashtbl.Poly.create ()
 
-let add info_hash pwp = Hashtbl.add t ~key:info_hash ~data:pwp |> ignore
+let add info_hash swarm = Hashtbl.add t ~key:info_hash ~data:swarm |> ignore
 
 let has_hash = Hashtbl.mem t 
 

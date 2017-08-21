@@ -1,0 +1,9 @@
+(jbuild_version 1)
+
+
+(executables
+   ((names (test_simple_torrent))(public_names (test_simple_torrent))
+      (libraries (bittorrent rpc_common common core async ppx_jane)) 
+      (preprocess (pps (ppx_jane)))))
+
+

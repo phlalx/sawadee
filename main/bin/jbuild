@@ -2,7 +2,7 @@
 
 (executable
    ((name main)
-    (public_name btclient_repl) 
+    (public_name sawadee) 
       (libraries (bittorrent common core async ppx_jane)) 
       (preprocess (pps (ppx_jane)))))
 

@@ -1,19 +1,16 @@
-.PHONY: default unit test clean bittorrent
+.PHONY: main all main_repl tracker unit clean test test_repl test_rpc
 
-bittorrent:
-	jbuilder build main/src/main.bc 
+main:
+	jbuilder build main/bin/main.bc 
 
 all: 
 	jbuilder build @install
 	
-client:
-	jbuilder build main/src/main.bc 
+main_repl:
+	jbuilder build main_repl/bin/main.bc 
 
-client_repl:
-	jbuilder build main_repl/src/main.bc 
-
-server:
-	jbuilder build tracker/src/tracker_server.bc 
+tracker:
+	jbuilder build tracker/bin/main.bc 
 
 unit:
 	jbuilder runtest

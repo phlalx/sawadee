@@ -92,7 +92,7 @@ let create ~seeder info_hash tinfo =
   Pers.init_write_pipe pers ~finally |> don't_wait_for;
   let tinfo_bin = Torrent.info_to_string tinfo in
   let computed_info_hash = Bt_hash.sha1_of_string tinfo_bin in
-  (* assert (info_hash = computed_info_hash); TODO *) 
+  assert (info_hash = computed_info_hash); 
   {
     tinfo_bin;
     tinfo;

@@ -21,8 +21,8 @@ let handler addr r w =
     let p = Peer_comm.create addr r w in
     let%bind hi = Pc.wait_handshake p Torrent_table.has_hash in
     info !"Server: %{Pc.to_string} handshake" p;
-    let pwp = Torrent_table.find_exn hi.info_hash in
-    Pwp.add_peer_comm pwp p hi |> Deferred.ok
+    let swarm = Torrent_table.find_exn hi.info_hash in
+    Swarm.add_peer_comm swarm p hi |> Deferred.ok
 
   in handler_or_error () >>| ignore_error addr
 
