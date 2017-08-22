@@ -3,6 +3,7 @@ open Core
 module Be = Bencode_ext
 
 type t = Node_id.t * Addr.t  
+[@@deriving sexp_of]
 
 let to_compact (n, p) = (Node_id.to_string n) ^ (Addr.to_compact p)
 

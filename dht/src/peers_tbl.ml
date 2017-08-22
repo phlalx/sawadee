@@ -1,6 +1,6 @@
 open Core
 
-type t = (Node_id.t, Addr.t list) Hashtbl.t
+type t = (Bt_hash.t, Addr.t list) Hashtbl.t
 
 let create () = Hashtbl.Poly.create ()
 

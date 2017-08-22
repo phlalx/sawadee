@@ -3,12 +3,12 @@ open Core
 include Hash_id.Id 
 
 let num_bits x = 
-let rec num_bits_aux c acc i = 
-  if i = 8 then
-    acc
-  else 
-    num_bits_aux (c/2) (acc + (c % 2)) (i+1)
-in num_bits_aux x 0 0 
+  let rec num_bits_aux c acc i = 
+    if i = 8 then
+      acc
+    else 
+      num_bits_aux (c/2) (acc + (c % 2)) (i+1)
+  in num_bits_aux x 0 0 
 
 let dist s1 s2 = 
   let l1 = String.to_list s1 in 
@@ -22,3 +22,5 @@ let distance t1 t2 = dist t1 t2
 let distance_hash t h = dist t (Bt_hash.to_string h)
 
 let compare h n1 n2 = (distance_hash n1 h) - (distance_hash n2 h)
+
+let sexp_of_t x = Sexp.Atom (to_string_hum x)

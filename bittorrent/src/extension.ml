@@ -60,12 +60,14 @@ let dict_get_suff_int_exn (d : Be.t) ~suffix : int =
   |  _ -> raise Unknown_message  
 
 let handshake_of_bin b bm =
-  try 
-    let metadata_size = dict_get_suff_int_exn b ~suffix:"metadata_size" in
-    let metadata = dict_get_suff_int_exn bm ~suffix:"metadata" in 
-    Handshake [ `Metadata (metadata, metadata_size) ]
-  with 
-    _ -> Unknown
+  let ext = 
+    try 
+      let metadata_size = dict_get_suff_int_exn b ~suffix:"metadata_size" in
+      let metadata = dict_get_suff_int_exn bm ~suffix:"metadata" in 
+      [ `Metadata (metadata, metadata_size) ]
+    with 
+      _ -> []
+  in Handshake ext
 
 let meta_of_bin b s =  
   try

@@ -17,3 +17,4 @@ eval `opam config env`
 make all
 make unit
 ./scripts/bt_test.sh
+./scripts/bt_test_dht.sh

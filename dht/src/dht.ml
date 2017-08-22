@@ -17,7 +17,9 @@ let create ~port id =
   info !"Dht: peer-id:%{Node_id.to_string_hum}" id;
   let routing = Routing.create () in
   let peers = Peers_tbl.create () in
-  let tokens = Tokens.create () in {
+  let tokens = Tokens.create () in
+  start_server port id routing peers tokens;
+   {
     id;
     routing;
     peers;
@@ -27,6 +29,7 @@ let create ~port id =
 let try_add t addr : unit Deferred.Or_error.t =
   let open Deferred.Or_error.Let_syntax in
   let%map id = Node.ping t.id addr in
+  debug !"Dht: added node %{Node_id.to_string_hum}" id;
   Routing.add t.routing (id, addr)
 
 let lookup_info_hash t info_hash (_, addr) = 
@@ -75,6 +78,9 @@ let lookup t ?populate info_hash =
 let table t = Routing.to_list t.routing
 
 let announce t hash ~port = 
+  (* TODO add us to the list of known peers *)
+  let addr = Addr.create Unix.Inet_addr.localhost ~port in
+  Peers_tbl.add t.peers hash addr;
   let f (token, addr) = 
     Node.announce t.id addr hash port token |> Deferred.ignore |> don't_wait_for 
   in

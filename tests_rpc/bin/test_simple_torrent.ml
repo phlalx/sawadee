@@ -4,25 +4,32 @@ open Log.Global
 
 (* TODO make this a ounit test *)
 
-let test file port  =
-  let%bind hash = 
-    let f = In_channel.read_all file in
-    Wrapper.add_torrent f port in
-  let%bind () = Clock.after (sec 5.0) in 
-  let%bind status = Wrapper.status hash port in 
+let test_peer file time port : bool Deferred.t =
+  let%bind handler = Wrapper.add_torrent file port in
+  let%bind () = Clock.after (sec (float_of_int time)) in 
+  let%bind status = Wrapper.status handler port in 
   match status with
-  | Some { torrent = Some { tinfo; downloaded }} ->  
+  | Some { torrent = Some { tinfo; downloaded }} -> 
     let num_dl = Bitfield.card downloaded in
-    if not (num_dl = tinfo.Torrent.num_pieces) then
-      failwith "didn't downloaded all the pieces";
+    let num_total = tinfo.Torrent.num_pieces in
+    Print.printf "Peer %d: %d/%d\n" port  num_dl num_total;
     Wrapper.terminate port 
-  | _ -> failwith "Status not available"
+    >>| fun () ->
+    num_dl = num_total
+  | _ -> 
+    Print.printf "Peer %d: didn't get status\n" port;
+    Wrapper.terminate port 
+    >>| fun () -> 
+    false
 
-let process port num_clients file () : unit Deferred.t = 
+let process port num_clients time filename () : unit Deferred.t = 
   set_level `Info;
-  List.range port (port + num_clients) 
-  |> Deferred.List.iter ~f:(test file) ~how:`Parallel 
-  >>| fun () -> Print.printf "Test OK\n"
+  let file = In_channel.read_all filename in
+  let r = List.range port (port + num_clients) in
+  let%bind l = Deferred.List.map r ~f:(test_peer file time) ~how:`Parallel in
+  match List.fold l ~init:true ~f:(fun acc b -> acc && b) with
+  | true -> Print.printf "Test OK\n"; exit 0
+  | false -> Print.printf "Test Not OK\n"; exit 1
 
 let () = 
   let spec =
@@ -30,9 +37,8 @@ let () =
       empty +> 
       flag "-r" (required int) ~doc:"set base port"  +>  
       flag "-n" (required int) ~doc:"set num clients" +>  
+      flag "-s" (required int) ~doc:"time for test to complete" +>  
       anon ("URI/FILE" %: string))
   in
-  let command =
-    Command.async ~summary:"Download torrent file" spec process
-  in
-  Command.run command
+  Command.async ~summary:"Download torrent file" spec process 
+  |> Command.run 

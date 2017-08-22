@@ -18,6 +18,8 @@ open Log.Global
 
 type t
 
+val id : t -> Peer_id.t 
+
 val create : Bt_hash.t -> Peer_id.t -> Peer_comm.t -> Network_file.t option 
   -> (Pevent.t * t) Pipe.Writer.t -> dht:bool -> extension:bool -> t
 
@@ -35,6 +37,3 @@ val status : t -> Status.peer_status
 val request_meta : t -> unit
 
 val send_have : t -> int -> unit
-
-
-

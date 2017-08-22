@@ -41,7 +41,8 @@ let send peer id e =
 let send_handshake t = 
   let supp_ext = 
     match t.nf with
-    | None -> [] 
+    | None -> []  (* we could send simply a metadata_id, but would it be useful
+                     to the recipient without length *)
     | Some nf -> [`Metadata (metadata_id, Nf.meta_length nf)]
   in
   let em = Extension.Handshake supp_ext in
@@ -80,6 +81,7 @@ let request_meta t =
 let process_extended t rec_id em =
   debug !"Peer_ext: message %{Extension}" em; 
   match em with 
+  | Extension.Handshake [] -> () 
   | Extension.Handshake [`Metadata (id, total_length)] when rec_id = handshake_id ->
     let num_block = (total_length + G.meta_block_size - 1) / 
                     G.meta_block_size in
@@ -88,13 +90,17 @@ let process_extended t rec_id em =
     t.meta <- Some {id; total_length; num_block; data; received};
     push_event t Support_meta
   | Extension.Data (i, s) when rec_id = handshake_id (* TODO checkt this *) -> update_data t i s  
-  | Extension.Request i when rec_id = metadata_id ->  (
+  | Extension.Request i ->  (
+      assert (rec_id = metadata_id);
       match t.nf with 
       | None -> send t.peer handshake_id (*TODO*) (Extension.Reject i)
       | Some nf ->
       let pos = i * G.meta_block_size in
-      (* TODO validate *)
-      let data = String.sub (Nf.tinfo_bin nf) ~pos ~len:G.meta_block_size in 
+      info "pos = %d tinfo_bin = %d len = %d" pos (String.length (Nf.tinfo_bin nf)) G.meta_block_size;
+      let tinfo_bin_len = String.length (Nf.tinfo_bin nf) in
+      assert (pos < tinfo_bin_len);
+      let len = min G.meta_block_size (tinfo_bin_len - pos) in 
+      let data = String.sub (Nf.tinfo_bin nf) ~pos ~len in
       send t.peer handshake_id (* TODO *) (Extension.Data (i, data))
     )
   | _ -> debug "Peer_ext: not implemented" 

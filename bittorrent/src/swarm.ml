@@ -92,10 +92,21 @@ let start_with_nf t nf : unit =
   |> don't_wait_for
 
 let add_peer_comm t (pc : Peer_comm.t) (hi : Peer_comm.handshake_info) =
-  let p = Peer.create t.info_hash hi.peer_id pc t.nf t.event_wr ~extension:hi.extension 
-      ~dht:hi.dht in t.peers <- Set.add t.peers p;
-  info !"Swarm: %{Peer} added (%d in) has_nf %b" p (Set.length t.peers) (Option.is_some t.nf);
-  Peer.start p
+
+  (* TODO use a proper set structure and move this test before? *)
+
+  let ids = Set.to_list t.peers |> List.map ~f:Peer.id in
+  let id = hi.peer_id in
+
+  if List.mem ~equal:(=) ids id then (
+    info !"Swarm: ignore %{Peer_id.to_string_hum}, already added" id;
+    Peer_comm.close pc 
+  ) else (
+    let p = Peer.create t.info_hash hi.peer_id pc t.nf t.event_wr 
+        ~extension:hi.extension ~dht:hi.dht in 
+    t.peers <- Set.add t.peers p;
+    info !"Swarm: %{Peer} added (%d in)" p (Set.length t.peers);
+    Peer.start p)
 
 let rec process_peers t () = 
   match%bind Pipe.read t.peer_rd with

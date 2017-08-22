@@ -30,8 +30,9 @@ type t = {
 
   block_consumer : Block_consumer.t;
   block_producer : Block_producer.t;
-
 } 
+
+let id t = t.id
 
 let create info_hash id peer nf event_wr ~dht ~extension =
   info !"Peer: %{Peer_id.to_string_hum} created" id;
@@ -206,9 +207,8 @@ struct
         match t.peer_ext with
         | None -> validate t false
         | Some (pe, _) ->  
-          if Option.is_none t.nf then ( (* TODO should work without this condition *)
-            let em = Extension.of_bin b in 
-            Peer_ext.process_extended pe id em))
+          let em = Extension.of_bin b in 
+          Peer_ext.process_extended pe id em)
 
     | Message.Have i -> 
       Bitfield.set t.bitfield i true;
@@ -273,8 +273,8 @@ let start t =
     Pipe.transfer peer_ext_event_rd t.event_wr ~f:(fun e -> (e,t))
     |> don't_wait_for
   in
-  Option.iter t.nf ~f:(start_nf t);
   Option.iter t.peer_ext ~f; 
+  Option.iter t.nf ~f:(start_nf t);
   Message_loop.start t 
 
 let close t = 

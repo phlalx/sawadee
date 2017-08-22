@@ -18,38 +18,40 @@ type t = {
 }
 
 let process_query t addr transaction_id q : unit =
-  match q with
+  let sender_id = Krpc_packet.query_id q in
+  let content =
+    if sender_id = t.id then 
+      Kp.(Error (Generic_error, "querying ourselves"))
+    else
+      match q with
+      | Kp.Ping _ -> 
+        Kp.(Response (R_ping_or_get_peers_node t.id))
 
-  | Kp.Ping _ -> 
-    let content = Kp.(Response (R_ping_or_get_peers_node t.id)) in 
-    Nc.send_packet addr Kp.{ transaction_id; content } 
-
-  | Kp.Find_node (_, n) -> 
-    let nis = Routing.find_node t.routing n in
-    let content = Kp.(Response  (R_find_node (t.id, nis))) in
-    Nc.send_packet addr Kp.{ transaction_id; content } 
-
-  | Kp.Get_peers (n, h) -> 
-    (* TODO save token *)
-    let token = Bt_hash.random () |> Bt_hash.to_string in
-    let resp = 
-      match Peers_tbl.find t.peers n with
-      | [] -> 
-        let n = Bt_hash.to_string h |> Node_id.of_string in
+      | Kp.Find_node (_, n) -> 
         let nis = Routing.find_node t.routing n in
-        Kp.R_get_peers_nodes (t.id, token, nis)
-      | addrs -> 
-        Kp.R_get_peers_values (t.id, token, addrs)
-    in
-    let content = Kp.Response resp in
-    Nc.send_packet addr Kp.{ transaction_id; content } 
+        Kp.(Response  (R_find_node (t.id, nis)))
 
-  | Kp.Announce_peer (n, h, p, _) -> 
-    (* TODO check token *)
-    let addr' = Addr.update_port addr p in
-    Peers_tbl.add t.peers n addr';
-    let content = Kp.(Response (R_ping_or_get_peers_node t.id)) in 
-    Nc.send_packet addr Kp.{ transaction_id; content } 
+      | Kp.Get_peers (n, h) -> 
+        (* TODO save token *)
+        let token = Random.int 100000 |> string_of_int in
+        let resp = 
+          match Peers_tbl.find t.peers h with
+          | [] -> 
+            let n = Bt_hash.to_string h |> Node_id.of_string in
+            let nis = Routing.find_node t.routing n in
+            Kp.R_get_peers_nodes (t.id, token, nis)
+          | addrs -> 
+            Kp.R_get_peers_values (t.id, token, addrs)
+        in
+        Kp.Response resp
+
+      | Kp.Announce_peer (n, h, p, _) -> 
+        (* TODO check token *)
+        let addr' = Addr.update_port addr p in
+        Peers_tbl.add t.peers h addr';
+        Kp.(Response (R_ping_or_get_peers_node t.id)) 
+  in
+  Nc.send_packet addr Kp.{ transaction_id; content } 
 
 let extract_query_exn Kp.{ transaction_id; content } =
   match content with 

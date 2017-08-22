@@ -26,3 +26,5 @@ let client s =
   | _ -> "unknown" ^ p
 
 let to_string_hum s = (to_string_hum s) ^ "/" ^ (client s)
+
+let sexp_of_t x = Sexp.Atom (to_string_hum x)

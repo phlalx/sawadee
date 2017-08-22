@@ -19,3 +19,6 @@ export NUM_CLIENTS=10
 export BASE_PORT=6000
 export BASE_RPC_PORT=7000
 export VERBOSE="-v 2"
+export TIME_TO_WAIT=12
+export TIME_TO_WAIT2=40
+

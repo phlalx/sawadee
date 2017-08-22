@@ -55,7 +55,7 @@ let create wr info_hash uris = { wr; info_hash; uris }
 let start t : unit =
   Option.iter t.uris ~f:(get_peers_from_tracker t);
   let f dht = 
-    Clock.every (sec 20.) (fun () -> get_peers_from_dht t dht) 
+    Clock.every (sec 30.) (fun () -> get_peers_from_dht t dht) 
   in
   Option.iter (G.dht ()) f
 

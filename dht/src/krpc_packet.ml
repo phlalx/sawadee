@@ -4,6 +4,8 @@
    doesn't have the right format *) 
 
 open Core
+open Async
+open Log.Global
 open Bin_prot
 
 module Be = Bencode_ext
@@ -11,7 +13,9 @@ module Be = Bencode_ext
 exception Krpc_exception of string
 
 type token = string
+[@@deriving sexp_of]
 type port = int
+[@@deriving sexp_of]
 
 type query = 
   | Ping of Node_id.t 
@@ -19,60 +23,40 @@ type query =
   | Get_peers of Node_id.t * Bt_hash.t
   | Announce_peer of Node_id.t * Bt_hash.t * port * token 
   (* TODO add unknown *)
+[@@deriving sexp_of]
+
+let query_id = function
+  | Ping n -> n
+  | Find_node (n, _) -> n
+  | Get_peers (n, _) -> n
+  | Announce_peer (n,_,_,_) -> n
 
 type response = 
   | R_ping_or_get_peers_node of Node_id.t  (* TODO change the name of this 
-    constructor, it can be a response for announce too *)
+                                              constructor, it can be a response for announce too *)
   | R_find_node of Node_id.t * Node_info.t list
   | R_get_peers_values of Node_id.t * token * Addr.t list 
   | R_get_peers_nodes of Node_id.t * token * Node_info.t list 
+[@@deriving sexp_of]
 
 type error_code = 
   | Generic_error
   | Server_error
   | Protocol_error 
   | Method_unknown
+[@@deriving sexp_of]
 
 type content = 
   | Query of query 
   | Response of response 
   | Error of (error_code * string) 
+[@@deriving sexp_of]
 
 type t = {
   transaction_id : string;
   content : content; 
 }
-
-let error_code_to_string = function
-  | Generic_error -> "generic_error"
-  | Server_error -> "server_error"
-  | Protocol_error -> "protocol_error"
-  | Method_unknown -> "method_unknown"
-
-let error_to_string (e, m) =
-  (error_code_to_string e) ^ m
-
-let response_to_string = function 
-  | R_ping_or_get_peers_node _ -> "r_ping_or_get_peers_node" 
-  | R_find_node _ -> "r_find_node"
-  | R_get_peers_nodes _ -> "r_get_peers_node"
-  | R_get_peers_values _ -> "r_get_peers_values"
-
-let query_to_string = function
-  | Ping _ -> "ping"
-  | Find_node _ -> "find_node"
-  | Get_peers _ -> "get_peers"
-  | Announce_peer _ -> "announce_peer"
-
-let content_to_string = function
-  | Query q -> query_to_string q
-  | Response r -> response_to_string r
-  | Error e -> error_to_string e
-
-
-let to_string { transaction_id; content } = 
-  Printf.sprintf "%s %s" transaction_id (content_to_string content)
-
+[@@deriving sexp_of]
 
 (* for allocating buffer *)
 let buffer_size = 4096  
@@ -209,9 +193,12 @@ let bin_read_t len buf ~pos_ref =
   let s = String.create len in
   Common.blit_buf_string buf s ~len;
   let b = Be.decode (`String s) in
-  t_of_bencode b
+  let t = t_of_bencode b in
+  info !"Krpc_packet: read %{sexp:t}" t;
+  t
 
 let bin_write_t (buf:Common.buf) ~(pos:Common.pos) (x:t) = 
+  info !"Krpc_packet: writing %{sexp:t}" x;
   let b = bencode_of_t x in
   let s = Be.encode_to_string b in (* TODO see if we can write to buffer directly *)
   let len = String.length s in

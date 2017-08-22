@@ -1,5 +1,6 @@
 
 type t = Node_id.t * Addr.t  
+[@@deriving sexp_of]
 
 val to_compact : t -> string
 
