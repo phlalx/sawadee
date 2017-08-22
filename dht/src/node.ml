@@ -65,66 +65,68 @@ let timeout_or_error
   | `Timeout -> Error (Error.of_string "timeout")
   | `Result r -> r  
 
-let rpc t 
+let rpc id addr 
     (query : Kp.query) 
     (validate_and_extract : Kp.response -> 'a Or_error.t) 
   : 'a Deferred.Or_error.t =
+  let t = connect id addr in
   let open Deferred.Or_error.Monad_infix in
   let tid = fresh_tid () in
   query_packet tid query |> send_packet t 
   >>= fun () -> 
   get_one_packet_or_error t |> Clock.with_timeout krpc_timeout |> timeout_or_error 
-  >>= function
+  >>= (function
   | { Kp.transaction_id; Kp.content = Kp.Response r } 
     when tid = transaction_id -> validate_and_extract r |> return 
-  | _ -> Error (Error.of_string "RPC error") |> return
+  | _ -> Error (Error.of_string "RPC error") |> return)
+  >>= fun x -> 
+  Fd.close t.socket |> Deferred.ok 
+  >>| fun () ->
+  x
 
 let rpc_error = Error (Error.of_string "RPC error: Wrong response")
 
-let ping t = 
+let ping sender_id addr = 
   let extract_ping_response = 
     function
     | Kp.R_ping_or_get_peers_node id -> Ok id
     | _ -> rpc_error 
   in 
-  let query = Kp.Ping t.id
+  let query = Kp.Ping sender_id
   in
-  rpc t query extract_ping_response
+  rpc sender_id addr query extract_ping_response
 
-let get_peers t info_hash = 
+let get_peers sender_id addr info_hash = 
   let extract_query_response = 
     function
     | Kp.R_get_peers_values (id, token, addrs) -> Ok (`Values addrs)
     | Kp.R_get_peers_nodes (id, token, nodes) -> Ok (`Nodes nodes)
     | _ -> rpc_error
   in 
-  let query = Kp.Get_peers (t.id, info_hash)
+  let query = Kp.Get_peers (sender_id, info_hash)
   in
-  rpc t query extract_query_response
+  rpc sender_id addr query extract_query_response
 
-let find_node t node_id =  
+let find_node sender_id addr node_id =  
   let extract_find_node_response = 
     function
     | Kp.R_find_node (id, nis) -> Ok (id, nis)
     | _ -> rpc_error 
   in 
-  let query = Kp.Find_node (t.id, node_id)
+  let query = Kp.Find_node (sender_id, node_id)
   in
-  rpc t query extract_find_node_response
+  rpc sender_id addr query extract_find_node_response
 
-let announce t hash port token =
+let announce sender_id addr hash port token =
   let extract_announce_response = 
     function
     | Kp.R_ping_or_get_peers_node id -> Ok id
     | _ -> rpc_error 
   in 
-  let query = Kp.Announce_peer (t.id, hash, port, token)
+  let query = Kp.Announce_peer (sender_id, hash, port, token)
   in
-  rpc t query extract_announce_response
+  rpc sender_id addr query extract_announce_response
 
-
-
-let close t = assert false
 
 
 

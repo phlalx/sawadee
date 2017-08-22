@@ -26,13 +26,11 @@ let create ~port id =
 
 let try_add t addr : unit Deferred.Or_error.t =
   let open Deferred.Or_error.Let_syntax in
-  let n = Node.connect t.id addr in
-  let%map id = Node.ping n in
+  let%map id = Node.ping t.id addr in
   Routing.add t.routing (id, addr)
 
 let lookup_info_hash t info_hash (_, addr) = 
-  let n = Node.connect t.id addr in 
-  Node.get_peers n info_hash >>| Result.ok
+  Node.get_peers t.id addr info_hash >>| Result.ok
 
 let k = 8
 
@@ -78,8 +76,7 @@ let table t = Routing.to_list t.routing
 
 let announce t hash ~port = 
   let f (token, addr) = 
-    let n = Node.connect t.id addr in
-    Node.announce n hash port token |> Deferred.ignore |> don't_wait_for 
+    Node.announce t.id addr hash port token |> Deferred.ignore |> don't_wait_for 
   in
   Tokens.iter t.tokens ~f
 
