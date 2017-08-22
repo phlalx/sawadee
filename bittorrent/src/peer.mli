@@ -18,7 +18,7 @@ open Log.Global
 
 type t
 
-val create : Peer_id.t -> Peer_comm.t -> Network_file.t option 
+val create : Bt_hash.t -> Peer_id.t -> Peer_comm.t -> Network_file.t option 
   -> (Pevent.t * t) Pipe.Writer.t -> dht:bool -> extension:bool -> t
 
 (** starts the message loop. should be done before any other operation.  *)

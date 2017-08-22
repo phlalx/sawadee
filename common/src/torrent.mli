@@ -15,6 +15,7 @@ type info = {
   total_length : int;
   num_pieces : int;
   num_files : int;
+  priv : int option;
 } [@@deriving bin_io, sexp]
 
 val info_of_file : string -> piece_length:int -> info

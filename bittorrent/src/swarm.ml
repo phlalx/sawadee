@@ -92,7 +92,7 @@ let start_with_nf t nf : unit =
   |> don't_wait_for
 
 let add_peer_comm t (pc : Peer_comm.t) (hi : Peer_comm.handshake_info) =
-  let p = Peer.create hi.peer_id pc t.nf t.event_wr ~extension:hi.extension 
+  let p = Peer.create t.info_hash hi.peer_id pc t.nf t.event_wr ~extension:hi.extension 
       ~dht:hi.dht in t.peers <- Set.add t.peers p;
   info !"Swarm: %{Peer} added (%d in) has_nf %b" p (Set.length t.peers) (Option.is_some t.nf);
   Peer.start p

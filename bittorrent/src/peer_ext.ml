@@ -17,13 +17,15 @@ type meta = {
 } 
 
 type t = {
+  info_hash : Bt_hash.t;
   event_wr : Pevent.t Pipe.Writer.t;
   peer : Peer_comm.t;
   mutable meta : meta option;
-  nf : Nf.t option
+  nf : Nf.t option (* TODO doesn't need the full nf here *)
 }
 
-let create peer event_wr nf = {
+let create info_hash peer event_wr nf = {
+  info_hash;
   nf;
   peer;
   event_wr;
@@ -56,7 +58,10 @@ let update_data t i s =
   match Array.fold ~init:true ~f:(fun acc b -> acc && b) received  with
   | true ->
     info "Peer_ext: meta-data complete"; 
+    assert (t.info_hash = Bt_hash.sha1_of_string data);
     let tinfo = Torrent.info_of_string data in
+    let data' = Torrent.info_to_string tinfo in 
+    assert (data = data');
     Tinfo tinfo |> push_event t
   | false -> ()
 

@@ -8,6 +8,7 @@ module G = Global
 
 type t = {
   peer : Peer_comm.t;
+  info_hash : Bt_hash.t;
 
   id : Peer_id.t;  (* TODO these two fields can go in peer_comm *)
   dht : bool;
@@ -32,7 +33,7 @@ type t = {
 
 } 
 
-let create id peer nf event_wr ~dht ~extension =
+let create info_hash id peer nf event_wr ~dht ~extension =
   info !"Peer: %{Peer_id.to_string_hum} created" id;
   let block_rd, block_wr = Pipe.create () in
   Pipe.set_size_budget block_wr 3;
@@ -41,10 +42,11 @@ let create id peer nf event_wr ~dht ~extension =
     match extension with
     | true ->
       let peer_ext_event_rd, peer_ext_event_wr = Pipe.create () in
-      Some ((Peer_ext.create peer peer_ext_event_wr nf), peer_ext_event_rd)
+      Some ((Peer_ext.create info_hash peer peer_ext_event_wr nf), peer_ext_event_rd)
     | false -> None
   in
   {
+    info_hash;
     id;
     peer;
     peer_interested = false; 

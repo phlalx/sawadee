@@ -6,7 +6,7 @@ module G = Global
 
 type t = {
   tinfo : Torrent.info;
-  tinfo_bin : string;
+  tinfo_bin : string; (* TODO use an option *)
   content : Bigstring.t;
   bitfield_name : string; 
   total_length : int; 
@@ -128,7 +128,6 @@ let is_downloaded t i = Bitfield.get t.downloaded i
 let downloaded t = t.downloaded
 
 let has_any_piece t = not (Bitfield.is_empty t.downloaded)
-
 
 let tinfo_bin t = t.tinfo_bin
 

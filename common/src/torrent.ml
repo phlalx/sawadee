@@ -28,6 +28,7 @@ type info = {
   total_length : int;
   num_pieces : int;
   num_files : int;
+  priv : int option;
 } [@@deriving bin_io, sexp]
 
 type t = {
@@ -40,10 +41,19 @@ type t = {
 let info_to_bencode i = 
   let pieces = Array.map i.pieces_hash ~f:Bt_hash.to_string |> 
                Array.to_list |> String.concat in
+
   let com =
-    [("piece length", Be.Integer i.piece_length);
+    [
+     ("name", Be.String i.name ) ;
+
+    ("piece length", Be.Integer i.piece_length);
      ("pieces", Be.String pieces); 
-     ("name", Be.String i.name ) ]
+     ] 
+  in
+  let com = 
+    match i.priv with
+    | None -> com
+    | Some i -> com @ [ ("private"), Be.Integer i ]
   in
   match i.files_info with
   | [] -> assert false
@@ -52,8 +62,8 @@ let info_to_bencode i =
     Be.Dict (("length", Be.Integer len) :: com)
   | fi -> 
     let f (n,l) =
-      let a1 = "path", (filename_to_bencode n) in
-      let a2 = "length", Be.Integer l in
+      let a1 = "length", Be.Integer l in
+      let a2 = "path", (filename_to_bencode n) in
       Be.Dict [ a1; a2 ] 
     in
     let l = List.map fi ~f in
@@ -71,6 +81,7 @@ let info_of_bencode b : info =
   let name = Be.dict_get_string_exn b "name" in
   let pieces = Be.dict_get_exn b "pieces" in
   let piece_length = Be.dict_get_int_exn b "piece length" in
+  let priv = Option.map (Be.dict_get b "private") ~f:Be.as_int_exn in
 
   let pieces_hash = Be.split pieces Bt_hash.length in
   let pieces_hash = List.map pieces_hash ~f:Bt_hash.of_bencode in
@@ -100,7 +111,7 @@ let info_of_bencode b : info =
   info "Torrent: %d pieces" num_pieces;
   info "Torrent: piece length = %d" piece_length;
   { name; piece_length; pieces_hash; files_info; total_length; num_pieces; 
-    num_files }
+    num_files; priv }
 
 let info_of_string s = `String s |> Be.decode |> info_of_bencode
 
@@ -150,6 +161,7 @@ let info_of_file name ~piece_length =
     total_length;
     num_pieces;
     num_files = 1;
+    priv = None;
   }
 
 

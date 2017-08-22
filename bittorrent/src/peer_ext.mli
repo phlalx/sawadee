@@ -5,7 +5,8 @@ module Nf = Network_file
 
 type t 
 
-val create : Peer_comm.t -> Pevent.t Pipe.Writer.t -> Nf.t option -> t
+val create : Bt_hash.t -> Peer_comm.t -> Pevent.t Pipe.Writer.t -> Nf.t option 
+  -> t
 
 val send_handshake : t -> unit
 
