@@ -91,6 +91,9 @@ let open_file name ~len : Unix.Fd.t Deferred.Or_error.t =
   let pname = G.with_download_path name in
   info "Pers: open file %s with length %d" pname len;
 
+  let dirname = Filename.dirname pname in
+  Core.Unix.mkdir_p dirname; (* TODO blocking... *)
+
   (* TODO tentative to catch possible exceptions raised by Unix functions. *)
   let%bind fd = Monitor.try_with_or_error 
       (fun () -> Unix.openfile pname ~mode:[`Creat;`Rdwr]) in
