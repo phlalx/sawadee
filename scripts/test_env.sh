@@ -15,10 +15,10 @@ export DHT=routing
 export FILES=tests/multifiles
 export FILE_MAGNET=tests/multifiles/11318.jpg
 export NUM_PIECES=66
-export NUM_CLIENTS=10
+export NUM_CLIENTS=8
 export BASE_PORT=6000
 export BASE_RPC_PORT=7000
 export VERBOSE="-v 2"
-export TIME_TO_WAIT=15
-export TIME_TO_WAIT2=40
+export TIME_TO_WAIT=20
+export TIME_TO_WAIT2=60
 

@@ -182,7 +182,8 @@ struct
 
     | Message.Interested -> 
       t.peer_interested <- true;
-      set_am_choking t false 
+      if t.am_choking then
+        set_am_choking t false 
 
     | Message.Not_interested -> 
       t.peer_interested <- false;

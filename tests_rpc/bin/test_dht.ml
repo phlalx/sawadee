@@ -27,19 +27,18 @@ let test_peer hash time port : bool Deferred.t =
     >>| fun () -> 
     false
 
-
 let process port num_clients time file () : unit Deferred.t = 
   set_level `Info;
   let l = List.range port (port + num_clients) in 
   match l with
-  | hd :: _ -> 
+  | _ :: leeches  -> 
     let%bind hash = setup_seeder (file, piece_length) port in
-    let%bind res = Deferred.List.map l ~f:(test_peer hash time) ~how:`Parallel in (
+    let%bind () = Clock.after (sec 2.0) in (* wait for seeder to start seeding *)
+    let%bind res = Deferred.List.map leeches ~f:(test_peer hash time) ~how:`Parallel in (
       match List.fold res ~init:true ~f:(fun acc b -> acc && b) with
       | true -> Print.printf "Test OK\n"; exit 0
       | false -> Print.printf "Test Not OK\n"; exit 1)
   | _ -> failwith "run test with at least two clients"
-
 
 let () = 
   let spec =

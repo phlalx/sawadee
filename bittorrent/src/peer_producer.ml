@@ -9,14 +9,15 @@ type t = {
   wr : (Pc.t * Pc.handshake_info) Pipe.Writer.t;
   info_hash : Bt_hash.t;
   uris : Uri.t list option;
+  mvar : unit Mvar.Read_only.t
 }
 
 let ignore_error addr : unit Or_error.t -> unit =
   function 
   | Ok () -> () 
   | Error err -> 
-      ()
-      (* debug !"Peer_producer: can't connect to %{Addr} - %{sexp:Error.t}" addr err *)
+    ()
+(* debug !"Peer_producer: can't connect to %{Addr} - %{sexp:Error.t}" addr err *)
 
 let close_on_error (p : Pc.t) hi = 
   match%bind hi with
@@ -41,18 +42,20 @@ let get_peers_from_tracker t uris =
   )
 
 let get_peers_from_dht t dht = 
-  don't_wait_for (
-    info "Peer_producer: querying DHT";
-    let%bind addrs = Dht.lookup dht t.info_hash in  
-    let num_of_peers = List.length addrs in 
-    info "Peer_producer: %d DHT peers" num_of_peers;
-    let f addr = handshake_and_push t addr >>| ignore_error addr in
-    Deferred.List.iter ~how:`Parallel addrs ~f
-  )
+  if not (Mvar.is_empty t.mvar) then 
+    don't_wait_for (
+      info "Peer_producer: querying DHT";
+      let%bind addrs = Dht.lookup dht t.info_hash in  
+      let num_of_peers = List.length addrs in 
+      info "Peer_producer: %d DHT peers" num_of_peers;
+      let f addr = handshake_and_push t addr >>| ignore_error addr in
+      Deferred.List.iter ~how:`Parallel addrs ~f
+    )
 
-let create wr info_hash uris = { wr; info_hash; uris }
+let create mvar wr info_hash uris = { mvar; wr; info_hash; uris }
 
 let start t : unit =
+  (* TODO query tracker every _interval_ sec *)
   Option.iter t.uris ~f:(get_peers_from_tracker t);
   let f dht = 
     Clock.every (sec 30.) (fun () -> get_peers_from_dht t dht) 

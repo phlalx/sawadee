@@ -6,7 +6,7 @@ sudo apt-get -y install opam
 export OPAMYES=true
 opam init --comp=4.05.0
 eval `opam config env`
-opam repo add janestreet-bleeding https://ocaml.janestreet.com/opam-repository
+# opam repo add janestreet-bleeding https://ocaml.janestreet.com/opam-repository
 opam pin add ocaml-torrent .
 
 make all

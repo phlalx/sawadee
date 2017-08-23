@@ -14,6 +14,7 @@ type t = {
   event_rd : (Pevent.t * Peer.t) Pipe.Reader.t;
   peer_rd : (Peer_comm.t * Peer_comm.handshake_info) Pipe.Reader.t;
   peer_producer : Pp.t;
+  mvar : unit Mvar.Read_write.t
 }
 
 let to_string t = Bt_hash.to_hex t.info_hash
@@ -53,6 +54,10 @@ let event_loop_nf t nf () =
     match e with 
     | Piece i -> 
       for_all_peers t ~f:(fun p -> Peer.notify p i);
+      if (Nf.seeder nf) then (
+        debug !"Swarm: last piece downloaded. Block peer_producer.";
+        Mvar.take t.mvar |> ignore
+      )
     | Bye ->
       remove_peer t p
     | Support_meta | Tinfo _ -> ()
@@ -107,7 +112,7 @@ let add_peer_comm t (pc : Peer_comm.t) (hi : Peer_comm.handshake_info) =
     info !"Swarm: %{Peer} added (%d in)" p (Set.length t.peers);
     Peer.start p)
 
-let rec process_peers t () = 
+let rec consume_peers t () = 
   match%bind Pipe.read t.peer_rd with
   | `Eof -> `Finished () |> return
   | `Ok (p, hi) -> 
@@ -129,7 +134,12 @@ let start t : unit =
    start_with_nf t nf)
   |> Deferred.ignore |> don't_wait_for;
   Pp.start t.peer_producer; 
-  Deferred.repeat_until_finished () (process_peers t) |> don't_wait_for
+  (match t.nf with
+   | Some nf when Nf.seeder nf -> ()
+   | _ -> 
+     debug !"Swarm: not seeder so unblock peer_producer.";
+     Mvar.set t.mvar ()); (* fill mvar only if not seeder *)
+  Deferred.repeat_until_finished () (consume_peers t) |> don't_wait_for
 
 let close t = 
   info !"Swarm: closing %{}" t;
@@ -141,10 +151,13 @@ let close t =
   | Some nf -> Nf.close nf  
 
 let create uris nf info_hash = 
-  info !"Swarm: create with info_hash %{Bt_hash.to_hex}" info_hash;
+  info !"Swarm: create %{Bt_hash.to_string_hum} (nf = %b)" info_hash
+    (Option.is_some nf);
   let event_rd, event_wr = Pipe.create () in 
   let peer_rd, peer_wr = Pipe.create () in
-  let peer_producer = Peer_producer.create peer_wr info_hash uris in
+  let mvar = Mvar.create () in
+  let mvar_ro = Mvar.read_only mvar in
+  let peer_producer = Peer_producer.create mvar_ro peer_wr info_hash uris in
   { 
     info_hash;
     peers = Set.Poly.empty; (* TODO use a set based on peer-id *)
@@ -153,6 +166,7 @@ let create uris nf info_hash =
     event_wr;
     peer_producer;
     peer_rd;
+    mvar;
   }
 
 let status t = 

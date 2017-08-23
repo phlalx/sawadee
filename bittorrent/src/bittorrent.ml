@@ -29,18 +29,25 @@ let add_any info_hash
     (tinfo : Torrent.info option)
     (uris : Uri.t list option) 
     (seeder : bool) =
-  let%map nf = nf_of_tinfo info_hash tinfo seeder in 
-  let swarm = Swarm.create uris nf info_hash in  
-  Torrent_table.add info_hash swarm; 
-  Swarm.start swarm
+  info !"Bittorrent: add any %{Bt_hash.to_string_hum} tinfo = %b uri = %b seeder = %b"
+    info_hash (Option.is_some tinfo) (Option.is_some uris) seeder;
+  if not (Torrent_table.has_hash info_hash) then (
+    let%map nf = nf_of_tinfo info_hash tinfo seeder in 
+    let swarm = Swarm.create uris nf info_hash in  
+    Torrent_table.add info_hash swarm; 
+    Swarm.start swarm
+  ) else ( 
+    info !"Bittorrent: ignore, already in table";
+    Deferred.unit )
 
 let seed name ~piece_length = 
+  info !"Bittorrent: seed %s" name;
   let f () =
     let tinfo = Torrent.info_of_file name piece_length in
     let info_hash = Torrent.info_to_string tinfo |> Bt_hash.sha1_of_string in 
     let dst = G.with_download_path (Filename.basename name) in
     (copy name dst >>= fun () ->
-    add_any info_hash (Some tinfo) None true) |> don't_wait_for;
+     add_any info_hash (Some tinfo) None true) |> don't_wait_for;
     info_hash
   in Or_error.try_with f (* TODO change this *)
 
@@ -48,6 +55,7 @@ let add_magnet h =
   if not (G.is_dht ()) then
     failwith "DHT should be enabled for magnets";
   let info_hash = Bt_hash.of_hex h in
+  info !"Bittorrent: add magnet %{Bt_hash.to_string_hum}" info_hash;
   let n = h |> G.torrent_name |> G.with_torrent_path in
   let tinfo = Option.try_with
       (fun () -> In_channel.read_all n |> Torrent.info_of_string)  in
@@ -63,8 +71,8 @@ let add_torrent s =
     | ex -> raise ex
   in 
 
-  let open Torrent in
-  let { info_hash; announce; announce_list; tinfo } = t in
+  let Torrent.{ info_hash; announce; announce_list; tinfo } = t in
+  info !"Bittorrent: add torrent %s" tinfo.Torrent.name; 
 
   let uris = 
     match announce_list with
