@@ -16,7 +16,10 @@ type t = {
   pieces : Piece.t Array.t;
   pers : Pers.t;
   mutable requested : int Set.Poly.t;
+  mutable seeder : bool;
 }
+
+let seeder t = t.seeder
 
 let downloaded_to_string downloaded num_pieces =
   let n = Bitfield.card downloaded in 
@@ -46,12 +49,12 @@ let create ~seeder info_hash tinfo =
 
   let%bind pers = Pers.create files_info num_pieces piece_length  in
   let f i = piece_init content (i * piece_length) pieces_hash piece_length total_length i in
-  let pieces = Array.init num_pieces ~f  in
+  let pieces = Array.init num_pieces ~f in
   let downloaded = 
     try
       match seeder with 
       | false -> In_channel.read_all bitfield_name |> Bitfield.of_string
-      | true -> Bitfield.full num_pieces
+      | true -> Bitfield.full num_pieces (* TODO check file is there *)
     with _ -> 
       info "Network_file: can't read bitfield %s. Using empty bitfield" bitfield_name;
       Bitfield.empty num_pieces 
@@ -105,6 +108,7 @@ let create ~seeder info_hash tinfo =
     pers;
     bitfield_name;
     requested = Set.Poly.empty;
+    seeder = (Bitfield.card downloaded) = num_pieces;
   }
 
 let to_string t = t.tinfo.Torrent.name
@@ -115,7 +119,9 @@ let get_piece t i = t.pieces.(i)
 
 let set_downloaded t i = 
   assert (not (Bitfield.get t.downloaded i));
-  Bitfield.set t.downloaded i true
+  Bitfield.set t.downloaded i true;
+  if (Bitfield.card t.downloaded) = t.num_pieces then
+    t.seeder <- true
 
 let is_valid_piece_index t i = i >=0 && i < t.num_pieces
 

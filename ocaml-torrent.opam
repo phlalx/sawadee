@@ -22,7 +22,7 @@ depends: [
   "bencode" {>= "1.0.2"}
   "ounit" {>= "2.0.0"}
   ]      
-available: [ ocaml-version >= "4.04.2" ]
+available: [ ocaml-version >= "4.05.0" ]
 descr: "
 Bittorrent client
 

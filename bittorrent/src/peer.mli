@@ -36,4 +36,5 @@ val status : t -> Status.peer_status
 
 val request_meta : t -> unit
 
-val send_have : t -> int -> unit
+(** advertise new piece and udpate interested status *)
+val notify : t -> int -> unit

@@ -66,11 +66,14 @@ let create info_hash id peer nf event_wr ~dht ~extension =
     block_producer = Block_producer.create block_wr bitfield;
   }
 
-let is_interesting t nf = 
-  let downloaded = Nf.downloaded nf in 
-  let num_pieces = Nf.num_pieces nf in
+let is_interesting t = 
   let bf = t.bitfield in
-  not (Bitfield.is_subset num_pieces bf downloaded)
+  match t.nf with 
+  | None -> false
+  | Some nf ->
+    let downloaded = Nf.downloaded nf in 
+    let num_pieces = Nf.num_pieces nf in
+    not (Bitfield.is_subset num_pieces bf downloaded)
 
 let push_event t e = Pipe.write_without_pushback_if_open t.event_wr (e, t)
 
@@ -101,9 +104,11 @@ let set_am_choking t b =
   t.am_choking <- b;
   (if b then Message.Choke else Message.Unchoke) |> Pc.send t.peer
 
-let send_have t i = 
+let notify t i = 
   if not (Bitfield.get t.bitfield i) then
-    Pc.send t.peer (Message.Have i)
+    Pc.send t.peer (Message.Have i);
+  if t.am_interested && not (is_interesting t) then
+    set_am_interested t false
 
 let clear_requests t nf =
   let f i =
@@ -187,12 +192,10 @@ struct
       Bitfield.copy ~src:bits ~dst:t.bitfield; 
       validate t (not t.received_bitfield);
       t.received_bitfield <- true;
-      let f nf = 
-        if is_interesting t nf then ( 
-          validate t t.peer_choking;
-          set_am_interested t true
-        )
-      in Option.iter t.nf ~f
+      if is_interesting t then ( 
+        validate t t.peer_choking;
+        set_am_interested t true
+      )
 
     | Message.Port port -> 
       not t.received_port |> validate t;
@@ -257,7 +260,7 @@ let start_nf t nf =
   send_bitfield t nf;
   Block_consumer.start t.block_consumer;
   Block_producer.start t.block_producer nf;
-  if t.received_bitfield && (is_interesting t nf) then (
+  if t.received_bitfield && (is_interesting t) then (
     validate t t.peer_choking;
     set_am_interested t true
   )

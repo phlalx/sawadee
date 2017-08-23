@@ -20,6 +20,8 @@ type t
 
 val create : seeder:bool -> Bt_hash.t -> Torrent.info -> t Deferred.t
 
+val seeder : t -> bool
+
 val meta_length : t -> int
 
 val tinfo_bin : t -> string

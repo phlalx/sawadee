@@ -24,7 +24,10 @@ type t = {
   nf : Nf.t option (* TODO doesn't need the full nf here *)
 }
 
-let create info_hash peer event_wr nf = {
+let create info_hash peer event_wr nf = 
+  
+  info "Peer extension: created with nf = %b" (Option.is_some nf);
+  {
   info_hash;
   nf;
   peer;

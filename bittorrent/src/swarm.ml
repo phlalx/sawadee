@@ -52,11 +52,10 @@ let event_loop_nf t nf () =
     debug !"Swarm: process event %{Pevent} from %{Peer}" e p;
     match e with 
     | Piece i -> 
-      for_all_peers t ~f:(fun p -> Peer.send_have p i)
+      for_all_peers t ~f:(fun p -> Peer.notify p i);
     | Bye ->
       remove_peer t p
-    | Support_meta | Tinfo _ -> assert false
-
+    | Support_meta | Tinfo _ -> ()
   in
   match%map Pipe.read t.event_rd with
   | `Eof -> 

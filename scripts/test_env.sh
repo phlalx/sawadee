@@ -13,12 +13,12 @@ export TORRENT_DIR=tests/torrents
 export DHT_LOCAL=tests/routing.local
 export DHT=routing
 export FILES=tests/multifiles
-export FILE_MAGNET=tests/singlefile/11318.jpg 
+export FILE_MAGNET=tests/multifiles/11318.jpg
 export NUM_PIECES=66
 export NUM_CLIENTS=10
 export BASE_PORT=6000
 export BASE_RPC_PORT=7000
 export VERBOSE="-v 2"
-export TIME_TO_WAIT=12
+export TIME_TO_WAIT=15
 export TIME_TO_WAIT2=40
 
