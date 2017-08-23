@@ -30,7 +30,7 @@ open Async
 
 type t
 
-val create: (Uri.t list option) -> Network_file.t option -> Bt_hash.t -> t 
+val create: Uri.t option -> Network_file.t option -> Bt_hash.t -> t 
 
 val start: t -> unit
 

@@ -8,7 +8,7 @@ module Pc = Peer_comm
 type t = {
   wr : (Pc.t * Pc.handshake_info) Pipe.Writer.t;
   info_hash : Bt_hash.t;
-  uris : Uri.t list option;
+  uri : Uri.t option;
   mvar : unit Mvar.Read_only.t
 }
 
@@ -31,10 +31,10 @@ let handshake_and_push t addr =
   info !"Peer_producer: pushing_peer %{Pc}" p;
   Pipe.write_without_pushback t.wr (p, hi) 
 
-let get_peers_from_tracker t uris = 
+let get_peers_from_tracker t uri = 
   don't_wait_for (
     info "Peer_producer: querying tracker";
-    let%bind addrs = Tracker_client.query t.info_hash uris in
+    let%bind addrs = Tracker_client.query t.info_hash [uri] in
     let num_of_peers = List.length addrs in 
     info "Peer_producer: %d tracker peers" num_of_peers;
     let f addr = handshake_and_push t addr >>| ignore_error addr in
@@ -52,11 +52,11 @@ let get_peers_from_dht t dht =
       Deferred.List.iter ~how:`Parallel addrs ~f
     )
 
-let create mvar wr info_hash uris = { mvar; wr; info_hash; uris }
+let create mvar wr info_hash uri = { mvar; wr; info_hash; uri }
 
 let start t : unit =
   (* TODO query tracker every _interval_ sec *)
-  Option.iter t.uris ~f:(get_peers_from_tracker t);
+  Option.iter t.uri ~f:(get_peers_from_tracker t);
   let f dht = 
     Clock.every (sec 30.) (fun () -> get_peers_from_dht t dht) 
   in

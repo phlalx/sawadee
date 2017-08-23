@@ -27,13 +27,13 @@ let copy f1 f2 =
 
 let add_any info_hash 
     (tinfo : Torrent.info option)
-    (uris : Uri.t list option) 
+    (uri : Uri.t option) 
     (seeder : bool) =
   info !"Bittorrent: add any %{Bt_hash.to_string_hum} tinfo = %b uri = %b seeder = %b"
-    info_hash (Option.is_some tinfo) (Option.is_some uris) seeder;
+    info_hash (Option.is_some tinfo) (Option.is_some uri) seeder;
   if not (Torrent_table.has_hash info_hash) then (
     let%map nf = nf_of_tinfo info_hash tinfo seeder in 
-    let swarm = Swarm.create uris nf info_hash in  
+    let swarm = Swarm.create uri nf info_hash in  
     Torrent_table.add info_hash swarm; 
     Swarm.start swarm
   ) else ( 
@@ -71,15 +71,10 @@ let add_torrent s =
     | ex -> raise ex
   in 
 
-  let Torrent.{ info_hash; announce; announce_list; tinfo } = t in
+  let Torrent.{ info_hash; announce; tinfo } = t in
   info !"Bittorrent: add torrent %s" tinfo.Torrent.name; 
 
-  let uris = 
-    match announce_list with
-    | [] -> [ announce ]
-    | al -> List.dedup_and_sort (List.concat al) |> List.permute 
-  in
-  add_any info_hash (Some tinfo) (Some uris) false |> don't_wait_for;
+  add_any info_hash (Some tinfo) (Some announce) false |> don't_wait_for;
   info_hash
 
 let set_verbose i =
