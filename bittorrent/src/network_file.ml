@@ -1,6 +1,6 @@
 open Core
 open Async
-open Log.Global
+open Blog
 
 module G = Global
 

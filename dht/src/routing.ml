@@ -1,6 +1,6 @@
 open Core
 open Async
-open Log.Global
+open Dlog
 
 type t = {
   mutable nis : Node_info.t list;

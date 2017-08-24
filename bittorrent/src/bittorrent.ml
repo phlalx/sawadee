@@ -1,6 +1,6 @@
 open Core
 open Async
-open Log.Global
+open Blog
 
 module G = Global
 module Nf = Network_file 
@@ -79,7 +79,7 @@ let add_torrent s =
 
 let set_verbose i =
   match i with
-  | 0 -> ()
+  | 0 -> set_level `Error; 
   | 1 -> set_level `Info; 
   | 2 -> set_level `Debug;
   | _ -> failwith "verbose level should be 1 or 2"
@@ -99,10 +99,11 @@ let try_add_nis dht nis =
   let f (_, p) = Dht.try_add dht p |> Deferred.ignore in
   Deferred.List.iter ~how:`Parallel nis ~f
 
-let set_dht = function
+let set_dht torrent_path verbose = function
   | None -> Deferred.unit
   | Some port -> 
-    let dht = Dht.create ~port (Node_id.random ()) in
+    let dht = Dht.create ~port (Node_id.random ()) ~data_path:torrent_path
+      ~verbose in
     G.set_dht dht;
     let table_name = G.with_torrent_path G.routing_table_name in
     info "Bittorrent: trying to read dht table %s" table_name;
@@ -119,8 +120,7 @@ let set_dht = function
     info "Bittorrent: added %d nodes to DHT" (List.length (Dht.table dht))
 
 let create ~server_port ~verbose ~torrent_path ~download_path ~dht_port = 
-  set_level `Error;
-  Option.iter verbose ~f:set_verbose;
+  set_verbose verbose;
   info !"Bittorrent: peer-id:%{Peer_id.to_string_hum}" G.peer_id;
   G.set_download_path download_path;
   G.set_torrent_path torrent_path;
@@ -132,7 +132,7 @@ let create ~server_port ~verbose ~torrent_path ~download_path ~dht_port =
   set_output [f; (Log.Output.stderr ())];
   set_server server_port
   >>= fun () ->  
-  set_dht dht_port
+  set_dht torrent_path verbose dht_port
 
 let torrent_list () = 
   Torrent_table.keys ()
@@ -150,7 +150,7 @@ let terminate_dht dht =
 let terminate () =
   Torrent_table.data () |> Deferred.List.iter ~f:Swarm.close
   >>= fun () ->
-  (* TODO we could terminate the server too *)
+  (* TODO should terminate the servers too *)
   Option.iter (G.dht ()) terminate_dht;
   flushed () 
 

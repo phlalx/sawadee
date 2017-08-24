@@ -1,6 +1,6 @@
 open Core
 open Async
-open Log.Global
+open Blog
 
 let enabled = ref true
 

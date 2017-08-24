@@ -1,6 +1,6 @@
 open Core
 open Async
-open Log.Global
+open Dlog
 
 type t = {
   id : Node_id.t;
@@ -13,7 +13,18 @@ let start_server port id routing peers tokens =
   (let%map ns = Node_server.create port id routing peers tokens in
    Node_server.start ns) |> don't_wait_for
 
-let create ~port id = 
+let set_verbose i =
+    match i with
+    | 0 -> set_level `Error
+    | 1 -> set_level `Info 
+    | 2 -> set_level `Debug
+    | _ -> failwith "verbose level should be 1 or 2"
+
+let create ~port id ~data_path ~verbose = 
+  set_verbose verbose;
+  let f = Log.Output.file `Text (data_path ^ "/dht_log") in 
+  set_output [f; (Log.Output.stderr ())];
+
   info !"Dht: peer-id:%{Node_id.to_string_hum}" id;
   let routing = Routing.create () in
   let peers = Peers_tbl.create () in

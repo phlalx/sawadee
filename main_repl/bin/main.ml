@@ -2,7 +2,6 @@
 
 open Core
 open Async
-open Log.Global
 
 let terminate () = 
   Bittorrent.terminate () 
@@ -78,12 +77,11 @@ let rec repl stdin =
 let process (path : string) (port : int option)  (verbose : int option) 
     (uris : string list) () : unit Deferred.t
   = 
-  set_level `Error;
 
   Bittorrent.create 
     ~download_path:path 
     ~torrent_path:path
-    ~verbose:None
+    ~verbose:(Option.value ~default:0 verbose)
     ~server_port:port
     ~dht_port:port
   >>= fun () ->

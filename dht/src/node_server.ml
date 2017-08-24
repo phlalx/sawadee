@@ -1,7 +1,7 @@
 open Core
 open Async
 open Bin_prot
-open Log.Global
+open Dlog
 
 module Kp = Krpc_packet
 module Nc = Node_comm

@@ -1,7 +1,7 @@
 open Core
 open Async
 open Bin_prot
-open Log.Global
+open Blog
 
 type t =
   | KeepAlive

@@ -1,6 +1,6 @@
 open Core
 open Async
-open Log.Global
+open Blog
 
 module Pc = Peer_comm
 module G = Global

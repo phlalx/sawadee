@@ -1,6 +1,6 @@
 open Core
 open Async
-open Log.Global
+open Blog
 
 let tick = sec 1.0 
 let window_size = 20

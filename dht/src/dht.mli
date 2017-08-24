@@ -6,11 +6,10 @@ http://bittorrent.org/beps/bep_0005.html
 
 open Core
 open Async
-open Log.Global
 
 type t
 
-val create : port:int -> Node_id.t -> t
+val create : port:int -> Node_id.t -> data_path:string -> verbose:int -> t
 
 (* try to add an address to the table. Ping this address and if it's 
    a node, add it. *)

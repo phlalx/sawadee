@@ -5,7 +5,7 @@
 
 open Core
 open Async
-open Log.Global
+open Dlog
 open Bin_prot
 
 module Be = Bencode_ext

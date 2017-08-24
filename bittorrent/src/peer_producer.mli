@@ -1,6 +1,5 @@
 open Core
 open Async
-open Log.Global
 
 type t
 

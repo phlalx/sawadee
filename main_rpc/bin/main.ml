@@ -2,8 +2,6 @@
 
 open Core
 open Async
-open Log.Global
-
 
 let bye () =
   don't_wait_for (after (sec 1.0) >>= fun () -> exit 0)
@@ -28,12 +26,10 @@ let implementations =
       (verbose : int option)
       (node : bool) : unit Deferred.t
     = 
-    set_level `Error;
-
     Bittorrent.create 
       ~download_path:path 
       ~torrent_path:path
-      ~verbose:verbose
+      ~verbose:(Option.value ~default:0 verbose)
       ~server_port:port
       ~dht_port:port
     >>= fun () ->
