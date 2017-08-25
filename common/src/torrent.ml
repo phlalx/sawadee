@@ -139,7 +139,8 @@ let info_of_file name ~piece_length =
   let num_pieces = (total_length + piece_length - 1) / piece_length in
   let buf = String.create piece_length in
   let f i = 
-     let p = In_channel.input ic ~buf ~pos:0 ~len:piece_length in (* TODO inchannel or reader? *)
+     (* TODO inchannel or reader? *)
+     let p = In_channel.input ic ~buf ~pos:0 ~len:piece_length in
      Bt_hash.sha1_of_string (String.sub buf ~pos:0 ~len:p)
    in
 
