@@ -44,6 +44,7 @@ let seed name ~piece_length =
   info !"Bittorrent: seed %s" name;
   let f () =
     let tinfo = Torrent.info_of_file name piece_length in
+    info !"Bittorrent: seeding %{Torrent.info_to_string_hum}" tinfo;
     let info_hash = Torrent.info_to_string tinfo |> Bt_hash.sha1_of_string in 
     let dst = G.with_download_path (Filename.basename name) in
     (copy name dst >>= fun () ->
@@ -72,7 +73,7 @@ let add_torrent s =
   in 
 
   let Torrent.{ info_hash; announce; tinfo } = t in
-  info !"Bittorrent: add torrent %s" tinfo.Torrent.name; 
+  info !"Bittorrent: add torrent %{Torrent.to_string_hum}" t; 
 
   add_any info_hash (Some tinfo) (Some announce) false |> don't_wait_for;
   info_hash

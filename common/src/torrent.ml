@@ -1,8 +1,6 @@
 (* http://www.bittorrent.org/beps/bep_0003.html - see metainfo files *)
 
 open Core
-open Async
-open Log.Global
 
 module Be = Bencode_ext
 
@@ -36,7 +34,7 @@ type t = {
   announce : Uri.t;
   announce_list : Uri.t list list;
   tinfo : info;
-}
+} [@@deriving sexp]
 
 let info_to_bencode i = 
   let pieces = Array.map i.pieces_hash ~f:Bt_hash.to_string |> 
@@ -72,12 +70,11 @@ let info_to_bencode i =
 
 let info_to_string i : string = 
   let b = info_to_bencode i in
-  debug !"Torrent: info_to_bencode %{Be.pretty_print}" b;
   Be.encode_to_string b
 
+let info_to_string_hum t = Sexp.to_string (sexp_of_info t)
 
 let info_of_bencode b : info = 
-  debug !"Torrent: info_of_bencode %{Be.pretty_print}" b;
   let name = Be.dict_get_string_exn b "name" in
   let pieces = Be.dict_get_exn b "pieces" in
   let piece_length = Be.dict_get_int_exn b "piece length" in
@@ -107,9 +104,6 @@ let info_of_bencode b : info =
     List.fold files_info ~init:0 ~f:(fun acc (_,l) -> l + acc)  in
   (* TODO proper exception *)
   assert (num_pieces = (total_length + piece_length - 1) / piece_length); 
-  info "Torrent: %d files" num_files;
-  info "Torrent: %d pieces" num_pieces;
-  info "Torrent: piece length = %d" piece_length;
   { name; piece_length; pieces_hash; files_info; total_length; num_pieces; 
     num_files; priv }
 
@@ -118,7 +112,6 @@ let info_of_string s = `String s |> Be.decode |> info_of_bencode
 let bencode_to_uri x = x |> Be.as_string_exn |> Uri.of_string
 
 let of_bencode bc =
-  debug !"Torrent: bc = %{Be.pretty_print}" bc;
   let announce_bc = Be.dict_get_exn bc "announce" in
   let announce = bencode_to_uri announce_bc in
   let announce_list : Uri.t list list =
@@ -135,8 +128,6 @@ let of_bencode bc =
   let info_str = Be.encode_to_string info_dict_bc in 
   let info_hash = Bt_hash.sha1_of_string info_str in
   let tinfo = info_of_bencode info_dict_bc in
-  debug !"Torrent: announce %{Uri}" announce;
-  List.concat announce_list |>  List.iter ~f:(debug !"Torrent: announce %{Uri}"); 
   { announce; announce_list; info_hash; tinfo }
 
 let of_string s = `String s |> Be.decode |> of_bencode
@@ -164,6 +155,7 @@ let info_of_file name ~piece_length =
     priv = None;
   }
 
+let to_string_hum t = Sexp.to_string (sexp_of_t t)
 
 
 

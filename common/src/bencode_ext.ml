@@ -3,12 +3,9 @@ include Bencode
 module D = Bencode_streaming.Decode 
 
 open Core
-open Async
-open Log.Global
 
 let decode_beginning_exn s = 
   let n = String.length s in
-  debug "Bencode_ext: decoding string of size %d" n;
   let d = Bencode_streaming.Decode.of_string s in 
   match D.next d with  
   | D.ParseOk b -> (

@@ -19,6 +19,7 @@ let connect addr = {
 }
 
 let send_packet addr m : unit =
+  debug !"Node_comm: sending %{Krpc_packet}" m;
   let t = connect addr in
   let pos = 0 in 
   let len = Kp.bin_write_t t.buffer ~pos m in 

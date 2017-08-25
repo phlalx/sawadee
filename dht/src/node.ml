@@ -22,6 +22,7 @@ let connect id addr = {
 }
 
 let send_packet t m : unit Deferred.Or_error.t = 
+  debug !"Node: sending %{Krpc_packet}" m;
   let pos = 0 in 
   let len = Kp.bin_write_t t.buffer ~pos m in 
   let buf = t.buffer |> Iobuf.of_bigstring ~pos ~len in
@@ -45,7 +46,10 @@ let get_one_packet_or_error t : Krpc_packet.t Deferred.Or_error.t =
     let m = (fun () -> Krpc_packet.bin_read_t len bs ~pos_ref:(ref 0))
             |> Or_error.try_with
     in
-    Ivar.fill ivar m 
+    Ivar.fill ivar m;
+    match m with 
+    | Ok m -> debug !"Node: received %{Krpc_packet}" m
+    | Error e -> debug !"Node: error decoding packet"
   in
   Udp.recvfrom_loop ~config t.socket callback 
   >>= fun () ->

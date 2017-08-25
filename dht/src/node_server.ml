@@ -18,6 +18,7 @@ type t = {
 }
 
 let process_query t addr transaction_id q : unit =
+  debug "Node_server: process query %d" transaction_id;
   let sender_id = Krpc_packet.query_id q in
   let content =
     if sender_id = t.id then 
@@ -83,7 +84,7 @@ let start t =
   |> don't_wait_for
 
 let create ~port id routing peers tokens = 
-  info "Node_server: created on port %d" port;
+  info "Node_server: created. Port %d" port;
   let addr = Addr.create Unix.Inet_addr.localhost ~port in
   let%map socket = Udp.bind addr in 
   {
@@ -94,21 +95,3 @@ let create ~port id routing peers tokens =
     peers;
     tokens;
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

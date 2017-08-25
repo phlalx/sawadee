@@ -2,7 +2,7 @@ open Core
 
 type t = 
   | Support_meta
-  | Tinfo of Torrent.info
+  | Tinfo of Torrent.info sexp_opaque
   | Bye
   | Piece of int
 [@@deriving sexp]

@@ -40,27 +40,27 @@ let create ~port id ~data_path ~verbose =
 let try_add t addr : unit Deferred.Or_error.t =
   let open Deferred.Or_error.Let_syntax in
   let%map id = Node.ping t.id addr in
-  debug !"Dht: added node %{Node_id.to_string_hum}" id;
+  info !"Dht: added node %{Node_id.to_string_hum}" id;
   Routing.add t.routing (id, addr)
 
-let lookup_info_hash t info_hash (_, addr) = 
-  Node.get_peers t.id addr info_hash >>| Result.ok
+let lookup_hash t hash (_, addr) = 
+  Node.get_peers t.id addr hash >>| Result.ok
 
 let k = 8
 
-(* return the k first node_info closest to info_hash *)
-let trim_nodes_info t info_hash (nis : Node_info.t list) : Node_info.t list = 
-  let cmp (id1, _) (id2, _) = Node_id.compare info_hash id1 id2 in
+(* return the k first node_info closest to hash *)
+let trim_nodes_info t hash (nis : Node_info.t list) : Node_info.t list = 
+  let cmp (id1, _) (id2, _) = Node_id.compare hash id1 id2 in
   let l = List.sort nis ~cmp in 
   List.take l k
 
-let rec lookup_info_hash' t (nis:Node_info.t list) info_hash ~depth 
+let rec lookup_hash' t (nis:Node_info.t list) hash ~depth 
   : ((Node_info.t list) * (Addr.t list)) Deferred.t =
   if depth = 0 then
     (nis, []) |> return
   else 
     let%bind l = 
-      Deferred.List.filter_map nis ~f:(lookup_info_hash t info_hash) 
+      Deferred.List.filter_map nis ~f:(lookup_hash t hash) 
         ~how:`Parallel in 
     let f = function 
       | `Values x -> `Fst x 
@@ -68,29 +68,28 @@ let rec lookup_info_hash' t (nis:Node_info.t list) info_hash ~depth
     in
     let values, nis = List.partition_map l ~f in
     let all_values = values |> List.concat in 
-    let closest_nis = nis |> List.concat |> trim_nodes_info t info_hash in 
-    let%map better_nis, more_values = lookup_info_hash' t closest_nis info_hash 
+    let closest_nis = nis |> List.concat |> trim_nodes_info t hash in 
+    let%map better_nis, more_values = lookup_hash' t closest_nis hash 
         ~depth:(depth - 1) in
     better_nis, (more_values @ all_values)
 
 let max_depth = 4 
 
-let lookup t ?populate info_hash = 
+let lookup t ?populate hash = 
   (* TODO populate the table if needed *)
-  let nis = Routing.k_closest t.routing info_hash in
-  info "Dht: querying %d closest peers" (List.length nis);
-  match%map lookup_info_hash' t nis info_hash ~depth:max_depth with  
+  let nis = Routing.k_closest t.routing hash in
+  match%map lookup_hash' t nis hash ~depth:max_depth with  
   | nis, l -> 
-    let f (n, _) = Node_id.distance_hash n info_hash in
-    let dist = List.map nis ~f |> List.to_string ~f:string_of_int in
-    info "Dht: lookup. %d best distances %s" k dist;
-    l 
+    info !"Dht: lookup %{Bt_hash.to_string_hum} - found %d peers" hash
+     (List.length l);
+    l
 
 let table t = Routing.to_list t.routing
 
 let announce t hash ~port = 
   (* TODO add us to the list of known peers *)
   let addr = Addr.create Unix.Inet_addr.localhost ~port in
+  info !"Dht: %{Addr} announces %{Bt_hash.to_string_hum}" addr hash;
   Peers_tbl.add t.peers hash addr;
   let f (token, addr) = 
     Node.announce t.id addr hash port token |> Deferred.ignore |> don't_wait_for 

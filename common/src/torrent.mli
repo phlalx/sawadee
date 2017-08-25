@@ -24,6 +24,8 @@ val info_of_string : string -> info
 
 val info_to_string : info -> string
 
+val info_to_string_hum : info -> string
+
 type t = {
   info_hash : Bt_hash.t; 
   announce : Uri.t;
@@ -31,6 +33,7 @@ type t = {
   tinfo : info; 
 }
 
-val of_string : string -> t
+(* of bencoded string *)
+val of_string : string -> t 
 
-(* val to_string : t -> info -> string *)
+val to_string_hum : t -> string

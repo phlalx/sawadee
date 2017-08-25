@@ -5,7 +5,7 @@ open Core
 module type ID = sig
 
   type t
-  [@@deriving bin_io, sexp_of]
+  [@@deriving bin_io, sexp]
   
   val of_string : string -> t
 

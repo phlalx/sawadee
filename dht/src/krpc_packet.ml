@@ -4,7 +4,6 @@
    doesn't have the right format *) 
 
 open Core
-open Async
 open Dlog
 open Bin_prot
 
@@ -192,17 +191,15 @@ let t_of_bencode b =
 let bin_read_t len buf ~pos_ref = 
   let s = String.create len in
   Common.blit_buf_string buf s ~len;
-  let b = Be.decode (`String s) in
-  let t = t_of_bencode b in
-  info !"Krpc_packet: read %{sexp:t}" t;
-  t
+  Be.decode (`String s)
+  |> t_of_bencode 
 
 let bin_write_t (buf:Common.buf) ~(pos:Common.pos) (x:t) = 
-  info !"Krpc_packet: writing %{sexp:t}" x;
   let b = bencode_of_t x in
   let s = Be.encode_to_string b in (* TODO see if we can write to buffer directly *)
   let len = String.length s in
   Common.blit_string_buf s buf ~len;
   len 
 
+let to_string t = t |> sexp_of_t |> Sexp.to_string 
 

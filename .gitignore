@@ -2,6 +2,7 @@ _build
 *.install
 *.sublime-workspace
 *.sublime-project
+.vscode
 README.html
 .merlin
 download*
