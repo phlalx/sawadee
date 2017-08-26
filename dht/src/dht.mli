@@ -9,7 +9,8 @@ open Async
 
 type t
 
-val create : port:int -> Node_id.t -> data_path:string -> verbose:int -> t
+val create : ?token_time:Time.Span.t ->  port:int -> Node_id.t ->
+  data_path:string -> verbose:int -> t
 
 (* try to add an address to the table. Ping this address and if it's 
    a node, add it. *)

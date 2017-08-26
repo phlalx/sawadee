@@ -7,6 +7,7 @@ type t = {
   routing : Routing.t;
   peers : Peers_tbl.t;
   tokens : Tokens.t;
+  token_time : Time.Span.t
 }
 
 let to_string t = Node_id.to_string_hum t.id
@@ -22,7 +23,7 @@ let set_verbose i =
     | 2 -> set_level `Debug
     | _ -> failwith "verbose level should be 1 or 2"
 
-let create ~port id ~data_path ~verbose = 
+let create ?token_time ~port id ~data_path ~verbose = 
   set_verbose verbose;
   let f = Log.Output.file `Text (data_path ^ "/dht_log") in 
   set_output [f; (Log.Output.stderr ())];
@@ -36,6 +37,7 @@ let create ~port id ~data_path ~verbose =
     routing;
     peers;
     tokens;
+    token_time = Option.value ~default:(sec 20.0) token_time;
   } in 
   info !"Dht: %{} created port %d" t port;
   t
