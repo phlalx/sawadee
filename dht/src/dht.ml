@@ -9,6 +9,8 @@ type t = {
   tokens : Tokens.t;
 }
 
+let to_string t = Node_id.to_string_hum t.id
+
 let start_server port id routing peers tokens = 
   (let%map ns = Node_server.create port id routing peers tokens in
    Node_server.start ns) |> don't_wait_for
@@ -25,22 +27,24 @@ let create ~port id ~data_path ~verbose =
   let f = Log.Output.file `Text (data_path ^ "/dht_log") in 
   set_output [f; (Log.Output.stderr ())];
 
-  info !"Dht: peer-id:%{Node_id.to_string_hum}" id;
   let routing = Routing.create () in
   let peers = Peers_tbl.create () in
   let tokens = Tokens.create () in
   start_server port id routing peers tokens;
-   {
+  let t =  {
     id;
     routing;
     peers;
     tokens;
-  }
+  } in 
+  info !"Dht: %{} created port %d" t port;
+  t
+
 
 let try_add t addr : unit Deferred.Or_error.t =
   let open Deferred.Or_error.Let_syntax in
   let%map id = Node.ping t.id addr in
-  info !"Dht: added node %{Node_id.to_string_hum}" id;
+  info !"Dht: %{} added node %{Node_id.to_string_hum}" t id;
   Routing.add t.routing (id, addr)
 
 let lookup_hash t hash (_, addr) = 
@@ -80,7 +84,7 @@ let lookup t ?populate hash =
   let nis = Routing.k_closest t.routing hash in
   match%map lookup_hash' t nis hash ~depth:max_depth with  
   | nis, l -> 
-    info !"Dht: lookup %{Bt_hash.to_string_hum} - found %d peers" hash
+    info !"Dht: %{} lookup %{Bt_hash.to_string_hum} - found %d peers" t hash
      (List.length l);
     l
 
@@ -88,8 +92,8 @@ let table t = Routing.to_list t.routing
 
 let announce t hash ~port = 
   (* TODO add us to the list of known peers *)
-  let addr = Addr.create Unix.Inet_addr.localhost ~port in
-  info !"Dht: %{Addr} announces %{Bt_hash.to_string_hum}" addr hash;
+  let addr = Addr.local ~port in
+  info !"Dht: %{} announces %{Addr} %{Bt_hash.to_string_hum}" t addr hash;
   Peers_tbl.add t.peers hash addr;
   let f (token, addr) = 
     Node.announce t.id addr hash port token |> Deferred.ignore |> don't_wait_for 

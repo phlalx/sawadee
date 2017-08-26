@@ -3,6 +3,8 @@ open Async
 
 include (module type of Socket.Address.Inet)
 
+val local : port:int -> t
+
 val update_port : t -> port:int -> t
 
 val to_compact : t -> string 

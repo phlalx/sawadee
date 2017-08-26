@@ -203,3 +203,5 @@ let bin_write_t (buf:Common.buf) ~(pos:Common.pos) (x:t) =
 
 let to_string t = t |> sexp_of_t |> Sexp.to_string 
 
+let query_to_string t = t |> sexp_of_query |> Sexp.to_string 
+

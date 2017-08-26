@@ -20,3 +20,5 @@ val table : t -> Node_info.t list
 val lookup : t -> ?populate:bool -> Bt_hash.t -> Addr.t list Deferred.t
 
 val announce : t -> Bt_hash.t -> port:int -> unit
+
+val to_string : t -> string

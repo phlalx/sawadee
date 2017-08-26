@@ -15,10 +15,14 @@ type t = {
   routing : Routing.t;
   peers : Peers_tbl.t;
   tokens : Tokens.t;
+  port : int;
 }
 
+let to_string t = sprintf !"%{Node_id.to_string_hum} %d" t.id t.port
+
 let process_query t addr transaction_id q : unit =
-  debug "Node_server: process query %s" transaction_id;
+  info !"Node_server: %{} process query %s %{Krpc_packet.query_to_string}" 
+    t transaction_id q;
   let sender_id = Krpc_packet.query_id q in
   let content =
     if sender_id = t.id then 
@@ -75,23 +79,22 @@ let callback t bs buf addr : unit =
     in
     process_query t addr tid q ) |> ignore
 
-let start t = 
-  (info "Node_server: started";
-   let bs = Bigstring.create Krpc_packet.buffer_size in
-   let stop = never () in
-   let config = Udp.Config.create ~stop () in
-   Udp.recvfrom_loop ~config t.socket (callback t bs))
+let start t = ( 
+  info !"Node_server: %{} started" t;
+  let bs = Bigstring.create Krpc_packet.buffer_size in
+  let stop = never () in
+  let config = Udp.Config.create ~stop () in
+  Udp.recvfrom_loop ~config t.socket (callback t bs))
   |> don't_wait_for
 
 let create ~port id routing peers tokens = 
-  info "Node_server: created. Port %d" port;
   let addr = Addr.create Unix.Inet_addr.localhost ~port in
-  let%map socket = Udp.bind addr in 
-  {
+  let%map socket = Udp.bind addr in {
     buffer = Common.create_buf Kp.buffer_size;
     socket = Socket.fd socket; 
     id;
     routing;
     peers;
     tokens;
+    port;
   }
