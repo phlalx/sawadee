@@ -3,13 +3,15 @@ open Async
 open Blog
 
 module G = Global
-module Nf = Network_file 
 
-let nf_of_tinfo info_hash tinfo seeder = 
+let sm_of_tinfo info_hash tinfo seeder = 
   match tinfo with
-  | None -> return None
-  | Some tinfo -> let%map nf = Nf.create ~seeder info_hash tinfo in Some nf
+  | None -> 
+    return None
+  | Some tinfo -> 
+    let%map sm = Shared_meta.create ~seeder info_hash tinfo in Some sm
 
+(* TODO move this somewhere else *)
 let copy f1 f2 =
   let len = 65536 in
   let buffer = String.create len in
@@ -32,8 +34,8 @@ let add_any info_hash
   info !"Bittorrent: add any %{Bt_hash.to_string_hum} tinfo = %b uri = %b seeder = %b"
     info_hash (Option.is_some tinfo) (Option.is_some uri) seeder;
   if not (Torrent_table.has_hash info_hash) then (
-    let%map nf = nf_of_tinfo info_hash tinfo seeder in 
-    let swarm = Swarm.create uri nf info_hash in  
+    let%map sm = sm_of_tinfo info_hash tinfo seeder in 
+    let swarm = Swarm.create uri sm info_hash in  
     Torrent_table.add info_hash swarm; 
     Swarm.start swarm
   ) else ( 

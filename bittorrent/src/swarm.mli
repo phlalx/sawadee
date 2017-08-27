@@ -1,44 +1,56 @@
-(** Peer wire protocol / Bittorrent swarm.
+(** Controls a swarm of peers.
 
-  This module implements the peer wire protocol. It forms with [Peer] the 
-  core of the bittorrent protocol.
+    This module forms with [Peer] the core of the bittorrent protocol. 
+    A [t] is created for each torrent to be downloaded. It maintains a set
+    of [Peer.t]. 
 
-  A [t] is created for each torrent to be downloaded. It acts as a conductor for
-  a set of [Peer.t] thare is dynamically updated. It also contains all the state
-  of the protocol (spread in [t] and in the [Peers.t]).
+    [t] controls when peers join/leave the swarm. Peers can come from three 
+    sources.
+    - incoming peers from the server 
+    - from the DHT
+    - from the tracker 
 
-  [t] delegates most of the work to the [Peer.t] and communicate with them
-  via messages. However, [t] shares a [Network_file.t] with the [Peer.t]. This
-  allows the [Peer.t] to answers requests from the remote peers without 
-  interacting with [t].
+    [t] decides which peers can download piece or serve pieces requests by
+    setting their [am_choking], [am_interested] flags. Peers notify [t] with 
+    [Pevent.t] sent on a pipe. 
 
-  One difficulty introduced with magnets is that we may not know the  meta-
-  information [Torrent.info] at creation time, and we need to interact with
-  remote peers to retrieve it.
+    All peers and [t] share a datastructure [Shared_meta.t] that is only created
+    once meta-info is known.
 
-  Hence, there are two states in [t]. 
-  - without meta-info, [t] tries to get meta-info
-  - with meta-info, [t] tries do download pieces.
+    A swarm can be in two states, determined by the presence of [Shared_meta.t]. 
+    - without meta-info (e.g. we download a magnet for the first time), [t] 
+    tries to get meta-info.
+    - with meta-info (that we got from a torrent, or downloaded from the peers), 
+    [t] tries do download pieces. 
 
-  When dealing with a torrent, we immediately starts in the second state.
-
-  The process of finding peers is done outside this module e.g. in 
-  [Start] or [Server]. *)
+    TODO: currently, we unchoke all interested peers, but we should be able to
+    restrict their number. *)
 
 open Core
 open Async
 
 type t
 
-val create: Uri.t option -> Network_file.t option -> Bt_hash.t -> t 
+(** [create u sm h]. [u] is the URL of the tracker. If not provided, peers
+    are looked up with the DHT. If [sm] is not provided, it will be created
+    later on by the swarm when meta-info is found from the peers. *)
+val create: Uri.t option -> Shared_meta.t option -> Bt_hash.t -> t 
 
 val start: t -> unit
 
+(** not implemented yet *)
 val stop : t -> unit
 
-val add_peer_comm: t -> Peer_comm.t -> Peer_comm.handshake_info -> unit Deferred.t
+(** add peers to the swarm. Peers completed handshake. The returned deferred
+    is determined when the remote peers cut the connection or when the swarm
+    disconnect it.
 
-(* close the network file if there is one *)
+    TODO: add a phantom type to marks that peers indeed completed their 
+    handshake? *)    
+val add_peer_comm: t -> Peer_comm.t -> Peer_comm.handshake_info 
+  -> unit Deferred.t
+
+(** saves the persistent stuff and disconnect peers *)
 val close: t -> unit Deferred.t
 
 val status : t -> Status.t

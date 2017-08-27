@@ -2,8 +2,6 @@ open Core
 open Async
 open Blog
 
-module Nf = Network_file
-
 type t = {
   block_wr : Block.t Pipe.Writer.t;
   bitfield : Bitfield.t;
@@ -22,48 +20,48 @@ let set_choking t b =
 
 let has_piece t i = Bitfield.get t.bitfield i
 
-let next_requests t nf = 
+let next_requests t sm = 
 
   let f i = 
-    not (Nf.is_downloaded nf i) && not (Nf.is_requested nf i) && (has_piece t i)
+    not (Shared_meta.is_downloaded sm i) && not (Shared_meta.is_requested sm i) && (has_piece t i)
   in
 
-  List.range 0 (Nf.num_pieces nf) |> List.filter ~f
+  List.range 0 (Shared_meta.num_pieces sm) |> List.filter ~f
 
-let can_produce t nf =
-  match next_requests t nf with
+let can_produce t sm =
+  match next_requests t sm with
   | h :: _ when not t.peer_choking -> Some h
   | _ -> None
 
-let produce_blocks' t nf i = 
-  Nf.add_requested nf i;
-  let l = Network_file.get_piece nf i |> Piece.blocks in
+let produce_blocks' t sm i = 
+  Shared_meta.add_requested sm i;
+  let l = Shared_meta.get_piece sm i |> Piece.blocks in
   debug !"Peer_producer: producing %d new blocks for piece %d (pipe contains\
           %d blocks)" (List.length l) i (Pipe.length t.block_wr); 
   Deferred.List.iter l ~f:(Pipe.write_if_open t.block_wr)
   >>| fun () -> `Repeat ()
 
-let produce_blocks t nf i =
+let produce_blocks t sm i =
   if Pipe.is_closed t.block_wr then
     `Finished () |> return
   else 
-    produce_blocks' t nf i
+    produce_blocks' t sm i
 
-let produce t nf () =
-  match can_produce t nf with
+let produce t sm () =
+  match can_produce t sm with
   | None -> 
     debug !"Block_producer: block producer goes to sleep";
     (* TODO send not interested *)
     Condition.wait t.can_produce >>| fun () -> `Repeat ()
   | Some i -> 
-    produce_blocks t nf i
+    produce_blocks t sm i
 
 let close t =
   Pipe.close t.block_wr
   
-let start t nf = 
+let start t sm = 
   info !"Block_producer: start block producer"; 
-  Deferred.repeat_until_finished () (produce t nf) |> don't_wait_for
+  Deferred.repeat_until_finished () (produce t sm) |> don't_wait_for
 
 let create block_wr bitfield = {
   block_wr;

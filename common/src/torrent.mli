@@ -1,4 +1,4 @@
-(** Information directly obtained from a torrent.
+(** Info extracted from a torrent.
 
     @raise Wrong_format if binary doesn't have the expected structure. *)
 

@@ -37,6 +37,7 @@ let block_length t ~off = min (t.length - off) G.block_size
 let is_valid_block_request t ~off ~len = 
   off + len <= t.length && len <= G.max_block_size
 
+(* TODO can we define an iterator instead of generating a list *)
 let blocks t = 
   let f i =  
     let off = i * G.block_size in
@@ -54,6 +55,7 @@ let update t ~off (block:string) =
   let index = off / G.block_size in
   let len = String.length block in
   t.blocks.(index) <- true;
+  (* TODO would be convenient here to create a sub-substring *)
   let base = Bigsubstring.base t.content in 
   let off = off + Bigsubstring.pos t.content in
   Bigstring.From_string.blit ~src:block ~src_pos:0 ~dst:base ~dst_pos:off ~len;

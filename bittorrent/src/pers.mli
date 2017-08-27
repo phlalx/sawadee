@@ -10,7 +10,7 @@
 
   TODO: Make this module more generic.
   - Make segment type public 
-  - Keep mapping from piece to list of segments in Network_file.t
+  - Keep mapping from piece to list of segments in Shared_meta.t
   - have a function to write a bigstring to list of segments *)
 
 open Core

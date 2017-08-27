@@ -1,4 +1,7 @@
-(* table to store torrents being downloaded *)
+(* Table to store torrents being downloaded. 
+
+  TODO: should we bother making this an abstract singleton? it simply is a
+  hashtbl. *)
 
 open Core
 

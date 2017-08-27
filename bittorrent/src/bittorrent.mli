@@ -7,16 +7,17 @@ open Async
     It fails on error. Should be called before any operation *)
 
 val create: 
-  server_port:(int option) -> (* port for the incoming peers *)
-  verbose:int ->     (* log level - 1 or 2 *)
-  torrent_path:string ->      (* path to save meta-data *)
-  download_path:string ->     (* path for downloaded files *)
-  dht_port:(int option) ->    (* port for DHT server *)
+  server_port:(int option) -> (** port for the incoming peers *)
+  verbose:int ->              (** log level - 0, 1 or 2 *)
+  torrent_path:string ->      (** path to save meta-data and log *)
+  download_path:string ->     (** path for downloaded files *)
+  dht_port:(int option) ->    (** port for DHT server *)
   unit Deferred.t
 
-(** download a torrent given as a string *)
+(** download a torrent given as a string TODO what if error? *)
 val add_torrent : string -> Bt_hash.t
 
+(** download a torrent given its URL TODO change type to URI? what if error *)
 val add_magnet : string -> Bt_hash.t
 
 (** take a file name and starts to seed it *)

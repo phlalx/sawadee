@@ -1,7 +1,16 @@
 (** Messages in extension protocol.
 
     http://bittorrent.org/beps/bep_0010.html
-    http://bittorrent.org/beps/bep_0009.html *)
+    http://bittorrent.org/beps/bep_0009.html
+    
+   Only the meta-data extension is supported. Most peers send the meta-data
+   size in the handshake message. To simplify, we only deal with this case
+   and always group these two values. 
+   
+   TODO: can we use the Message.t reception buffer instead of going through a 
+   a string to decode the extension message?
+
+   TODO : rename -> Ext_message *)
     
 open Core
 open Async

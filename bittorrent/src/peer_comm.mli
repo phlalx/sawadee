@@ -1,4 +1,4 @@
-(** Communication with peers.
+(** Interface with remote peers.
 
     [t] is used to handshake with peers then communicate via [Message.t] 
     send/receive.
@@ -9,7 +9,7 @@
 
     Note that we handshake before adding peers to the swarm as in the case of
     server peers, we don't know what torrents they wish to download before
-    handhake *)
+    handhake. *)
 
 open Core
 open Async

@@ -12,9 +12,8 @@ let terminate _ =
 
 let process 
     (path : string) 
-    (port : int option) 
+    (port : int) 
     (verbose : int option)
-    (node : bool)
     (uri : string)
     ()
      : unit Deferred.t
@@ -25,8 +24,8 @@ let process
     ~download_path:path 
     ~torrent_path:path
     ~verbose:(Option.value ~default:0 verbose)
-    ~server_port:port
-    ~dht_port:port
+    ~server_port:(Some port)
+    ~dht_port:(Some port)
   >>= fun () ->
   Signal.handle Signal.terminating ~f:terminate;
 
@@ -39,14 +38,14 @@ let process
   never ()
 
 let () = 
+  (* TODO see how to use let syntax for commands *)
   let spec =
     Command.Spec.(
     empty +> 
     flag "-p" (required string) ~doc:" set download path" +> 
-    flag "-l" (optional int) ~doc:" set server mode with port" +> 
+    flag "-l" (required int) ~doc:" set port" +> 
     flag "-v" (optional int) ~doc:" verbose (level = 1 or 2)" +> 
-    flag "-n" no_arg ~doc:" Enable DHT" +> 
     anon ("URI/FILE" %: string))
   in
-  Command.async ~summary:"Download torrent file" spec process |> Command.run 
+  Command.async ~summary:"Download torrent/magnet." spec process |> Command.run 
 

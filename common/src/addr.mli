@@ -1,3 +1,4 @@
+(** Async.Socket.Address.Inet plus some utility functions *)
 open Core
 open Async
 

@@ -2,7 +2,6 @@ open Core
 open Async
 open Blog
 
-module Pc = Peer_comm
 module G = Global
 
 let handler addr r w =
@@ -19,8 +18,8 @@ let handler addr r w =
     let open Deferred.Or_error.Let_syntax in 
     info "Server: incoming connection";
     let p = Peer_comm.create addr r w in
-    let%bind hi = Pc.wait_handshake p Torrent_table.has_hash in
-    info !"Server: %{Pc.to_string} handshake" p;
+    let%bind hi = Peer_comm.wait_handshake p Torrent_table.has_hash in
+    info !"Server: %{Peer_comm} handshake" p;
     let swarm = Torrent_table.find_exn hi.info_hash in
     Swarm.add_peer_comm swarm p hi |> Deferred.ok
 

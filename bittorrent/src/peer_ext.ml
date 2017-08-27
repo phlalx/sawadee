@@ -4,9 +4,8 @@ open Blog
 
 module G = Global
 module Pc = Peer_comm
-module Nf = Network_file
 
-let metadata_id = 1
+let metadata_id = 1 (* TODO Global *)
 
 type meta = {
   id : Extension.id;
@@ -21,18 +20,18 @@ type t = {
   event_wr : Pevent.t Pipe.Writer.t;
   peer : Peer_comm.t;
   mutable meta : meta option;
-  nf : Nf.t option (* TODO doesn't need the full nf here *)
+  sm : Shared_meta.t option (* TODO doesn't need the full sm here *)
 }
 
-let create info_hash peer event_wr nf = 
+let create info_hash peer event_wr sm = 
   
-  info "Peer extension: created with nf = %b" (Option.is_some nf);
+  info "Peer extension: created with sm = %b" (Option.is_some sm);
   {
   info_hash;
-  nf;
   peer;
   event_wr;
   meta = None;
+  sm;
 }
 
 let handshake_id = 0 
@@ -43,10 +42,10 @@ let send peer id e =
 
 let send_handshake t = 
   let supp_ext = 
-    match t.nf with
+    match t.sm with
     | None -> []  (* we could send simply a metadata_id, but would it be useful
                      to the recipient without length *)
-    | Some nf -> [`Metadata (metadata_id, Nf.meta_length nf)]
+    | Some sm -> [`Metadata (metadata_id, Shared_meta.meta_length sm)]
   in
   let em = Extension.Handshake supp_ext in
   send t.peer handshake_id em
@@ -95,15 +94,15 @@ let process_extended t rec_id em =
   | Extension.Data (i, s) when rec_id = handshake_id (* TODO checkt this *) -> update_data t i s  
   | Extension.Request i ->  (
       assert (rec_id = metadata_id);
-      match t.nf with 
+      match t.sm with 
       | None -> send t.peer handshake_id (*TODO*) (Extension.Reject i)
-      | Some nf ->
+      | Some sm ->
       let pos = i * G.meta_block_size in
-      info "pos = %d tinfo_bin = %d len = %d" pos (String.length (Nf.tinfo_bin nf)) G.meta_block_size;
-      let tinfo_bin_len = String.length (Nf.tinfo_bin nf) in
+      info "pos = %d tinfo_bin = %d len = %d" pos (String.length (Shared_meta.tinfo_bin sm)) G.meta_block_size;
+      let tinfo_bin_len = String.length (Shared_meta.tinfo_bin sm) in
       assert (pos < tinfo_bin_len);
       let len = min G.meta_block_size (tinfo_bin_len - pos) in 
-      let data = String.sub (Nf.tinfo_bin nf) ~pos ~len in
+      let data = String.sub (Shared_meta.tinfo_bin sm) ~pos ~len in
       send t.peer handshake_id (* TODO *) (Extension.Data (i, data))
     )
   | _ -> debug "Peer_ext: not implemented" 

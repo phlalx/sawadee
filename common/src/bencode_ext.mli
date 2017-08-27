@@ -19,6 +19,6 @@ val dict_get_list_exn : t -> string -> t list
 
 val split : t -> int -> t list
 
-(* decode first part of the string, and returns remainder.
-   a little bit ad-hoc... *)
+(* Decode first part of the string, and returns the remaining string. This is
+   useful when decoded some extension messages. *)
 val decode_beginning_exn : string -> t * string 

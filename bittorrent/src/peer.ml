@@ -2,8 +2,6 @@ open Core
 open Async
 open Blog
 
-module Nf = Network_file
-module Pc = Peer_comm
 module G = Global
 
 type t = {
@@ -23,7 +21,7 @@ type t = {
 
   event_wr : (Pevent.t * t) Pipe.Writer.t; 
 
-  mutable nf : Network_file.t option;
+  mutable sm : Shared_meta.t option;
   mutable sent_bitfield : bool;
 
   mutable received_bitfield : bool;
@@ -34,7 +32,7 @@ type t = {
 
 let id t = t.id
 
-let create info_hash id peer nf event_wr ~dht ~extension =
+let create info_hash id peer sm event_wr ~dht ~extension =
   info !"Peer: %{Peer_id.to_string_hum} created" id;
   let block_rd, block_wr = Pipe.create () in
   Pipe.set_size_budget block_wr 3;
@@ -43,7 +41,7 @@ let create info_hash id peer nf event_wr ~dht ~extension =
     match extension with
     | true ->
       let peer_ext_event_rd, peer_ext_event_wr = Pipe.create () in
-      Some ((Peer_ext.create info_hash peer peer_ext_event_wr nf), peer_ext_event_rd)
+      Some ((Peer_ext.create info_hash peer peer_ext_event_wr sm), peer_ext_event_rd)
     | false -> None
   in
   {
@@ -58,7 +56,7 @@ let create info_hash id peer nf event_wr ~dht ~extension =
     bitfield;
     event_wr;
     dht;
-    nf;
+    sm;
     sent_bitfield = false;
     received_bitfield = false;
     peer_ext;
@@ -68,11 +66,11 @@ let create info_hash id peer nf event_wr ~dht ~extension =
 
 let is_interesting t = 
   let bf = t.bitfield in
-  match t.nf with 
+  match t.sm with 
   | None -> false
-  | Some nf ->
-    let downloaded = Nf.downloaded nf in 
-    let num_pieces = Nf.num_pieces nf in
+  | Some sm ->
+    let downloaded = Shared_meta.downloaded sm in 
+    let num_pieces = Shared_meta.num_pieces sm in
     not (Bitfield.is_subset num_pieces bf downloaded)
 
 let push_event t e = Pipe.write_without_pushback_if_open t.event_wr (e, t)
@@ -85,10 +83,10 @@ let to_string t = t.id |> Peer_id.to_string_hum
 
 let is_or_not b = if b then "" else "not"
 
-let send_bitfield t nf = 
+let send_bitfield t sm = 
   assert (not t.sent_bitfield);
-  if Nf.has_any_piece nf then (
-    Message.Bitfield (Nf.downloaded nf) |> Pc.send t.peer;
+  if Shared_meta.has_any_piece sm then (
+    Message.Bitfield (Shared_meta.downloaded sm) |> Peer_comm.send t.peer;
     t.sent_bitfield <- true
   ) 
 
@@ -96,28 +94,28 @@ let set_am_interested t b =
   assert (t.am_interested = (not b));
   info !"Peer %{}: I am %{is_or_not} interested" t b;
   t.am_interested <- b;
-  (if b then Message.Interested else Message.Not_interested) |> Pc.send t.peer
+  (if b then Message.Interested else Message.Not_interested) |> Peer_comm.send t.peer
 
 let set_am_choking t b = 
   assert (t.am_choking = (not b));
   info !"Peer %{}: I am %{is_or_not} choking" t b;
   t.am_choking <- b;
-  (if b then Message.Choke else Message.Unchoke) |> Pc.send t.peer
+  (if b then Message.Choke else Message.Unchoke) |> Peer_comm.send t.peer
 
 let notify t i = 
   if not (Bitfield.get t.bitfield i) then
-    Pc.send t.peer (Message.Have i);
+    Peer_comm.send t.peer (Message.Have i);
   if t.am_interested && not (is_interesting t) then
     set_am_interested t false
 
-let clear_requests t nf =
+let clear_requests t sm =
   let f i =
     debug !"Peer %{}: clear requests %d" t i;
-    Nf.remove_requested nf i
+    Shared_meta.remove_requested sm i
   in
   List.iter (Block_consumer.pending_requests t.block_consumer) ~f
 
-let request_meta t =  
+let request_meta_info t =  
   match t.peer_ext with
   | None -> assert false
   | Some (pe, _) -> Peer_ext.request_meta pe
@@ -138,10 +136,10 @@ module Message_loop : sig
 end = 
 struct
 
-  let process_block t nf index bgn block =
-    let piece = Network_file.get_piece nf index in
+  let process_block t sm index bgn block =
+    let piece = Shared_meta.get_piece sm index in
     let len = String.length block in
-    Network_file.is_valid_piece_index nf index |> validate t; 
+    Shared_meta.is_valid_piece_index sm index |> validate t; 
     let b = Block.{ piece = index; off = bgn; len} in
     Block_consumer.notify t.block_consumer b;
     match Piece.update piece bgn block with 
@@ -150,21 +148,21 @@ struct
       info !"Peer %{}: hash error piece %d" t index
     | `Downloaded ->
       info !"Peer %{}: downloaded piece %d" t index; 
-      Nf.set_downloaded nf index;
-      Nf.write_piece nf index;
-      Nf.remove_requested nf index;
+      Shared_meta.set_downloaded sm index;
+      Shared_meta.write_piece sm index;
+      Shared_meta.remove_requested sm index;
       push_event t (Piece index)
 
-  let process_request t nf block =
+  let process_request t sm block =
     let Block.{ piece; off; len } = block in
     validate t t.peer_interested;
     validate t (not t.am_choking);
-    let piece_ = Network_file.get_piece nf piece in
-    Network_file.is_valid_piece_index nf piece |> validate t;
+    let piece_ = Shared_meta.get_piece sm piece in
+    Shared_meta.is_valid_piece_index sm piece |> validate t;
     Piece.is_valid_block_request piece_ ~off ~len |> validate t;
-    Network_file.is_downloaded nf piece |> validate t;
+    Shared_meta.is_downloaded sm piece |> validate t;
     let block_content = Piece.get_content piece_ ~off ~len in
-    Message.Block (piece, off, block_content) |> Pc.send t.peer
+    Message.Block (piece, off, block_content) |> Peer_comm.send t.peer
 
   let process_message t m : unit =
     debug !"Peer %{}: received %{Message}" t m;
@@ -216,23 +214,23 @@ struct
 
     | Message.Have i -> 
       Bitfield.set t.bitfield i true;
-      let f nf =  
-        if not (Nf.is_downloaded nf i)  && not t.am_interested then 
+      let f sm =  
+        if not (Shared_meta.is_downloaded sm i)  && not t.am_interested then 
           set_am_interested t true
       in 
-      Option.iter t.nf ~f
+      Option.iter t.sm ~f
 
     | Message.Request block -> 
-      assert (Option.is_some t.nf);
+      assert (Option.is_some t.sm);
       if not t.am_choking then 
-        process_request t (Option.value_exn t.nf) block
+        process_request t (Option.value_exn t.sm) block
 
     | Message.Block (i, bgn, block) -> 
-      assert (Option.is_some t.nf);
-      process_block t (Option.value_exn t.nf) i bgn block
+      assert (Option.is_some t.sm);
+      process_block t (Option.value_exn t.sm) i bgn block
 
     | Message.Cancel block -> 
-      assert (Option.is_some t.nf);
+      assert (Option.is_some t.sm);
       info !"Peer %{}: not implemented yet" t
 
   let rec wait_and_process_message t () =
@@ -245,7 +243,7 @@ struct
         push_event t Bye; 
         `Finished ()
     in
-    Pc.receive t.peer |> Clock.with_timeout G.keep_alive
+    Peer_comm.receive t.peer |> Clock.with_timeout G.keep_alive
     >>| function 
     | `Timeout -> 
       push_event t Bye;
@@ -257,19 +255,19 @@ struct
     Deferred.repeat_until_finished () (wait_and_process_message t)
 end
 
-let start_nf t nf = 
-  send_bitfield t nf;
+let start_sm t sm = 
+  send_bitfield t sm;
   Block_consumer.start t.block_consumer;
-  Block_producer.start t.block_producer nf;
+  Block_producer.start t.block_producer sm;
   if t.received_bitfield && (is_interesting t) then (
     validate t t.peer_choking;
     set_am_interested t true
   )
 
-let set_nf t nf =
-  assert (Option.is_none t.nf);
-  t.nf <- Some nf;
-  start_nf t nf
+let set_shared_meta t sm =
+  assert (Option.is_none t.sm);
+  t.sm <- Some sm;
+  start_sm t sm
 
 let start t = 
   let f (peer_ext, peer_ext_event_rd) = 
@@ -278,12 +276,12 @@ let start t =
     |> don't_wait_for
   in
   Option.iter t.peer_ext ~f; 
-  Option.iter t.nf ~f:(start_nf t);
+  Option.iter t.sm ~f:(start_sm t);
   Message_loop.start t 
 
 let close t = 
   debug !"Peer %{}: we close this peer." t;
-  Option.iter t.nf ~f:(clear_requests t);
+  Option.iter t.sm ~f:(clear_requests t);
   Block_producer.close t.block_producer;
   Option.iter t.peer_ext ~f:(fun (pe, _) -> Peer_ext.close pe); 
   Peer_comm.close t.peer

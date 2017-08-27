@@ -40,7 +40,7 @@ let create ~seeder info_hash tinfo =
       num_pieces;
       num_files;
     } = tinfo in 
-  info "Network_file: create for torrent %s" name;
+  info "Shared_meta: create for torrent %s" name;
 
   let content = Bigstring.create total_length in
 
@@ -56,13 +56,13 @@ let create ~seeder info_hash tinfo =
       | false -> In_channel.read_all bitfield_name |> Bitfield.of_string
       | true -> Bitfield.full num_pieces (* TODO check file is there *)
     with _ -> 
-      info "Network_file: can't read bitfield %s. Using empty bitfield" bitfield_name;
+      info "Shared_meta: can't read bitfield %s. Using empty bitfield" bitfield_name;
       Bitfield.empty num_pieces 
   in
-  info "Network_file: read bitfield %s" bitfield_name;
+  info "Shared_meta: read bitfield %s" bitfield_name;
   let stats = downloaded_to_string downloaded num_pieces in 
   (* TODO truncate bitfield *)
-  info "Network_file: read %s" stats;
+  info "Shared_meta: read %s" stats;
 
   let count = ref 0 in
 
@@ -72,17 +72,17 @@ let create ~seeder info_hash tinfo =
     Pers.read_piece pers p 
     >>| fun () -> 
     if not (Piece.is_hash_ok p) then
-      info "Network_file: can't read piece %d from disk" i
+      info "Shared_meta: can't read piece %d from disk" i
   in
 
   Deferred.List.iter (Bitfield.to_list downloaded num_pieces) ~f:read_piece
   >>| fun () ->
-  info "Network_file: read %d pieces from disk" !count;
+  info "Shared_meta: read %d pieces from disk" !count;
 
   let finally () =
-    info "Network_file: writing bitfield to file %s" bitfield_name;
+    info "Shared_meta: writing bitfield to file %s" bitfield_name;
     let stats = downloaded_to_string downloaded num_pieces in 
-    info "Network_file: written %s" stats;
+    info "Shared_meta: written %s" stats;
     (try
        let data = downloaded |> Bitfield.to_string in
        Out_channel.write_all bitfield_name ~data

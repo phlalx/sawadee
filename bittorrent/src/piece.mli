@@ -1,11 +1,10 @@
 (**  Piece of a network file.
 
-     A Piece is bigsubstring of the network file (see [Network_file.t]).  
+     A Piece is a bigsubstring of the network file (see [Shared_meta.t]).  
 
-     In bittorent, a piece is the unit of "ownership". Peers advertise and 
-     request pieces. However, they are furthmore divided into blocks 
-     (or sub-pieces)which are the unit of transmission. Block size is 
-     client-specific (normally 16kB) and is defined [Global]. 
+     Pieces are divided into blocks (or sub-pieces) which form the unit 
+     of transmission. Block size is client-specific (normally 16kB) and 
+     is defined [Global]. 
 
      Pieces also have a hash given in the meta-info and used to validate after
      downloading. *)
@@ -16,7 +15,7 @@ open Async
 type t
 
 (** [create ~pos ~index ~len h s]. [pos] is the offset of the piece in the
-    network file. All pieces should have the same length exception maybe the 
+    network file. All pieces should have the same length execepted maybe the 
     last one. *)
 val create :  pos:int -> index:int -> len:int -> Bt_hash.t -> Bigstring.t -> t
 

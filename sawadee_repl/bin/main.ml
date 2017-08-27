@@ -74,7 +74,7 @@ let rec repl stdin =
   | `Ok l -> parse l |> eval >>= fun () -> repl stdin 
   | `Eof -> terminate ()
 
-let process (path : string) (port : int option)  (verbose : int option) 
+let process (path : string) (port : int)  (verbose : int option) 
     (uris : string list) () : unit Deferred.t
   = 
 
@@ -82,8 +82,8 @@ let process (path : string) (port : int option)  (verbose : int option)
     ~download_path:path 
     ~torrent_path:path
     ~verbose:(Option.value ~default:0 verbose)
-    ~server_port:port
-    ~dht_port:port
+    ~server_port:(Some port)
+    ~dht_port:(Some port)
   >>= fun () ->
 
   Signal.handle Signal.terminating ~f:(fun _ -> terminate () |> don't_wait_for);
@@ -98,9 +98,9 @@ let () =
     Command.Spec.(
       empty +> 
       flag "-p" (required string) ~doc:" set download path" +> 
-      flag "-l" (optional int) ~doc:" set server mode with port" +> 
+      flag "-l" (required int) ~doc:" set port" +> 
       flag "-v" (optional int) ~doc:" verbose (level = 1 or 2)" +> 
-      anon (sequence ("URI/FILEs" %: string)))
+      anon (sequence ("URI/FILE" %: string)))
   in
   Command.async ~summary:"Download torrent file" spec process |> Command.run
 

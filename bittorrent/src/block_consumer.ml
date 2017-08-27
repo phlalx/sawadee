@@ -18,13 +18,13 @@ let process t b =
   t.pending <- Set.add t.pending b
 
 let consume t () = 
-  debug !"Block_consumer: trying to consume a block (%d blocks in pipe)" (Pipe.length t.block_rd); 
+  (* debug !"Block_consumer: trying to consume a block (%d blocks in pipe)" (Pipe.length t.block_rd);  *)
   if (Set.length t.pending) < G.max_pending_request then (
     match%bind Pipe.read t.block_rd with
     | `Eof -> `Finished () |> return
     | `Ok b -> process t b; `Repeat () |> return
   ) else (
-    debug !"Block consumer goes to sleep"; 
+    (* debug !"Block consumer goes to sleep";  *)
     Condition.wait t.can_consume >>| fun () -> `Repeat ()
   )
 
@@ -36,12 +36,12 @@ let notify t b =
   (*   Set.mem t.pending b |> validate t; TODO add validation *)
   t.pending <- Set.remove t.pending b;
   if (Set.length t.pending) < G.max_pending_request then ( 
-    info !"Block_consumer: wake-up block consumer";
+    (* info !"Block_consumer: wake-up block consumer"; *)
     Condition.signal t.can_consume ()
   )
 
 let start t = 
-  info !"Block_consumer: start"; 
+  (* info !"Block_consumer: start";  *)
   Deferred.repeat_until_finished () (consume t) |> don't_wait_for 
 
 let create block_rd peer = {
