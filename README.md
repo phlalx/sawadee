@@ -311,8 +311,6 @@ Then add missing features to fully support the BEP listed above. This includes:
 * dealing with end of download. We should request the same blocks to different peers, and then cancel requests if needed, 
 * correctly implementing the DHT table (in particuler the *bucket* and *token* mechanism).
 
-## License
-
 ## Resources and libs
 
 * Wikipedia [bittorrent](https://en.wikipedia.org/wiki/BitTorrent) and [DHT](https://en.wikipedia.org/wiki/Distributed_hash_table),
@@ -322,4 +320,4 @@ Then add missing features to fully support the BEP listed above. This includes:
 * [bin_prot](https://github.com/janestreet/bin_prot),
 * [bencode](https://github.com/rgrinberg/bencode),
 * [cohttp-async](https://github.com/mirage/ocaml-cohttp),
-* [sha](https://github.com/vincenthz/ocaml-sha)
+* [sha](https://github.com/vincenthz/ocaml-sha).

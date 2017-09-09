@@ -5,6 +5,7 @@ maintainer: "phlalx@users.noreply.github.com"
 authors: ["phlalx@users.noreply.github.com"]
 homepage: "https://github.com/phlalx/ocaml-torrent"
 bug-reports: "https://github.com/phlalx/ocaml-torrent/issues"
+license: "GPLv3"
 dev-repo: "https://github.com/phlalx/ocaml-torrent.git"
 build: [
   ["jbuilder" "build" "-p" name "-j" jobs]
