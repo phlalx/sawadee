@@ -2,7 +2,7 @@ open Core
 open Async
 
 let base_port = 7000 
-let num_clients = 10
+let num_clients = 4 
 let ports = List.range base_port (base_port + num_clients)
 let addrs = List.map ports ~f:(fun port -> Addr.local ~port)
 
@@ -77,7 +77,7 @@ let test () =
   let dhts = create_dhts () in
   Clock.after (sec 1.0) 
   >>= fun () ->
-  test_ring dhts
+  test_clique dhts
   >>= fun res ->
   (* assert res; *)
   let h = Bt_hash.random () in
