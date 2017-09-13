@@ -90,7 +90,7 @@ let start_with_sm t sm : unit =
   t.sm <- Some sm;
   for_all_peers t (fun p -> Peer.set_shared_meta p sm);
 
-  info !"Swarm: %{} start event loop - with nf" t; 
+  info !"Swarm: %{} start event loop - with sm" t; 
   Deferred.repeat_until_finished () (event_loop_sm t sm)
   |> don't_wait_for
 

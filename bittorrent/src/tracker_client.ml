@@ -7,6 +7,7 @@ let uploaded = "0"
 let downloaded = "0" 
 let event = "started"
 let compact = "1" 
+let left = "1"
 
 let create_uri_with_parameters info_hash uri = 
   let open Torrent in
@@ -15,9 +16,8 @@ let create_uri_with_parameters info_hash uri =
      ("peer_id", Peer_id.to_string Global.peer_id); 
      ("uploaded", uploaded);
      ("downloaded", downloaded);
-     ("event", event);
-     ("compact", compact );
-     (* ("left", string_of_int t.total_length); *)
+     ("compact", compact);
+     ("left", left);
     ] 
   in
   let params = 

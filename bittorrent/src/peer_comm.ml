@@ -114,7 +114,7 @@ and receive_handshake t (has_hash : Bt_hash.t -> bool) ~initiate :
   | `Timeout -> Error (Error.of_string "handshake timeout") |> return
   | `Result `Ok  ->  
     begin
-      let hash, pid, extension, dht = extract buf in
+      let hash, pid, dht, extension = extract buf in
       let hi = { info_hash = hash; dht; extension; peer_id = pid } in
       match initiate, has_hash hash with 
       | `Initiator, true ->

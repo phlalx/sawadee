@@ -28,7 +28,8 @@ let handshake_and_push t addr =
   let open Deferred.Or_error.Let_syntax in
   let%bind p = Pc.create_with_connect addr in
   let%map hi = Pc.initiate_handshake p t.info_hash |> close_on_error p in
-  info !"Peer_producer: pushing_peer %{Pc}" p;
+  info !"Peer_producer: handshake ok with %{Pc} - ext = %b" p 
+    hi.Peer_comm.extension;
   Pipe.write_without_pushback t.wr (p, hi) 
 
 let get_peers_from_tracker t uri = 
@@ -55,7 +56,7 @@ let get_peers_from_dht t dht =
 let create mvar wr info_hash uri = { mvar; wr; info_hash; uri }
 
 let start t : unit =
-  (* TODO query tracker every _interval_ sec *)
+  (* TODO query tracker every _interval_ sec, not only once *)
   Option.iter t.uri ~f:(get_peers_from_tracker t);
   let f dht = 
     Clock.every (sec 30.) (fun () -> get_peers_from_dht t dht) 

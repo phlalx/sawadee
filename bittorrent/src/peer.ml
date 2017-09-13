@@ -7,25 +7,19 @@ module G = Global
 type t = {
   peer : Peer_comm.t;
   info_hash : Bt_hash.t;
-
   id : Peer_id.t;  (* TODO these two fields can go in peer_comm *)
   dht : bool;
   peer_ext : (Peer_ext.t * Pevent.t Pipe.Reader.t) option;
-
   mutable peer_choking : bool; 
   mutable peer_interested : bool;
   mutable am_choking : bool;
   mutable am_interested : bool; 
   mutable received_port : bool ;
   bitfield : Bitfield.t;
-
   event_wr : (Pevent.t * t) Pipe.Writer.t; 
-
   mutable sm : Shared_meta.t option;
   mutable sent_bitfield : bool;
-
   mutable received_bitfield : bool;
-
   block_consumer : Block_consumer.t;
   block_producer : Block_producer.t;
 } 
