@@ -321,11 +321,11 @@ The code can certainly be improved.
 
 ## Resources and libs
 
-* Wikipedia [bittorrent](https://en.wikipedia.org/wiki/BitTorrent) and [DHT](https://en.wikipedia.org/wiki/Distributed_hash_table),
-* bittorrent [official](http://bittorrent.org/beps/bep_0000.html) and [unoffical](https://wiki.theory.org/index.php/Main_Page) specification,
-* Wireshark tool (packet sniffer, useful to debug protocol) and [bittorrent dissector](https://wiki.wireshark.org/BitTorrent),
-* OCaml Core and Async ([0.9](https://ocaml.janestreet.com/ocaml-core/v0.9/doc/)) ,
-* [bin_prot](https://github.com/janestreet/bin_prot),
+* Wikipedia [bittorrent](https://en.wikipedia.org/wiki/BitTorrent) and [DHT](https://en.wikipedia.org/wiki/Mainline_DHT),
+* bittorrent [official](http://bittorrent.org/beps/bep_0000.html) and [unoffical](https://wiki.theory.org/index.php/Main_Page) specifications,
+* [Wireshark](https://www.wireshark.org) packet sniffer, useful to debug protocol,
+* [Jane street github](https://github.com/janestreet) core, async, bin_prot, jbuilder,
 * [bencode](https://github.com/rgrinberg/bencode),
 * [cohttp-async](https://github.com/mirage/ocaml-cohttp),
-* [sha](https://github.com/vinenthz/ocaml-sha).
+* [sha](https://github.com/vinenthz/ocaml-sha),
+* [archive.org](https://archive.org) to download legal torrents.
