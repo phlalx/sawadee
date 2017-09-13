@@ -1,0 +1,24 @@
+# Jbuiler/merlin integration
+
+Merlin doesn't understand jbuilder generated .merlin files. The problem is
+fixed by pinning some packages to their latest development version. Jbuilder
+is pinned to 1.0+beta11 (not the latest version) as package bin_prot doesn't 
+compile with jbuilder 1.0+beta12. 
+
+core                     v0.9.115.06+117 (pinned) 
+jbuilder                      1.0+beta11 (pinned)
+merlin                             3.0.2 (pinned)
+ocaml-migrate-parsetree            1.0.3 (pinned)
+
+In addition, packages starting with 'ppx_' should be manually removed from the
+.merlin files.
+
+# UDP bug 
+
+Async/UDP doesn't work on Mac OS.
+https://discuss.ocaml.org/t/sending-udp-on-macos-fails/636
+
+This has been fixed by a pull request but not yet integrated into the latest 
+release.
+
+These libraries are upded frequently, so I assume this to be solved very quicky.
