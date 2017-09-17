@@ -1,8 +1,15 @@
 (** Simple DHT service.
 
-http://bittorrent.org/beps/bep_0005.html  
+The official specification http://bittorrent.org/beps/bep_0005.html  lacks
+implementation details. The most detailed description of the protocol I found
+is the specification of xlattice.
+http://xlattice.sourceforge.net/components/protocol/kademlia/specs.html
 
-*)
+The current implementation is partial. Lookup works well enough but the 
+bucket mechanisms and the tokens aren't implemented yet.
+
+TODO: finish the implementation by following xlattice spec. Complete integration 
+test [test_dht.ml]. *)
 
 open Core
 open Async
@@ -18,7 +25,7 @@ val try_add : t -> Addr.t -> unit Deferred.Or_error.t
 
 val table : t -> Node_info.t list
 
-val lookup : t -> ?populate:bool -> Bt_hash.t -> Addr.t list Deferred.t
+val lookup : t -> Bt_hash.t -> Addr.t list Deferred.t
 
 val announce : t -> Bt_hash.t -> port:int -> unit
 

@@ -59,7 +59,7 @@ let start t : unit =
   (* TODO query tracker every _interval_ sec, not only once *)
   Option.iter t.uri ~f:(get_peers_from_tracker t);
   let f dht = 
-    Clock.every (sec 30.) (fun () -> get_peers_from_dht t dht) 
+    Clock.every (sec 180.) (fun () -> get_peers_from_dht t dht) 
   in
   Option.iter (G.dht ()) f
 

@@ -1,3 +1,9 @@
+(** Test DHT operations for several topologies.
+
+We test two topologies. Ring and clique. And store/retrieve operations. 
+This is a starting point and should be improved. *)
+
+
 open Core
 open Async
 

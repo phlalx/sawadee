@@ -319,13 +319,22 @@ The code can certainly be improved.
 * review possible fd and memory leaks, race conditions with pipe closing.
 * buffer allocation. 
 
-## Resources and libs
+## Resources
 
-* Wikipedia [bittorrent](https://en.wikipedia.org/wiki/BitTorrent) and [DHT](https://en.wikipedia.org/wiki/Mainline_DHT),
+### Documentation and specifications
+
+* Wikipedia [bittorrent](https://en.wikipedia.org/wiki/BitTorrent),
+* [DHT](https://en.wikipedia.org/wiki/Mainline_DHT), [Kadmelia](https://en.wikipedia.org/wiki/Kademlia), [Kadmelia xlattice implementation](http://xlattice.sourceforge.net/components/protocol/kademlia/specs.html),
 * bittorrent [official](http://bittorrent.org/beps/bep_0000.html) and [unoffical](https://wiki.theory.org/index.php/Main_Page) specifications,
-* [Wireshark](https://www.wireshark.org) packet sniffer, useful to debug protocol,
+
+### Libraries
+
 * [Jane street github](https://github.com/janestreet) core, async, bin_prot, jbuilder,
 * [bencode](https://github.com/rgrinberg/bencode),
 * [cohttp-async](https://github.com/mirage/ocaml-cohttp),
 * [sha](https://github.com/vinenthz/ocaml-sha),
-* [archive.org](https://archive.org) to download legal torrents.
+
+### Misc
+
+* [Wireshark](https://www.wireshark.org) packet sniffer, useful to debug protocol,
+* [archive.org](https://archive.org) (legal torrents database).

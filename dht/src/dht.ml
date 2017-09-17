@@ -42,7 +42,6 @@ let create ?token_time ~port id ~data_path ~verbose =
   info !"Dht: %{} created port %d" t port;
   t
 
-
 let try_add t addr : unit Deferred.Or_error.t =
   let open Deferred.Or_error.Let_syntax in
   let%map id = Node.ping t.id addr in
@@ -52,19 +51,32 @@ let try_add t addr : unit Deferred.Or_error.t =
 let lookup_hash t hash (_, addr) = 
   Node.get_peers t.id addr hash >>| Result.ok
 
-let k = 8
 
 (* return the k first node_info closest to hash *)
-let trim_nodes_info t hash (nis : Node_info.t list) : Node_info.t list = 
+let trim_nodes_info k hash (nis : Node_info.t list) : Node_info.t list = 
   let cmp (id1, _) (id2, _) = Node_id.compare hash id1 id2 in
   let l = List.sort nis ~cmp in 
   List.take l k
 
+let k = 8
+
+(* query in parallel k nodes closest to infohash
+   keep the k best answers and accumulate values found 
+   repeat until at least one answer 
+
+   this isn't exactly what should be done. In particular, we shoudln't do more
+   than alpha = 3 simultaneous requests. TODO see xlattice doc *)
+
 let rec lookup_hash' t (nis:Node_info.t list) hash ~depth 
   : ((Node_info.t list) * (Addr.t list)) Deferred.t =
-  if depth = 0 then
+  let f (n, _) = Node_id.distance_hash n hash in
+  let dist_list = List.map nis ~f in
+  let dist_list_str = List.to_string Int.to_string dist_list in
+  info "Dht: lookup_hash' depth = %d closest nodes %s" depth dist_list_str;
+  if nis = [] then (
+    assert (depth >= 0);
     (nis, []) |> return
-  else 
+  ) else 
     let%bind l = 
       Deferred.List.filter_map nis ~f:(lookup_hash t hash) 
         ~how:`Parallel in 
@@ -74,15 +86,14 @@ let rec lookup_hash' t (nis:Node_info.t list) hash ~depth
     in
     let values, nis = List.partition_map l ~f in
     let all_values = values |> List.concat in 
-    let closest_nis = nis |> List.concat |> trim_nodes_info t hash in 
+    let closest_nis = nis |> List.concat |> trim_nodes_info k hash in 
     let%map better_nis, more_values = lookup_hash' t closest_nis hash 
         ~depth:(depth - 1) in
-    better_nis, (more_values @ all_values)
+    better_nis, (List.dedup_and_sort ~compare (more_values @ all_values))
 
-let max_depth = 4 
+let max_depth = 100 
 
-let lookup t ?populate hash = 
-  (* TODO populate the table if needed *)
+let lookup t hash = 
   let nis = Routing.k_closest t.routing hash in
   match%map lookup_hash' t nis hash ~depth:max_depth with  
   | nis, l -> 
