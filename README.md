@@ -81,31 +81,57 @@ Example:
     # download a torrent
     > sawadee -p download -l 7000 -v 2 tests/torrents/NuTyX_x86_64-20170625.torrent 
 
+    2017-09-17 16:01:50.217451+02:00 Info Bittorrent: peer-id:GXJHHP/sawadee
+    2017-09-17 16:01:50.226483+02:00 Info Dht: RAWSZJ created port 7000
+    2017-09-17 16:01:50.232091+02:00 Info Node_server: RAWSZJ 7000 started
+    2017-09-17 16:01:50.226267+02:00 Info Server: started on port 7000
+    2017-09-17 16:01:50.226486+02:00 Info Bittorrent: trying to read dht table download/routing
+    2017-09-17 16:01:50.263041+02:00 Info Dht: RAWSZJ added node DFPDCQ
+    2017-09-17 16:01:50.263722+02:00 Info Dht: RAWSZJ added node RZMAFE
+    ...
+    2017-09-17 16:01:55.238837+02:00 Info Bittorrent: added 59 nodes to DHT
+    2017-09-17 16:01:55.242300+02:00 Info Bittorrent: add torrent ((info_hash f148b63816d7e3c162000835b5d9241b6929820f)(announce((scheme http)(host linuxtracker.org)(port 2710)(path(/ 00000000000000000000000000000000 / announce))(query())))(announce_list())(tinfo((name NuTyX_x86_64-20170625.iso)(piece_length 131072)(pieces_hash <opaque>)(files_info((NuTyX_x86_64-20170625.iso 258998272)))(total_length 258998272)(num_pieces 1976)(num_files 1)(priv(1)))))
+    ...
+    2017-09-17 16:02:01.310679+02:00 Info Shared_meta: writing bitfield to file download/f148b63816d7e3c162000835b5d9241b6929820f.bitset
+    2017-09-17 16:02:01.310731+02:00 Info Shared_meta: written 23/1976 pieces (1%)
+    2017-09-17 16:02:01.311015+02:00 Info Pers: closing all files
+    2017-09-17 16:02:01.311025+02:00 Info Bittorrent: trying to write dht table download/routing
+    2017-09-17 16:02:01.311313+02:00 Info Bittorrent: writing download/routing
+
 ### `sawadee_repl`
 
 The REPL uses the same options, but allows the user to launch and follow several downloads in parallel.
 
-    > sawadee_repl -p download -l 7000
+    > sawadee_repl -p download -l 7000 
     # add tests/torrents/ubuntu-17.04-desktop-amd64.iso.torrent
     Added 59066769b9ad42da2e508611c33d7c4480b3857b.
-    # list
-    59066769b9ad42da2e508611c33d7c4480b3857b
-    # help
-    Commands are: 
-    add
-    seed
-    list
-    status 
-    quit
-    help
     # status 59066769b9ad42da2e508611c33d7c4480b3857b
     ubuntu-17.04-desktop-amd64.iso
     piece_length:    512kB
     total_length:   1534MB
     num_pieces: 3069
-    downloaded = 0
-    waiting for peers
-    # quit
+    downloaded = 285
+    2.234.173.5      transmission dl/ul    128kB       0B, dl/ul speed    6.6kB/s     0.0B/s
+    5.12.212.252     transmission dl/ul    144kB       0B, dl/ul speed    7.4kB/s     0.0B/s
+    5.145.100.93     deluge       dl/ul     16kB       0B, dl/ul speed   819.2B/s     0.0B/s
+    24.17.122.116    transmission dl/ul       0B       0B, dl/ul speed     0.0B/s     0.0B/s
+    37.48.81.84      libtorrent   dl/ul      1MB       0B, dl/ul speed   75.4kB/s     0.0B/s
+    37.187.6.193     deluge       dl/ul      3MB       0B, dl/ul speed  167.9kB/s     0.0B/s
+    ...
+    # add tests/torrents/NuTyX_x86_64-20170625.torrent 
+    Added f148b63816d7e3c162000835b5d9241b6929820f.
+    # list 
+    f148b63816d7e3c162000835b5d9241b6929820f
+    59066769b9ad42da2e508611c33d7c4480b3857b
+    # status f148b63816d7e3c162000835b5d9241b6929820f
+    NuTyX_x86_64-20170625.iso
+    piece_length:    128kB
+    total_length:    247MB
+    num_pieces: 1976
+    downloaded = 17
+    31.162.242.94    transmission dl/ul    144kB       0B, dl/ul speed    7.4kB/s     0.0B/s
+    71.202.96.160    qBittorrent  dl/ul    464kB       0B, dl/ul speed   23.8kB/s     0.0B/s
+    185.21.216.195   libtorrent   dl/ul      1MB       0B, dl/ul speed   81.9kB/s     0.0B/s
 
 ## Implementation
 
@@ -115,7 +141,7 @@ The system can be built with [jbuilder](http://jbuilder.readthedocs.io/en/latest
 
 Executables are installed in `_build/install/default/bin`.
 
-In what follows, we give some hindsight on the global architecture of the application. See the code for more details. (TODO: see how to build the doc using `jbuilder`?).
+In what follows, we give some hindsight on the global architecture of the application. See the ocaml doc for more details. 
 
 ### Common
 
@@ -180,7 +206,9 @@ The front-ends `sawadee`, `sawdee_repl` and `sawadee_rpc` are simple wrappers ar
 
 ### Tests
 
-A difficulty in the development of this project is to generate system tests. Legal torrents usually have few seeders and even fewer leeches and don't make useful test cases. Torrent files with old-fashioned trackers are harder to find as people favor magnets. Besides, these *wild* torrents are very dynamic and make difficult to reproduce tests. On the other hand, local system testing is tedious as it requires more scripting and tools. We provide the following tests as a starting point. 
+Testing is a difficult aspect of this project. One can use *wild* torrents but most torrents are illegal and swarm of peers are very dynamic which make tests not reproductible. Legal torrents usually have few seeders and even fewer leeches and don't make useful test cases. Moreover, torrent files with old-fashioned trackers are harder to find as people favor magnets. On the other hand, local system testing is tedious as it requires more scripting and tools (especially if one wants to test diverse environment with different clients).
+
+We provide the following tests as a starting point but they should be extended and improved.
 
 #### Unit and integration tests
 
@@ -188,7 +216,7 @@ A difficulty in the development of this project is to generate system tests. Leg
 * `dht/test/test_krpc_packet.ml`
 * `dht/test/test_dht.ml`
 
-The first two are simple `Ounit` tests for the corresponding module. The last one is an integration test for the DHT. 
+The first two are simple `Ounit` tests for the corresponding module. The last one is an integration test for the DHT, it tests store and retrieve operations in a clique of nodes.
 
 They are bound to the `runtest` directive in `jbuilder`. They can be run with `jbuilder runtest`.
 
@@ -301,23 +329,23 @@ At the current stage, one can download torrents and magnets using a simple inter
 * [BEP 10, Extension Protocol](http://bittorrent.org/beps/bep_0010.html]),
 * [BEP 20, Peer ID conventions](http://bittorrent.org/beps/bep_0020.html).
 
-They are mostly implemented but a few things are missing:
+They are partly implemented. A few things are missing:
 * An *unchoking* strategy. Currently, we unchoke every interested peers, but we should limit their number and pick them according to some *merit* metric, 
 * dealing with end of download (request the same blocks to different peers).
 * correctly implementing the DHT table (in particular the *bucket* and *token* mechanism).
 
-Before anything else, the tests should be improved. Different parts of the system can be tested separately, in particular: 
+Before anything else, testing should be improved and target better different parts of the system.
 * the DHT,
 * the peer wire protocol (with simple torrents),
 * the metadata extension.
 
 The code can certainly be improved. 
-* many TODOs in the code (mostly little improvements or things to check).
+* many TODOs in the code...
 * improve traces. Need more consistency in the trace messages.
 * improve error management. Need more consistency in error handling depending on the sources of errors ( 
   badly behaved remote peers, fatal errors, assert that could be recovered)
 * review possible fd and memory leaks, race conditions with pipe closing.
-* buffer allocation. 
+* make better use of buffers
 
 ## Resources
 
@@ -333,8 +361,4 @@ The code can certainly be improved.
 * [bencode](https://github.com/rgrinberg/bencode),
 * [cohttp-async](https://github.com/mirage/ocaml-cohttp),
 * [sha](https://github.com/vinenthz/ocaml-sha),
-
-### Misc
-
-* [Wireshark](https://www.wireshark.org) packet sniffer, useful to debug protocol,
 * [archive.org](https://archive.org) (legal torrents database).
