@@ -1,5 +1,5 @@
 (library
  (name dht)
  (libraries common core async ppx_jane uri)
- (preprocess (pps ppx_jane))
+ (preprocess (pps ppx_jane -allow-unannotated-ignores))
  (wrapped false))

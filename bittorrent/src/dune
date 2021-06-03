@@ -2,5 +2,5 @@
  (name bittorrent)
  (libraries common dht core async ppx_jane uri cohttp
             cohttp-async sha)
- (preprocess (pps ppx_jane))
+ (preprocess (pps ppx_jane -allow-unannotated-ignores))
  (wrapped false))

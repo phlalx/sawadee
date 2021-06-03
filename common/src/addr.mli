@@ -1,5 +1,4 @@
 (** Async.Socket.Address.Inet plus some utility functions *)
-open Core
 open Async
 
 include (module type of Socket.Address.Inet)
