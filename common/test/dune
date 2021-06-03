@@ -1,0 +1,10 @@
+(executable
+ (name test_bitfield)
+ (libraries common core ppx_jane oUnit)
+ (preprocess (pps ppx_jane)))
+
+; (alias
+;  ((name    runtest)
+;   (deps    (test_bitfield.bc))
+;   (action  (run ${<}))))
+

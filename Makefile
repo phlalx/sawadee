@@ -1,13 +1,13 @@
 .PHONY: all unit clean
 
 all: 
-	jbuilder build @install
+	dune build @install
 
 unit:
-	jbuilder runtest
+	dune runtest
 
 clean:
-	jbuilder clean
+	dune clean
 
 README.html: README.md
 	pandoc -c style.css -f markdown_github < README.md > README.html

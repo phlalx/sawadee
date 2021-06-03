@@ -1,0 +1,5 @@
+(executable
+ (name main)
+ (public_name bt_tracker)
+ (libraries common core async ppx_jane cohttp cohttp-async)
+ (preprocess (pps ppx_jane)))

@@ -1,31 +1,30 @@
 opam-version: "1.2"
-name: "ocaml-torrent"
-vers: "0.1"
+name: "sawadee"
+version: "0.1"
 maintainer: "phlalx@users.noreply.github.com"
 authors: ["phlalx@users.noreply.github.com"]
-homepage: "https://github.com/phlalx/ocaml-torrent"
-bug-reports: "https://github.com/phlalx/ocaml-torrent/issues"
+homepage: "https://github.com/phlalx/sawadee"
+bug-reports: "https://github.com/phlalx/sawadee/issues"
 license: "GPLv3"
-dev-repo: "https://github.com/phlalx/ocaml-torrent.git"
+dev-repo: "https://github.com/phlalx/sawadee.git"
 build: [
-  ["jbuilder" "build" "-p" name "-j" jobs]
+  ["dune" "build" "-p" name "-j" jobs]
 ]
-depends: [                                                                       
-  "core" {>= "v0.9.1"} 
-  "core_extended" {>= "v0.9.0"} 
+depends: [
+  "dune" {>= "2.8.5"}
+  "core" {>= "v0.9.1"}
   "async" {>= "v0.9.0"}
   "ppx_jane" {>= "v0.9.0"}
   "uri" {>= "1.9.4"}
   "cohttp" {>= "0.99.0"}
   "cohttp-async" {>= "0.99.0"}
-  "sha" {>= "1.9"} 
+  "sha" {>= "1.9"}
   "hex" {>= "1.1.1"}
   "bencode" {>= "1.0.2"}
   "ounit" {>= "2.0.0"}
-  ]      
-available: [ ocaml-version >= "4.05.0" ]
+  ]
 descr: "
 Bittorrent client
 
-OCaml-torrent is a simple bittorrent/DHT client.
+Sawadee is a bittorrent/DHT client.
 "

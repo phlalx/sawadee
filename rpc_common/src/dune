@@ -1,0 +1,5 @@
+(library
+ (name rpc_common)
+ (libraries bittorrent common core async ppx_jane)
+ (preprocess (pps ppx_jane))
+ (wrapped false))

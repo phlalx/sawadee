@@ -1,0 +1,6 @@
+(library
+ (name bittorrent)
+ (libraries common dht core async ppx_jane uri cohttp
+            cohttp-async sha)
+ (preprocess (pps ppx_jane))
+ (wrapped false))
